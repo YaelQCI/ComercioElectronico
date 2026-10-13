@@ -7,6 +7,9 @@ export default defineNuxtConfig({
   vite: { plugins: [tailwindcss()] },
   runtimeConfig: {
     catalogAssetDirectory: '',
+    enviaToken: '',
+    enviaEnvironment: 'test',
+    enviaCarrier: '',
     stripeSecretKey: '',
     stripeWebhookSecret: '',
     public: {

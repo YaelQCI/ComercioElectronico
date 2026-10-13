@@ -33,6 +33,17 @@ function snapshot(cart, items) {
   return { version: cart?.version ?? 1, lines, saved, pieces: [...demand.values()].reduce((sum, q) => sum + q, 0), products: lines.length, totals, provisional: true }
 }
 export const emptyCart = () => snapshot(null, [])
+export async function shippingCart(tx, hash) {
+  if (!hash) throw new CartError(404, 'Carrito no disponible.')
+  const cart = await tx.cart.findFirst({ where: { guestTokenHash: hash, status: 'ACTIVE', userId: null } })
+  if (!cart) throw new CartError(404, 'Carrito no disponible.')
+  const items = await tx.cartItem.findMany({ where: { cartId: cart.id, state: 'ACTIVE' }, include: itemInclude, orderBy: { id: 'asc' } })
+  const current = snapshot(cart, items)
+  if (!current.lines.length || current.lines.some(l => !l.stockSufficient)) throw new CartError(409, 'Revisa productos y existencias antes de cotizar.')
+  const units = items.flatMap(item => (item.variant ? [{ variant: item.variant, quantity: 1 }] : item.bundle.bundleComponent_bundle).map(c => ({ variantId: c.variant.id, quantity: c.quantity * item.quantity, weightGrams: c.variant.weightGrams, lengthMm: c.variant.lengthMm, widthMm: c.variant.widthMm, heightMm: c.variant.heightMm })))
+  units.sort((a,b) => a.variantId.localeCompare(b.variantId))
+  return { cartId: cart.id, version: cart.version, baseCents: current.totals.goodsAfterCouponCents, lines: current.lines.map(l => ({ id: l.id, variantId: l.variantId, bundleId: l.bundleId, quantity: l.quantity, unitPriceCents: l.unitPriceCents, bundleVersion: l.bundle?.compositionVersion ?? null })), units, content: current.lines.map(l => l.name).join(', ').slice(0, 250) }
+}
 export function createCartRepository(db) {
   async function items(tx, id) { return tx.cartItem.findMany({ where: { cartId: id }, include: itemInclude, orderBy: [{ position: 'asc' }, { id: 'asc' }] }) }
   return {

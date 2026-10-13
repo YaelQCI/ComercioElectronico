@@ -4,6 +4,10 @@ import { getDatabase } from '../../utils/database.js'
 
 const cookie = 'fitness_cart'
 function tokenHash(token) { return /^[a-f0-9]{64}$/.test(token ?? '') ? createHash('sha256').update(token).digest('hex') : null }
+export const guestCartHash = event => tokenHash(getCookie(event, cookie))
+export function requireCartOrigin(event) {
+  if (!getHeader(event, 'origin') || getHeader(event, 'origin') !== getRequestURL(event).origin) throw createError({ statusCode: 403, statusMessage: 'Origen no autorizado.' })
+}
 export async function cartRequest(event, mutation = false) {
   setHeader(event, 'Cache-Control', 'no-store')
   let token = getCookie(event, cookie)

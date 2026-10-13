@@ -6,6 +6,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { importCatalog } from '../../server/features/catalog/import-catalog.js'
 import { createCartRepository } from '../../server/features/cart/cart-repository.js'
 import { createCatalogRepository } from '../../server/features/catalog/catalog-repository.js'
+import { createShippingQuotes } from '../../server/features/shipping/shipping-quotes.js'
 
 const url = process.env.TEST_DATABASE_URL
 if (!url || !new URL(url).pathname.startsWith('/fitness_migration_test')) throw new Error('Usar base aislada fitness_migration_test*.')
@@ -114,4 +115,34 @@ test('relacionados son relaciones explícitas y excluyen SKU activo y productos 
   assert.equal(result.length, 1); assert.deepEqual(result[0].variants.map(v => v.id), [targets[1].id])
   await db.product.update({ where: { id: targets[0].productId }, data: { publishedAt: null } })
   assert.equal((await catalog.recommendations([source.productId], 'CROSS_SELL')).length, 0)
+})
+test('cotizaciones persisten snapshot autoritativo, aíslan propietario y se invalidan al cambiar carrito', async () => {
+  const [variant] = await fixture(), owner = hash(), warehouse = await db.warehouse.findFirst()
+  await db.warehouse.update({ where: { id: warehouse.id }, data: { state: 'CX' } })
+  const packageType = await db.packageType.create({ data: { code: `FIXTURE-${randomUUID()}`, innerLengthMm: 300, innerWidthMm: 300, innerHeightMm: 300, outerLengthMm: 310, outerWidthMm: 310, outerHeightMm: 310, tareWeightGrams: 100, maxGrossWeightGrams: 3000 } })
+  try {
+    const original = await repository.add(owner, { variantId: variant.id, quantity: 1, version: 1 })
+    const destination = { name: 'Fixture', phone: '5555555555', street: 'Calle sintética 1', city: 'Ciudad sintética', state: 'CX', country: 'MX', postalCode: '01234' }
+    const calls = []
+    const provider = { quote: async input => { calls.push(input); return [{ carrierCode: 'fixture', serviceCode: 'ground', serviceName: 'Sintético', quotedAmountCents: '12550', currency: 'MXN', deliveryEstimate: 'Estimación sintética' }] } }
+    const shipping = createShippingQuotes(db, provider)
+    const result = await shipping.quote(owner, destination)
+    assert.equal(calls.length, 1); assert.equal(calls[0].package.grossWeightGrams >= 100, true)
+    const quote = result.quotes[0]
+    assert.equal(quote.chargedAmountCents, '12550')
+    await assert.rejects(shipping.select(hash(), quote.id, destination), /Carrito/)
+    const selected = await shipping.select(owner, quote.id, destination)
+    assert.equal(selected.id, quote.id); assert.equal((await shipping.selected(owner)).id, quote.id)
+    const saved = await db.shippingQuote.findUnique({ where: { id: quote.id } })
+    assert.equal(saved.destinationSnapshot.postalCode, '01234'); assert.ok(saved.packageSnapshot.placements.length)
+    await repository.edit(owner, { itemId: original.lines[0].id, quantity: 2, version: original.version })
+    assert.equal(await shipping.selected(owner), null)
+    assert.equal((await db.shippingQuote.findUnique({ where: { id: quote.id } })).status, 'INVALIDATED')
+    const changing = createShippingQuotes(db, { quote: async () => { await db.productVariant.update({ where: { id: variant.id }, data: { priceCents: 2000n } }); return provider.quote(calls[0]) } })
+    await assert.rejects(changing.quote(owner, destination), /cambiaron/)
+    assert.equal(await db.shippingQuote.count({ where: { cartId: saved.cartId } }), 1)
+  } finally {
+    await db.warehouse.update({ where: { id: warehouse.id }, data: { state: warehouse.state } })
+    await db.packageType.update({ where: { id: packageType.id }, data: { isActive: false } })
+  }
 })

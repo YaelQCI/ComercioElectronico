@@ -33,6 +33,14 @@ assert.match(savedHtml, /Tu carrito está vacío/); assert.match(savedHtml, /Gua
 const restore = await fetch(`${base}/api/cart/saved`, { method: 'POST', headers: { ...headers, Origin: base, 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: lineId, action: 'RESTORE', version: saved.version }) })
 assert.equal(restore.status, 200)
 const restored = await restore.json()
+const shipping = await fetch(`${base}/api/shipping/selected`, { headers })
+assert.equal(shipping.status, 200)
+assert.equal((await shipping.json()).selected, null)
+if (process.env.TEST_ENVIA_UNCONFIGURED === '1') {
+  const unconfigured = await fetch(`${base}/api/shipping/quotes`, { method: 'POST', headers: { ...headers, Origin: base, 'Content-Type': 'application/json' }, body: JSON.stringify({ destination: {} }) })
+  assert.equal(unconfigured.status, 503)
+  assert.match((await unconfigured.json()).statusMessage, /configurada/)
+}
 const remove = await fetch(`${base}/api/cart/items`, { method: 'DELETE', headers: { ...headers, Origin: base, 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: lineId, version: restored.version }) })
 assert.equal(remove.status, 200)
 assert.equal((await remove.json()).pieces, 0)
