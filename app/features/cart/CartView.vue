@@ -4,6 +4,7 @@ import { formatMXN } from '~~/shared/features/pricing/prices.js'
 import { observeCart } from './cart-observation.js'
 import ConfiguredRecommendations from '../catalog/ConfiguredRecommendations.vue'
 import ConfiguredBundles from '../catalog/ConfiguredBundles.vue'
+import ShippingProgress from '../shipping/ShippingProgress.vue'
 const { data, error, status, refresh, busy, edit, move } = await useCart()
 const drafts = ref({})
 const inputErrors = ref({})
@@ -31,6 +32,7 @@ function update(line) {
         <form class="mt-4 flex flex-wrap items-end gap-2" @submit.prevent="update(line)"><UiButton variant="secondary" :disabled="busy || line.quantity <= 1" :aria-label="`Restar una pieza de ${line.name}`" @click="edit(line.id, line.quantity - 1)">−</UiButton><UiField :id="`quantity-${line.id}`" v-model="drafts[line.id]" label="Cantidad" type="number" min="1" step="1" :max="Math.max(1, line.maxQuantity)" :disabled="busy" :error="inputErrors[line.id]" class="max-w-36" /><UiButton variant="secondary" :disabled="busy || line.quantity >= line.maxQuantity" :aria-label="`Agregar una pieza de ${line.name}`" @click="edit(line.id, line.quantity + 1)">+</UiButton><UiButton type="submit" variant="secondary" :disabled="busy">Actualizar</UiButton><UiButton variant="secondary" :disabled="busy" :aria-label="`Quitar ${line.name} del carrito`" @click="edit(line.id, 0, true)">Quitar</UiButton></form>
       </li></ul>
       <div class="mt-4 flex flex-wrap gap-2"><UiButton v-for="line in data.lines" :key="line.id" variant="secondary" :disabled="busy" @click="move(line.id, 'SAVE')">Guardar {{ line.name }} · {{ line.presentation }} para después</UiButton></div>
+      <ShippingProgress :base-cents="data.totals.goodsAfterCouponCents" />
       <p class="mt-6 font-mono font-semibold" role="status">Total provisional de productos: {{ formatMXN(data.totals.goodsMoneyCents) }}</p><p class="mt-2 text-ink-2">Envío pendiente de cotizar; puede aumentar el total. Cupones y puntos se calcularán cuando estén habilitados. Precio y stock se verifican al recuperar el carrito; lote y caducidad se asignarán al iniciar pago.</p><UiButton class="mt-6" disabled>Pago pendiente de habilitar</UiButton>
       <div class="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface p-4 lg:hidden" aria-label="Resumen del carrito móvil"><div><p class="font-mono font-semibold">Provisional {{ formatMXN(data.totals.goodsMoneyCents) }}</p><p class="text-body-s">{{ data.pieces }} piezas · Envío pendiente</p></div><UiButton disabled>Pago pendiente</UiButton></div>
     </template>
