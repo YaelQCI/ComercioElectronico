@@ -14,8 +14,9 @@ watch(() => data.value?.page, page => {
   const raw = route.query.pagina
   if (raw !== String(page)) navigateTo(pageLink(page), { replace: true })
 }, { immediate: true })
-function clearSearch() {
+function clearSearch(resetOrder = false) {
   const next = { ...route.query }; ['q', 'pagina', ...filterKeys].forEach(key => { delete next[key] })
+  if (resetOrder === true) delete next.orden
   navigateTo({ path: '/catalogo', query: next })
 }
 </script>
@@ -24,9 +25,10 @@ function clearSearch() {
     <CatalogFilters :options="data?.options" :pending="status === 'pending'" />
     <div class="min-w-0">
     <UiField id="catalog-order" v-model="order" label="Ordenar por" :options="catalogOrders" :disabled="status === 'pending'" class="mb-6 max-w-sm" />
-    <p v-if="status === 'pending'" role="status" class="text-ink-2">Cargando productos…</p>
+    <UiLoading v-if="status === 'pending'" label="Cargando productos…" />
     <div v-else-if="error" role="alert" class="rounded-sm border border-border bg-crit-soft p-6 text-crit">
-      <p>No pudimos cargar el catálogo. Intenta de nuevo.</p><UiButton class="mt-4" variant="secondary" @click="refresh()">Reintentar</UiButton>
+      <template v-if="error.statusCode === 400"><p>La búsqueda o los filtros de esta dirección no son válidos.</p><UiButton class="mt-4" variant="secondary" @click="clearSearch(true)">Limpiar búsqueda y filtros</UiButton></template>
+      <template v-else><p>No pudimos cargar el catálogo. Intenta de nuevo.</p><UiButton class="mt-4" variant="secondary" :disabled="status === 'pending'" @click="refresh()">Reintentar</UiButton></template>
     </div>
     <div v-else-if="!data?.products?.length" class="rounded-sm border border-line bg-surface p-6 text-ink-2" role="status"><p>{{ data?.catalogTotal === 0 ? 'Todavía no hay productos publicados.' : 'No encontramos productos con esta búsqueda y filtros.' }}</p><UiButton v-if="data?.catalogTotal" class="mt-4" variant="secondary" @click="clearSearch">Limpiar búsqueda y filtros</UiButton></div>
     <template v-else>

@@ -14,7 +14,7 @@ useHead({ title: 'The Fitness Stuff — Suplementos y accesorios' })
       </div>
     </section>
     <div class="mx-auto max-w-store px-4 py-12 md:px-8" :aria-busy="status === 'pending'">
-      <p v-if="status === 'pending'" role="status">Cargando selección y categorías…</p>
+      <UiLoading v-if="status === 'pending'" label="Cargando selección y categorías…" :cards="4" />
       <div v-else-if="error" role="alert" class="rounded-sm border border-border bg-crit-soft p-6 text-crit"><p>No pudimos cargar la selección de la tienda.</p><UiButton class="mt-4" variant="secondary" @click="refresh()">Reintentar</UiButton></div>
       <template v-else>
         <section aria-labelledby="featured-heading">

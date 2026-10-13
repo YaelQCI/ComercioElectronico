@@ -16,7 +16,7 @@ useHead(() => ({ title: `${product.value?.name ?? 'Producto'} — The Fitness St
 <template>
   <section class="mx-auto max-w-store px-4 py-8 md:px-8" :aria-busy="status === 'pending'">
     <UiBreadcrumbs :items="crumbs" />
-    <p v-if="status === 'pending'" role="status">Cargando producto…</p>
+    <UiLoading v-if="status === 'pending'" label="Cargando producto…" :cards="1" />
     <div v-else-if="error" role="alert"><h1 class="text-display-l font-bold">Producto no disponible</h1><p class="mt-4">No pudimos cargar el producto.</p><UiButton class="mt-4" @click="refresh()">Reintentar</UiButton></div>
     <template v-else-if="product">
       <div class="grid gap-8 md:grid-cols-2">
