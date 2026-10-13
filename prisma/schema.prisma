@@ -1,0 +1,11 @@
+generator client {
+  provider = "prisma-client"
+  output = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// El esquema integral y su primera migración se implementan en #33.
+// No introducir entidades comerciales temporales en esta base.

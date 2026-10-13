@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/* Entrada mínima; los tokens y temas completos pertenecen al issue #42. */
+@theme {
+  --color-brand: #293379;
+  --color-accent: #e5a300;
+  --color-canvas: #eff0f5;
+}
+
+body {
+  background: var(--color-canvas);
+  color: #1c2035;
+  font-family: Arial, sans-serif;
+}
