@@ -6,6 +6,7 @@ export function getDatabase() {
   if (!globalThis.__fitnessDatabase) {
     const adapter = new PrismaPg({
       connectionString: process.env.DATABASE_URL,
+      options: '-c timezone=UTC',
       max: 5,
       connectionTimeoutMillis: 3000,
       query_timeout: 3000,

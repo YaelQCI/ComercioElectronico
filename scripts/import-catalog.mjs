@@ -28,6 +28,6 @@ if (args[1] !== '--apply') {
   console.log(`Manifiesto y archivos válidos: ${manifest.products.length} productos. No se escribió en la base de datos.`)
 } else {
   if (!process.env.DATABASE_URL) throw new Error('Falta DATABASE_URL.')
-  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) })
+  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL, options: '-c timezone=UTC' }) })
   try { console.log(JSON.stringify(await importCatalog(db, manifest, { resolveAsset }))) } finally { await db.$disconnect() }
 }

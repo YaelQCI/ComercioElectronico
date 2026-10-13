@@ -6,6 +6,7 @@ try {
   if (!process.env.DATABASE_URL) throw new Error('Missing configuration')
   db = new PrismaClient({ adapter: new PrismaPg({
     connectionString: process.env.DATABASE_URL,
+    options: '-c timezone=UTC',
     connectionTimeoutMillis: 3000,
     query_timeout: 3000,
   }) })

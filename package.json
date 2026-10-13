@@ -9,7 +9,7 @@
     "test:pricing": "node --test tests/pricing/*.test.mjs",
     "catalog:import": "node scripts/import-catalog.mjs",
     "test:catalog": "node --test tests/catalog/*.test.mjs",
-    "test:database": "node --test tests/database/*.test.mjs",
+    "test:database": "node --test --test-concurrency=1 tests/database/*.test.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
     "dev": "nuxt dev",
     "build": "nuxt build",

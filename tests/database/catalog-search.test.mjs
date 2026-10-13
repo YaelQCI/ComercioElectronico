@@ -6,7 +6,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 import { createCatalogRepository } from '../../server/features/catalog/catalog-repository.js'
 const url = process.env.TEST_DATABASE_URL
 if (!url || !new URL(url).pathname.startsWith('/fitness_migration_test')) throw new Error('Usar base aislada fitness_migration_test*.')
-const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) })
+const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url, options: '-c timezone=UTC' }) })
 test.after(() => db.$disconnect())
 test('PostgreSQL encuentra nombre, SKU y categoría sin acentos; oculta borradores y no interpreta %', async () => {
   const token = randomUUID(), suffix = token.replaceAll('-', '')

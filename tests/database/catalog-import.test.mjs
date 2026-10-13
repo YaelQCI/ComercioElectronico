@@ -8,7 +8,7 @@ import { createCatalogRepository } from '../../server/features/catalog/catalog-r
 
 const url = process.env.TEST_DATABASE_URL
 if (!url || !new URL(url).pathname.startsWith('/fitness_migration_test')) throw new Error('Usar únicamente TEST_DATABASE_URL aislada fitness_migration_test*.')
-const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) })
+const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url, options: '-c timezone=UTC' }) })
 test.after(() => db.$disconnect())
 const resolveAsset = async () => ({ mimeType: 'image/webp', byteSize: '100', checksum: '0'.repeat(64) })
 async function input() {
@@ -37,14 +37,15 @@ test('conflicto de SKU al final aborta productos, taxonomía, medios y stock de 
   const next = await input()
   const conflicting = structuredClone(first.products[0]); conflicting.slug = `fixture-${randomUUID()}`
   next.products.push(conflicting)
-  const before = await db.product.count()
+  const where = { slug: { in: next.products.map(p => p.slug) } }
+  const before = await db.product.count({ where })
   await assert.rejects(importCatalog(db, next, { resolveAsset }))
-  assert.equal(await db.product.count(), before)
+  assert.equal(await db.product.count({ where }), before)
   assert.equal(await db.product.findUnique({ where: { slug: next.products[0].slug } }), null)
   assert.equal(await db.mediaAsset.findUnique({ where: { storageKey: next.products[0].images[0].path } }), null)
 })
 test('recurso faltante evita iniciar escrituras', async () => {
-  const data = await input(), before = await db.product.count()
+  const data = await input(), where = { slug: data.products[0].slug }, before = await db.product.count({ where })
   await assert.rejects(importCatalog(db, data, { resolveAsset: async () => { throw new Error('Archivo faltante') } }))
-  assert.equal(await db.product.count(), before)
+  assert.equal(await db.product.count({ where }), before)
 })

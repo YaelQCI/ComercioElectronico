@@ -61,7 +61,7 @@ const ledgers = new Set(['InventoryMovement', 'LoyaltyLedgerEntry', 'OrderStatus
 test('57 tablas del diccionario y lectura/escritura con Prisma', async () => {
   const result = await pool.query(`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name <> '_prisma_migrations'`)
   assert.equal(result.rows[0].n, 57)
-  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) })
+  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url, options: '-c timezone=UTC' }) })
   try {
     const slug = `integration-${randomUUID()}`
     const brand = await db.brand.create({ data: { name: 'Marca sintética de integración', slug } })
