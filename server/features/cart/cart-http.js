@@ -17,7 +17,10 @@ export async function cartRequest(event, mutation = false) {
   }
   try {
     const repository = createCartRepository(getDatabase())
-    return mutation ? await repository.add(tokenHash(token), await readBody(event)) : await repository.read(tokenHash(token))
+    if (!mutation) return await repository.read(tokenHash(token))
+    const input = await readBody(event)
+    if (mutation === 'edit' || mutation === 'remove') return await repository.edit(tokenHash(token), input, mutation === 'remove')
+    return await repository.add(tokenHash(token), input)
   } catch (error) {
     throw createError({ statusCode: error instanceof CartError ? error.status : 503, statusMessage: error instanceof CartError ? error.message : 'No pudimos recuperar el carrito. Intenta de nuevo.' })
   }

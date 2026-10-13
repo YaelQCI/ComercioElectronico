@@ -52,3 +52,16 @@ test('lectura revalida precio y publicación; demanda de combo y unidad se suma'
   const snapshot = await repository.read(owner)
   assert.ok(snapshot.lines.every(l => !l.valid && !l.stockSufficient))
 })
+test('editar y quitar revalidan propiedad, versión y stock; último producto produce vacío', async () => {
+  const [variant] = await fixture(), owner = hash()
+  const original = await repository.add(owner, { variantId: variant.id, quantity: 2, version: 1 })
+  const id = original.lines[0].id
+  await assert.rejects(repository.edit(hash(), { itemId: id, quantity: 3, version: 2 }), /Carrito/)
+  await assert.rejects(repository.edit(owner, { itemId: id, quantity: 13, version: 2 }), /stock/)
+  const edited = await repository.edit(owner, { itemId: id, quantity: 12, version: 2 })
+  assert.equal(edited.pieces, 12); assert.equal(edited.totals.goodsMoneyCents, '12000')
+  await assert.rejects(repository.edit(owner, { itemId: id, quantity: 1, version: 2 }), /cambió/)
+  const empty = await repository.edit(owner, { itemId: id, version: edited.version }, true)
+  assert.equal(empty.pieces, 0); assert.equal(empty.products, 0); assert.equal(empty.totals, null)
+  assert.equal((await repository.read(owner)).lines.length, 0)
+})

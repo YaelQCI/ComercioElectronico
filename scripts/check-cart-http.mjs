@@ -20,4 +20,11 @@ const duplicate = await fetch(`${base}/api/cart/items`, { method: 'POST', header
 assert.equal(duplicate.status, 409)
 const foreign = await fetch(`${base}/api/cart/items`, { method: 'POST', headers: { ...headers, Origin: 'https://example.invalid', 'Content-Type': 'application/json' }, body })
 assert.equal(foreign.status, 403)
+const lineId = cart.lines[0].id
+const edit = await fetch(`${base}/api/cart/items`, { method: 'PATCH', headers: { ...headers, Origin: base, 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: lineId, quantity: 1, version: cart.version }) })
+assert.equal(edit.status, 200)
+const edited = await edit.json()
+const remove = await fetch(`${base}/api/cart/items`, { method: 'DELETE', headers: { ...headers, Origin: base, 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: lineId, version: edited.version }) })
+assert.equal(remove.status, 200)
+assert.equal((await remove.json()).pieces, 0)
 console.log('HTTP: cookie protegida, persistencia, SSR, versión duplicada y origen rechazado aprobados.')

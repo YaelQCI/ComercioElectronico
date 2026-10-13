@@ -4,8 +4,8 @@ import { calculateCart } from '../../../shared/features/pricing/prices.js'
 export class CartError extends Error {
   constructor(status, message) { super(message); this.status = status }
 }
-const variantInclude = { product: { include: { brand: true } }, inventoryLot_variant: { include: { warehouse: true } } }
-const itemInclude = { variant: { include: variantInclude }, bundle: { include: { bundleComponent_bundle: { include: { variant: { include: variantInclude } } } } } }
+const variantInclude = { product: { include: { brand: true, productMedia_product: { include: { asset: true }, orderBy: { position: 'asc' } } } }, inventoryLot_variant: { include: { warehouse: true } } }
+const itemInclude = { variant: { include: variantInclude }, bundle: { include: { imageAsset: true, bundleComponent_bundle: { include: { variant: { include: variantInclude } } } } } }
 function purchasable(v, now) {
   return v && !v.deletedAt && !v.product.deletedAt && v.product.publishedAt && v.product.publishedAt <= now && (!v.product.brand || v.product.brand.isActive)
 }
@@ -16,10 +16,16 @@ function describe(item, now) {
   return { id: item.id, variantId: item.variantId, bundleId: item.bundleId, quantity: item.quantity, sku: item.variant?.sku ?? item.bundle?.code, name: item.variant?.product.name ?? item.bundle?.name, productId: item.variant?.productId ?? null, presentation: item.variant ? `${item.variant.presentationLabel} · ${item.variant.flavor}` : 'Combo', unitPriceCents: (item.variant?.priceCents ?? item.bundle.priceCents).toString(), availableQty, valid, components }
 }
 function snapshot(cart, items) {
-  const now = new Date(), described = items.map(item => describe(item, now))
+  const now = new Date(), described = items.map(item => {
+    const line = describe(item, now)
+    const media = item.variant?.product.productMedia_product.find(m => m.kind === 'FRONT' && m.variantId === item.variantId) ?? item.variant?.product.productMedia_product.find(m => m.kind === 'FRONT' && !m.variantId)
+    const path = media?.asset.storageKey ?? item.bundle?.imageAsset?.storageKey
+    line.image = /^\/images\/catalog\/[a-zA-Z0-9/_-]+\.(?:webp|png|jpg|jpeg)$/.test(path ?? '') ? { url: path, alt: media?.altText ?? item.bundle.name } : null
+    return line
+  })
   const demand = new Map()
   for (const line of described) for (const c of line.components) demand.set(c.variant.id, (demand.get(c.variant.id) ?? 0) + line.quantity * c.quantity)
-  const lines = described.map(({ components, ...line }) => ({ ...line, stockSufficient: line.valid && components.every(c => demand.get(c.variant.id) <= availableFromLots(c.variant.inventoryLot_variant, now)) }))
+  const lines = described.map(({ components, ...line }) => ({ ...line, maxQuantity: line.valid ? Math.max(0, Math.min(...components.map(c => Math.floor((availableFromLots(c.variant.inventoryLot_variant, now) - (demand.get(c.variant.id) - line.quantity * c.quantity)) / c.quantity)))) : 0, stockSufficient: line.valid && components.every(c => demand.get(c.variant.id) <= availableFromLots(c.variant.inventoryLot_variant, now)) }))
   const totals = lines.length ? calculateCart({ lines: lines.map(line => ({ id: line.id, unitPriceCents: line.unitPriceCents, quantity: line.quantity, couponEligible: false })), shippingQuotedCents: '0' }) : null
   return { version: cart?.version ?? 1, lines, pieces: lines.reduce((n, l) => n + l.quantity, 0), products: lines.length, totals, provisional: true }
 }
@@ -53,7 +59,26 @@ export function createCartRepository(db) {
         const nextItems = await items(tx, cart.id)
         const next = snapshot(current, nextItems)
         if (next.lines.some(line => !line.stockSufficient)) throw new CartError(409, 'No hay stock suficiente para la demanda conjunta del carrito.')
-        await tx.shippingQuote.updateMany({ where: { cartId: cart.id, status: 'AVAILABLE' }, data: { status: 'INVALIDATED' } })
+        await tx.shippingQuote.updateMany({ where: { cartId: cart.id, status: { in: ['AVAILABLE', 'ACCEPTED'] } }, data: { status: 'INVALIDATED' } })
+        const updated = await tx.cart.update({ where: { id: cart.id }, data: { version: { increment: 1 } } })
+        return snapshot(updated, nextItems)
+      })
+    },
+    async edit(hash, input, remove = false) {
+      if (!hash || !input || !Number.isInteger(input.version) || input.version < 1 || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.itemId ?? '') || (!remove && (!Number.isInteger(input.quantity) || input.quantity < 1 || input.quantity > 2147483647))) throw new CartError(400, 'Línea o cantidad inválida.')
+      return db.$transaction(async tx => {
+        const cart = await tx.cart.findFirst({ where: { guestTokenHash: hash, status: 'ACTIVE', userId: null } })
+        if (!cart) throw new CartError(404, 'Carrito no disponible.')
+        await tx.$queryRaw`SELECT id FROM "Cart" WHERE id = ${cart.id}::uuid FOR UPDATE`
+        const current = await tx.cart.findUnique({ where: { id: cart.id } })
+        if (current.status !== 'ACTIVE' || current.version !== input.version) throw new CartError(409, 'El carrito cambió. Actualízalo antes de continuar.')
+        const item = await tx.cartItem.findFirst({ where: { id: input.itemId, cartId: cart.id, state: 'ACTIVE' } })
+        if (!item) throw new CartError(404, 'Línea no disponible en tu carrito.')
+        if (remove) await tx.cartItem.delete({ where: { id: item.id } })
+        else await tx.cartItem.update({ where: { id: item.id }, data: { quantity: input.quantity } })
+        const nextItems = await items(tx, cart.id)
+        if (!remove && !snapshot(current, nextItems).lines.find(l => l.id === item.id)?.stockSufficient) throw new CartError(409, 'No hay stock suficiente para la demanda conjunta del carrito.')
+        await tx.shippingQuote.updateMany({ where: { cartId: cart.id, status: { in: ['AVAILABLE', 'ACCEPTED'] } }, data: { status: 'INVALIDATED' } })
         const updated = await tx.cart.update({ where: { id: cart.id }, data: { version: { increment: 1 } } })
         return snapshot(updated, nextItems)
       })
