@@ -1,2 +1,4 @@
-La primera migración de negocio está pendiente del esquema integral del issue #33.
-No aplicar una migración parcial o tablas comerciales temporales para comprobar conexión.
+La migración `20261013170000_initial_business_model` crea el modelo integral de #33.
+Incluye SQL revisado para CHECK, índices parciales, triggers y restricciones diferidas.
+No reescribirla después de aplicarla en un entorno compartido: crear una nueva migración.
+Procedimiento y evidencia en `docs/database-migrations.md`.

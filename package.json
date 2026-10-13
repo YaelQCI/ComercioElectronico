@@ -6,6 +6,7 @@
     "node": ">=24.12.0 <25"
   },
   "scripts": {
+    "test:database": "node --test tests/database/*.test.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
     "dev": "nuxt dev",
     "build": "nuxt build",

@@ -49,12 +49,12 @@ Este checkout solo contenía README.md: los HTML/CSS/images mencionados en los i
 
 ## Modelo y migraciones (#33)
 
-El esquema actual configura el cliente y la conexión, **sin tablas de negocio**. La primera migración integral y la semilla pertenecen a [#33](https://github.com/YaelQCI/ComercioElectronico/issues/33), cuyo modelo fue revisado para preparar esta base. No se introduce una tabla descartable para demostrar escritura. `db:seed` falla explícitamente hasta implementar esa semilla; generar cliente o arrancar la aplicación no migra automáticamente la base.
+El esquema y la primera migración integral de [#33](https://github.com/YaelQCI/ComercioElectronico/issues/33) están preparados: 57 tablas con restricciones PostgreSQL y pruebas de integración. Procedimiento y alcance en [docs/database-migrations.md](docs/database-migrations.md). `db:seed` falla explícitamente hasta disponer del catálogo/almacén/cajas documentados; generar cliente o arrancar la aplicación no migra automáticamente la base.
 
-Cuando el modelo integral esté implementado:
+Para aplicar la migración inicial en una base propia vacía: `npm run db:deploy`. Para cambios posteriores:
 
 1. Editar `prisma/schema.prisma` según #33 y ejecutar `npm run db:validate` y `npm run db:generate`.
-2. En una base de desarrollo aislada: `npm run db:migration:create -- --name initial_business_model`.
+2. En una base de desarrollo aislada: `npm run db:migration:create -- --name nombre_del_cambio`.
 3. Revisar el SQL y agregar CHECK, índices parciales y restricciones de pertenencia que Prisma no represente. Revisar antes de aplicar.
 4. Aplicar en desarrollo con `npm run db:migrate`; implementar y ejecutar `npm run db:seed` explícitamente (Prisma 7 no lo ejecuta automáticamente).
 5. Versionar esquema y SQL en el mismo cambio; validar lectura/escritura sobre una entidad real y escenarios de #33.
@@ -70,7 +70,7 @@ npm.cmd run start
 
 `npm ci` genera cliente y prepara Nuxt. `npm run start` sirve el build en puerto 3000. El volumen `postgres_data` conserva datos con `docker compose restart postgres` y `docker compose down`; `down -v` elimina los datos y no forma parte del procedimiento normal.
 
-La prueba pendiente de persistencia, una vez disponible #33, consiste en insertar una entidad del modelo, reiniciar PostgreSQL sin quitar el volumen y leer el mismo identificador desde API. No afirmar lectura/escritura comercial ni persistencia comprobada hasta ejecutarla.
+Las pruebas de #33 usan una base exclusiva y fixtures sintéticas: `TEST_DATABASE_URL` debe apuntar a `fitness_migration_test*`, luego ejecutar `npm run test:database`. La integración comercial desde API y la comprobación del volumen Docker siguen pendientes; la evidencia de la prueba aislada está en docs/database-migrations.md.
 
 ## Diagnóstico
 
@@ -79,11 +79,11 @@ La prueba pendiente de persistencia, una vez disponible #33, consiste en inserta
 - Credenciales rechazadas: revisar URL/usuario/base. Cambiar variables de Compose no modifica automáticamente usuarios de un volumen ya inicializado; ajustar el rol dentro de PostgreSQL, sin borrar el volumen.
 - Cliente ausente: ejecutar `npm run db:generate`.
 - Error de conexión: ejecutar `npm run db:check`, comprobar host/puerto y disponibilidad. El diagnóstico evita imprimir secretos.
-- Migraciones pendientes: completar y revisar #33 antes de usar comandos de aplicación; el directorio actual no contiene SQL comercial.
+- Migraciones pendientes: aplicar el SQL revisado con `npm run db:deploy` en base propia vacía; no modificar migraciones aplicadas ni usar resets para corregir un entorno compartido.
 
 ## Alcance pendiente para aceptar #43
 
-La migración integral, semilla y demostración de lectura/escritura persistente se coordinan con #33. #41 cubre AWS/Route 53. Esta base no integra cobros ni recursos cloud.
+La migración integral y lectura/escritura Prisma ya se validaron en PostgreSQL aislado. La semilla comercial, servicios autorizados y validación del entorno PostgreSQL 17.7/Docker siguen coordinándose con #33. #41 cubre AWS/Route 53. Esta base no integra cobros ni recursos cloud.
 
 Los tokens de #42 están documentados en [docs/design-tokens.md](docs/design-tokens.md). Abrir `/sistema-visual` para probar ambos temas y ejecutar `npm run check:contrast` para medir sus parejas de colores. La preferencia persistente se implementa en #22.
 

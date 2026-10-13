@@ -1,11 +1,1440 @@
+// Modelo físico del issue #33. SQL adicional en la migración inicial.
 generator client {
   provider = "prisma-client"
-  output = "../generated/prisma"
+  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-// El esquema integral y su primera migración se implementan en #33.
-// No introducir entidades comerciales temporales en esta base.
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+enum ActorType {
+  USER
+  ADMIN
+  SYSTEM
+}
+
+enum TokenPurpose {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+  GUEST_ORDER_ACCESS
+}
+
+enum FacetKind {
+  GOAL
+  DISCIPLINE
+}
+
+enum MediaKind {
+  FRONT
+  NUTRITION
+  GALLERY
+}
+
+enum ProductRelationKind {
+  RELATED
+  CROSS_SELL
+}
+
+enum ExpiryPrecision {
+  DAY
+  MONTH
+}
+
+enum InventoryMovementKind {
+  RECEIPT
+  RESERVE
+  RELEASE
+  SALE
+  ADJUSTMENT
+  WASTE
+  RETURN_SELLABLE
+  RETURN_NON_SELLABLE
+}
+
+enum CartStatus {
+  ACTIVE
+  MERGED
+  CONVERTED
+  ABANDONED
+}
+
+enum CartItemState {
+  ACTIVE
+  SAVED
+}
+
+enum QuoteStatus {
+  AVAILABLE
+  ACCEPTED
+  EXPIRED
+  INVALIDATED
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  PREPARING
+  SHIPPED
+  DELIVERED
+  CANCELED
+}
+
+enum MoneyStatus {
+  PENDING
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+  FAILED
+  NOT_REQUIRED
+  RECONCILING
+}
+
+enum OrderLineKind {
+  VARIANT
+  BUNDLE
+}
+
+enum ReservationState {
+  ACTIVE
+  RECONCILING
+  CONSUMED
+  RELEASED
+}
+
+enum CouponKind {
+  FIXED
+  PERCENTAGE
+}
+
+enum CouponScope {
+  CATALOG
+  PRODUCTS
+  CATEGORIES
+}
+
+enum ResourceState {
+  RESERVED
+  CONSUMED
+  RELEASED
+}
+
+enum LoyaltyEntryKind {
+  EARN
+  REDEEM
+  RESTORE
+  REVERSE
+  ADJUSTMENT
+}
+
+enum PaymentStatus {
+  PENDING
+  SESSION_CREATED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+  RECONCILING
+}
+
+enum ProviderEventStatus {
+  RECEIVED
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum RefundKind {
+  CANCELLATION
+  RETURN
+  PRICE_MATCH
+  COMPENSATION
+}
+
+enum RefundStatus {
+  REQUESTED
+  PROCESSING
+  SETTLED
+  FAILED
+  REQUIRES_REVIEW
+}
+
+enum RefundAllocationKind {
+  UNIT
+  SHIPPING
+}
+
+enum ReturnReason {
+  VOLUNTARY
+  DAMAGED_ON_RECEIPT
+  BROKEN_SEAL
+  WRONG_LOT
+}
+
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  RECEIVED
+  RESOLVED
+}
+
+enum ReturnCostPayer {
+  CUSTOMER
+  STORE
+}
+
+enum ReturnItemState {
+  REQUESTED
+  APPROVED
+  REJECTED
+  RECEIVED
+  RESOLVED
+}
+
+enum ProductCondition {
+  SEALED
+  OPENED
+  DAMAGED
+  EXPIRED
+  WRONG_LOT
+  UNVERIFIABLE
+}
+
+enum ReturnDisposition {
+  SELLABLE
+  NON_SELLABLE
+  QUARANTINE
+}
+
+enum PriceMatchStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  RESOLVED
+}
+
+enum ReviewModerationAction {
+  HIDE
+  RESTORE
+}
+
+enum RestockState {
+  ACTIVE
+  PROCESSING
+  NOTIFIED
+  CANCELED
+}
+
+enum OutboxKind {
+  EMAIL
+  CREATE_PAYMENT
+  REFUND
+  RECONCILE_PAYMENT
+  RESTOCK_NOTICE
+}
+
+enum OutboxState {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+model User {
+  id                                String                @id @default(uuid()) @db.Uuid
+  email                             String
+  emailNormalized                   String                @unique
+  passwordHash                      String
+  displayName                       String
+  phone                             String?
+  role                              UserRole              @default(CUSTOMER)
+  emailVerifiedAt                   DateTime?             @db.Timestamptz(3)
+  authVersion                       Int                   @default(0)
+  deletedAt                         DateTime?             @db.Timestamptz(3)
+  createdAt                         DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt                         DateTime              @updatedAt @db.Timestamptz(3)
+  authSession_user                  AuthSession[]         @relation("AuthSession_userId")
+  actionToken_user                  ActionToken[]         @relation("ActionToken_userId")
+  address_user                      Address[]             @relation("Address_userId")
+  mediaAsset_createdBy              MediaAsset[]          @relation("MediaAsset_createdById")
+  inventoryMovement_actor           InventoryMovement[]   @relation("InventoryMovement_actorId")
+  cart_user                         Cart[]                @relation("Cart_userId")
+  order_user                        Order[]               @relation("Order_userId")
+  orderStatusHistory_actor          OrderStatusHistory[]  @relation("OrderStatusHistory_actorId")
+  couponUsage_user                  CouponUsage[]         @relation("CouponUsage_userId")
+  loyaltyAccount_user               LoyaltyAccount?       @relation("LoyaltyAccount_userId")
+  loyaltyLedgerEntry_actor          LoyaltyLedgerEntry[]  @relation("LoyaltyLedgerEntry_actorId")
+  pointReservation_user             PointReservation[]    @relation("PointReservation_userId")
+  returnRequest_requestedByUser     ReturnRequest[]       @relation("ReturnRequest_requestedByUserId")
+  returnRequest_reviewedBy          ReturnRequest[]       @relation("ReturnRequest_reviewedById")
+  returnInspection_inspectedBy      ReturnInspection[]    @relation("ReturnInspection_inspectedById")
+  priceMatchRequest_requestedByUser PriceMatchRequest[]   @relation("PriceMatchRequest_requestedByUserId")
+  priceMatchRequest_reviewedBy      PriceMatchRequest[]   @relation("PriceMatchRequest_reviewedById")
+  review_user                       Review[]              @relation("Review_userId")
+  reviewModeration_admin            ReviewModeration[]    @relation("ReviewModeration_adminId")
+  restockSubscription_user          RestockSubscription[] @relation("RestockSubscription_userId")
+  auditEvent_actor                  AuditEvent[]          @relation("AuditEvent_actorId")
+  storeSettings_updatedBy           StoreSettings[]       @relation("StoreSettings_updatedById")
+  contentPage_updatedBy             ContentPage[]         @relation("ContentPage_updatedById")
+}
+
+model AuthSession {
+  id                        String              @id @default(uuid()) @db.Uuid
+  userId                    String              @db.Uuid
+  tokenFamilyId             String              @unique @db.Uuid
+  absoluteExpiresAt         DateTime            @db.Timestamptz(3)
+  lastUsedAt                DateTime            @default(now()) @db.Timestamptz(3)
+  revokedAt                 DateTime?           @db.Timestamptz(3)
+  revocationReason          String?
+  createdAt                 DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime            @updatedAt @db.Timestamptz(3)
+  user                      User                @relation("AuthSession_userId", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  refreshCredential_session RefreshCredential[] @relation("RefreshCredential_sessionId")
+
+  @@index([userId, revokedAt, absoluteExpiresAt])
+}
+
+model RefreshCredential {
+  id                           String             @id @default(uuid()) @db.Uuid
+  sessionId                    String             @db.Uuid
+  tokenHash                    String             @unique
+  expiresAt                    DateTime           @db.Timestamptz(3)
+  consumedAt                   DateTime?          @db.Timestamptz(3)
+  revokedAt                    DateTime?          @db.Timestamptz(3)
+  replacedById                 String?            @unique @db.Uuid
+  createdAt                    DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt                    DateTime           @updatedAt @db.Timestamptz(3)
+  session                      AuthSession        @relation("RefreshCredential_sessionId", fields: [sessionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  replacedBy                   RefreshCredential? @relation("RefreshCredential_replacedById", fields: [replacedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  refreshCredential_replacedBy RefreshCredential? @relation("RefreshCredential_replacedById")
+
+  @@index([sessionId])
+}
+
+model ActionToken {
+  id                           String              @id @default(uuid()) @db.Uuid
+  purpose                      TokenPurpose
+  tokenHash                    String              @unique
+  emailNormalized              String
+  userId                       String?             @db.Uuid
+  orderId                      String?             @db.Uuid
+  expiresAt                    DateTime            @db.Timestamptz(3)
+  consumedAt                   DateTime?           @db.Timestamptz(3)
+  attemptCount                 Int                 @default(0)
+  createdAt                    DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt                    DateTime            @updatedAt @db.Timestamptz(3)
+  user                         User?               @relation("ActionToken_userId", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  order                        Order?              @relation("ActionToken_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  returnRequest_guestProof     ReturnRequest[]     @relation("ReturnRequest_guestProofId")
+  priceMatchRequest_guestProof PriceMatchRequest[] @relation("PriceMatchRequest_guestProofId")
+
+  @@unique([id, orderId])
+  @@index([purpose, expiresAt, consumedAt])
+}
+
+model Address {
+  id                         String         @id @default(uuid()) @db.Uuid
+  userId                     String         @db.Uuid
+  label                      String?
+  recipientName              String
+  phone                      String
+  countryCode                String         @default("MX") @db.Char(2)
+  postalCode                 String         @db.VarChar(5)
+  state                      String
+  city                       String
+  district                   String
+  street                     String
+  exteriorNumber             String
+  interiorNumber             String?
+  references                 String?
+  isDefault                  Boolean        @default(false)
+  createdAt                  DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt                  DateTime       @updatedAt @db.Timestamptz(3)
+  user                       User           @relation("Address_userId", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  orderAddress_sourceAddress OrderAddress[] @relation("OrderAddress_sourceAddressId")
+
+  @@index([userId])
+}
+
+model Brand {
+  id            String    @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String    @unique
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+  product_brand Product[] @relation("Product_brandId")
+}
+
+model Category {
+  id                       String            @id @default(uuid()) @db.Uuid
+  parentId                 String?           @db.Uuid
+  name                     String
+  slug                     String            @unique
+  position                 Int               @default(0)
+  isActive                 Boolean           @default(true)
+  createdAt                DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime          @updatedAt @db.Timestamptz(3)
+  parent                   Category?         @relation("Category_parentId", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  category_parent          Category[]        @relation("Category_parentId")
+  productCategory_category ProductCategory[] @relation("ProductCategory_categoryId")
+  couponCategory_category  CouponCategory[]  @relation("CouponCategory_categoryId")
+
+  @@index([parentId, position])
+}
+
+model Product {
+  id                            String            @id @default(uuid()) @db.Uuid
+  brandId                       String?           @db.Uuid
+  name                          String
+  slug                          String            @unique
+  description                   String
+  usageInstructions             String?
+  ingredients                   String?
+  allergenInformation           String?
+  featuredPosition              Int?
+  publishedAt                   DateTime?         @db.Timestamptz(3)
+  deletedAt                     DateTime?         @db.Timestamptz(3)
+  createdAt                     DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt                     DateTime          @updatedAt @db.Timestamptz(3)
+  brand                         Brand?            @relation("Product_brandId", fields: [brandId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  productCategory_product       ProductCategory[] @relation("ProductCategory_productId")
+  productFacet_product          ProductFacet[]    @relation("ProductFacet_productId")
+  productVariant_product        ProductVariant[]  @relation("ProductVariant_productId")
+  productMedia_product          ProductMedia[]    @relation("ProductMedia_productId")
+  productRelation_sourceProduct ProductRelation[] @relation("ProductRelation_sourceProductId")
+  productRelation_targetProduct ProductRelation[] @relation("ProductRelation_targetProductId")
+  couponProduct_product         CouponProduct[]   @relation("CouponProduct_productId")
+  review_product                Review[]          @relation("Review_productId")
+
+  @@index([brandId])
+  @@index([deletedAt, publishedAt])
+}
+
+model ProductCategory {
+  productId  String   @db.Uuid
+  categoryId String   @db.Uuid
+  isPrimary  Boolean  @default(false)
+  product    Product  @relation("ProductCategory_productId", fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  category   Category @relation("ProductCategory_categoryId", fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
+}
+
+model Facet {
+  id                 String         @id @default(uuid()) @db.Uuid
+  kind               FacetKind
+  name               String
+  slug               String
+  position           Int            @default(0)
+  createdAt          DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @db.Timestamptz(3)
+  productFacet_facet ProductFacet[] @relation("ProductFacet_facetId")
+
+  @@unique([kind, slug])
+}
+
+model ProductFacet {
+  productId String  @db.Uuid
+  facetId   String  @db.Uuid
+  product   Product @relation("ProductFacet_productId", fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  facet     Facet   @relation("ProductFacet_facetId", fields: [facetId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([productId, facetId])
+  @@index([facetId])
+}
+
+model ProductVariant {
+  id                          String                @id @default(uuid()) @db.Uuid
+  productId                   String                @db.Uuid
+  sku                         String                @unique
+  flavor                      String
+  flavorNormalized            String
+  presentationLabel           String
+  presentationNormalized      String
+  contentAmount               Decimal               @db.Decimal(14, 4)
+  contentUnit                 String
+  servings                    Decimal?              @db.Decimal(14, 4)
+  servingAmount               Decimal?              @db.Decimal(14, 4)
+  servingUnit                 String?
+  nutritionData               Json?
+  ingredientsOverride         String?
+  priceCents                  BigInt
+  compareAtPriceCents         BigInt?
+  priceVersion                Int                   @default(1)
+  weightGrams                 Int
+  lengthMm                    Int
+  widthMm                     Int
+  heightMm                    Int
+  deletedAt                   DateTime?             @db.Timestamptz(3)
+  createdAt                   DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime              @updatedAt @db.Timestamptz(3)
+  product                     Product               @relation("ProductVariant_productId", fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  productMedia_variant        ProductMedia[]        @relation("ProductMedia_variantId")
+  bundleComponent_variant     BundleComponent[]     @relation("BundleComponent_variantId")
+  inventoryLot_variant        InventoryLot[]        @relation("InventoryLot_variantId")
+  cartItem_variant            CartItem[]            @relation("CartItem_variantId")
+  orderLine_variant           OrderLine[]           @relation("OrderLine_variantId")
+  orderComponent_variant      OrderComponent[]      @relation("OrderComponent_variantId")
+  orderUnit_variant           OrderUnit[]           @relation("OrderUnit_variantId")
+  restockSubscription_variant RestockSubscription[] @relation("RestockSubscription_variantId")
+
+  @@unique([productId, flavorNormalized, presentationNormalized])
+  @@unique([id, productId])
+  @@index([productId, priceCents])
+}
+
+model MediaAsset {
+  id                            String          @id @default(uuid()) @db.Uuid
+  storageKey                    String          @unique
+  mimeType                      String
+  byteSize                      BigInt
+  checksum                      String
+  originalName                  String?
+  createdById                   String?         @db.Uuid
+  createdAt                     DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt                     DateTime        @updatedAt @db.Timestamptz(3)
+  createdBy                     User?           @relation("MediaAsset_createdById", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  productMedia_asset            ProductMedia[]  @relation("ProductMedia_assetId")
+  bundle_imageAsset             Bundle[]        @relation("Bundle_imageAssetId")
+  inventoryLot_certificateAsset InventoryLot[]  @relation("InventoryLot_certificateAssetId")
+  claimEvidence_asset           ClaimEvidence[] @relation("ClaimEvidence_assetId")
+}
+
+model ProductMedia {
+  id        String          @id @default(uuid()) @db.Uuid
+  productId String          @db.Uuid
+  variantId String?         @db.Uuid
+  assetId   String          @db.Uuid
+  kind      MediaKind
+  altText   String
+  position  Int             @default(0)
+  createdAt DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime        @updatedAt @db.Timestamptz(3)
+  product   Product         @relation("ProductMedia_productId", fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  variant   ProductVariant? @relation("ProductMedia_variantId", fields: [variantId, productId], references: [id, productId], onDelete: Restrict, onUpdate: NoAction)
+  asset     MediaAsset      @relation("ProductMedia_assetId", fields: [assetId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([productId, position])
+  @@index([variantId])
+}
+
+model ProductRelation {
+  sourceProductId String              @db.Uuid
+  targetProductId String              @db.Uuid
+  kind            ProductRelationKind
+  position        Int                 @default(0)
+  sourceProduct   Product             @relation("ProductRelation_sourceProductId", fields: [sourceProductId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  targetProduct   Product             @relation("ProductRelation_targetProductId", fields: [targetProductId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([sourceProductId, targetProductId, kind])
+  @@index([targetProductId])
+}
+
+model Bundle {
+  id                     String            @id @default(uuid()) @db.Uuid
+  code                   String            @unique
+  slug                   String            @unique
+  name                   String
+  description            String?
+  priceCents             BigInt
+  compositionVersion     Int               @default(1)
+  imageAssetId           String?           @db.Uuid
+  featuredPosition       Int?
+  deletedAt              DateTime?         @db.Timestamptz(3)
+  createdAt              DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime          @updatedAt @db.Timestamptz(3)
+  imageAsset             MediaAsset?       @relation("Bundle_imageAssetId", fields: [imageAssetId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  bundleComponent_bundle BundleComponent[] @relation("BundleComponent_bundleId")
+  cartItem_bundle        CartItem[]        @relation("CartItem_bundleId")
+  orderLine_bundle       OrderLine[]       @relation("OrderLine_bundleId")
+}
+
+model BundleComponent {
+  bundleId  String         @db.Uuid
+  variantId String         @db.Uuid
+  quantity  Int
+  bundle    Bundle         @relation("BundleComponent_bundleId", fields: [bundleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  variant   ProductVariant @relation("BundleComponent_variantId", fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([bundleId, variantId])
+  @@index([variantId])
+}
+
+model Warehouse {
+  id                     String         @id @default(uuid()) @db.Uuid
+  singletonKey           Int            @unique @default(1)
+  name                   String
+  recipientName          String
+  phone                  String
+  countryCode            String         @default("MX") @db.Char(2)
+  postalCode             String         @db.VarChar(5)
+  state                  String
+  city                   String
+  district               String
+  street                 String
+  exteriorNumber         String
+  interiorNumber         String?
+  references             String?
+  contactName            String
+  timezone               String         @default("America/Mexico_City")
+  configurationVersion   Int            @default(1)
+  createdAt              DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime       @updatedAt @db.Timestamptz(3)
+  inventoryLot_warehouse InventoryLot[] @relation("InventoryLot_warehouseId")
+  orderPackage_warehouse OrderPackage[] @relation("OrderPackage_warehouseId")
+}
+
+model PackageType {
+  id                       String         @id @default(uuid()) @db.Uuid
+  code                     String         @unique
+  innerLengthMm            Int
+  innerWidthMm             Int
+  innerHeightMm            Int
+  outerLengthMm            Int
+  outerWidthMm             Int
+  outerHeightMm            Int
+  tareWeightGrams          Int
+  maxGrossWeightGrams      Int?
+  isActive                 Boolean        @default(true)
+  version                  Int            @default(1)
+  createdAt                DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime       @updatedAt @db.Timestamptz(3)
+  orderPackage_packageType OrderPackage[] @relation("OrderPackage_packageTypeId")
+}
+
+model InventoryLot {
+  id                    String              @id @default(uuid()) @db.Uuid
+  variantId             String              @db.Uuid
+  warehouseId           String              @db.Uuid
+  lotCode               String
+  expiresOn             DateTime?           @db.Date
+  expiryPrecision       ExpiryPrecision?
+  importedOn            DateTime?           @db.Date
+  customsEntry          String?
+  origin                String?
+  certificateAssetId    String?             @db.Uuid
+  onHandQty             Int                 @default(0)
+  reservedQty           Int                 @default(0)
+  nonSellableQty        Int                 @default(0)
+  isBlocked             Boolean             @default(false)
+  version               Int                 @default(1)
+  createdAt             DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime            @updatedAt @db.Timestamptz(3)
+  variant               ProductVariant      @relation("InventoryLot_variantId", fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  warehouse             Warehouse           @relation("InventoryLot_warehouseId", fields: [warehouseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  certificateAsset      MediaAsset?         @relation("InventoryLot_certificateAssetId", fields: [certificateAssetId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  inventoryMovement_lot InventoryMovement[] @relation("InventoryMovement_lotId")
+  orderUnit_lot         OrderUnit[]         @relation("OrderUnit_lotId")
+  reservationStock_lot  ReservationStock[]  @relation("ReservationStock_lotId")
+
+  @@unique([variantId, warehouseId, lotCode])
+  @@unique([id, variantId])
+  @@index([variantId, warehouseId, isBlocked, expiresOn, id])
+}
+
+model InventoryMovement {
+  id                 String                @id @default(uuid()) @db.Uuid
+  lotId              String                @db.Uuid
+  kind               InventoryMovementKind
+  onHandDelta        Int                   @default(0)
+  reservedDelta      Int                   @default(0)
+  nonSellableDelta   Int                   @default(0)
+  reason             String
+  actorId            String?               @db.Uuid
+  actorType          ActorType
+  reservationStockId String?               @db.Uuid
+  orderUnitId        String?               @db.Uuid
+  returnInspectionId String?               @db.Uuid
+  idempotencyKey     String                @unique
+  createdAt          DateTime              @default(now()) @db.Timestamptz(3)
+  lot                InventoryLot          @relation("InventoryMovement_lotId", fields: [lotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  actor              User?                 @relation("InventoryMovement_actorId", fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reservationStock   ReservationStock?     @relation("InventoryMovement_reservationStockId", fields: [reservationStockId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  orderUnit          OrderUnit?            @relation("InventoryMovement_orderUnitId", fields: [orderUnitId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  returnInspection   ReturnInspection?     @relation("InventoryMovement_returnInspectionId", fields: [returnInspectionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([lotId, createdAt, id])
+}
+
+model Cart {
+  id                 String          @id @default(uuid()) @db.Uuid
+  userId             String?         @db.Uuid
+  guestTokenHash     String?         @unique
+  status             CartStatus      @default(ACTIVE)
+  version            Int             @default(1)
+  selectedCouponId   String?         @db.Uuid
+  createdAt          DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime        @updatedAt @db.Timestamptz(3)
+  user               User?           @relation("Cart_userId", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  selectedCoupon     Coupon?         @relation("Cart_selectedCouponId", fields: [selectedCouponId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cartItem_cart      CartItem[]      @relation("CartItem_cartId")
+  shippingQuote_cart ShippingQuote[] @relation("ShippingQuote_cartId")
+  order_sourceCart   Order[]         @relation("Order_sourceCartId")
+
+  @@index([userId, status])
+}
+
+model CartItem {
+  id        String          @id @default(uuid()) @db.Uuid
+  cartId    String          @db.Uuid
+  variantId String?         @db.Uuid
+  bundleId  String?         @db.Uuid
+  quantity  Int
+  state     CartItemState   @default(ACTIVE)
+  position  Int             @default(0)
+  createdAt DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime        @updatedAt @db.Timestamptz(3)
+  cart      Cart            @relation("CartItem_cartId", fields: [cartId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  variant   ProductVariant? @relation("CartItem_variantId", fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  bundle    Bundle?         @relation("CartItem_bundleId", fields: [bundleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([cartId, state, position])
+}
+
+model ShippingQuote {
+  id                           String           @id @default(uuid()) @db.Uuid
+  cartId                       String?          @db.Uuid
+  orderId                      String?          @db.Uuid
+  requestFingerprint           String
+  provider                     String           @default("ENVIA")
+  providerQuoteId              String?
+  carrierCode                  String
+  serviceCode                  String
+  serviceName                  String
+  quotedAmountCents            BigInt
+  currency                     String           @default("MXN") @db.Char(3)
+  estimatedDeliveryFrom        DateTime?        @db.Timestamptz(3)
+  estimatedDeliveryTo          DateTime?        @db.Timestamptz(3)
+  quotedAt                     DateTime         @default(now()) @db.Timestamptz(3)
+  expiresAt                    DateTime?        @db.Timestamptz(3)
+  originSnapshot               Json
+  destinationSnapshot          Json
+  packageSnapshot              Json
+  sanitizedResponse            Json
+  status                       QuoteStatus      @default(AVAILABLE)
+  createdAt                    DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt                    DateTime         @updatedAt @db.Timestamptz(3)
+  cart                         Cart?            @relation("ShippingQuote_cartId", fields: [cartId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  order                        Order?           @relation("ShippingQuote_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  orderPackage_quote           OrderPackage[]   @relation("OrderPackage_quoteId")
+  reservationSet_acceptedQuote ReservationSet[] @relation("ReservationSet_acceptedQuoteId")
+
+  @@unique([provider, providerQuoteId])
+  @@index([cartId, requestFingerprint])
+  @@index([orderId])
+}
+
+model Order {
+  id                       String               @id @default(uuid()) @db.Uuid
+  orderNumber              String               @unique
+  userId                   String?              @db.Uuid
+  buyerEmail               String
+  buyerEmailNormalized     String
+  buyerName                String
+  linkedAt                 DateTime?            @db.Timestamptz(3)
+  sourceCartId             String?              @db.Uuid
+  status                   OrderStatus          @default(PENDING_PAYMENT)
+  moneyStatus              MoneyStatus          @default(PENDING)
+  currency                 String               @default("MXN") @db.Char(3)
+  goodsBeforeCouponCents   BigInt
+  couponDiscountCents      BigInt
+  goodsAfterCouponCents    BigInt
+  pointsAppliedTenths      BigInt
+  goodsMoneyCents          BigInt
+  shippingQuotedCents      BigInt
+  shippingChargedCents     BigInt
+  shippingSubsidyCents     BigInt
+  totalMoneyCents          BigInt
+  couponId                 String?              @db.Uuid
+  couponSnapshot           Json?
+  policySnapshot           Json
+  pricingVersion           Int                  @default(1)
+  confirmedAt              DateTime?            @db.Timestamptz(3)
+  shippedAt                DateTime?            @db.Timestamptz(3)
+  deliveredAt              DateTime?            @db.Timestamptz(3)
+  canceledAt               DateTime?            @db.Timestamptz(3)
+  createdAt                DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime             @updatedAt @db.Timestamptz(3)
+  actionToken_order        ActionToken[]        @relation("ActionToken_orderId")
+  shippingQuote_order      ShippingQuote[]      @relation("ShippingQuote_orderId")
+  user                     User?                @relation("Order_userId", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceCart               Cart?                @relation("Order_sourceCartId", fields: [sourceCartId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  coupon                   Coupon?              @relation("Order_couponId", fields: [couponId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  orderAddress_order       OrderAddress?        @relation("OrderAddress_orderId")
+  orderPackage_order       OrderPackage?        @relation("OrderPackage_orderId")
+  orderLine_order          OrderLine[]          @relation("OrderLine_orderId")
+  orderComponent_order     OrderComponent[]     @relation("OrderComponent_orderId")
+  orderUnit_order          OrderUnit[]          @relation("OrderUnit_orderId")
+  reservationSet_order     ReservationSet[]     @relation("ReservationSet_orderId")
+  orderStatusHistory_order OrderStatusHistory[] @relation("OrderStatusHistory_orderId")
+  couponUsage_order        CouponUsage[]        @relation("CouponUsage_orderId")
+  loyaltyLedgerEntry_order LoyaltyLedgerEntry[] @relation("LoyaltyLedgerEntry_orderId")
+  pointReservation_order   PointReservation[]   @relation("PointReservation_orderId")
+  paymentAttempt_order     PaymentAttempt[]     @relation("PaymentAttempt_orderId")
+  refund_order             Refund[]             @relation("Refund_orderId")
+  refundAllocation_order   RefundAllocation[]   @relation("RefundAllocation_orderId")
+  returnRequest_order      ReturnRequest[]      @relation("ReturnRequest_orderId")
+  returnItem_order         ReturnItem[]         @relation("ReturnItem_orderId")
+  priceMatchRequest_order  PriceMatchRequest[]  @relation("PriceMatchRequest_orderId")
+  priceMatchItem_order     PriceMatchItem[]     @relation("PriceMatchItem_orderId")
+
+  @@unique([id, userId])
+  @@index([userId, createdAt, id])
+  @@index([buyerEmailNormalized, userId])
+  @@index([status, createdAt])
+}
+
+model OrderAddress {
+  id              String   @id @default(uuid()) @db.Uuid
+  orderId         String   @unique @db.Uuid
+  sourceAddressId String?  @db.Uuid
+  recipientName   String
+  phone           String
+  countryCode     String   @default("MX") @db.Char(2)
+  postalCode      String   @db.VarChar(5)
+  state           String
+  city            String
+  district        String
+  street          String
+  exteriorNumber  String
+  interiorNumber  String?
+  references      String?
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+  order           Order    @relation("OrderAddress_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceAddress   Address? @relation("OrderAddress_sourceAddressId", fields: [sourceAddressId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+}
+
+model OrderPackage {
+  id                       String        @id @default(uuid()) @db.Uuid
+  orderId                  String        @unique @db.Uuid
+  packageTypeId            String?       @db.Uuid
+  quoteId                  String        @db.Uuid
+  warehouseId              String        @db.Uuid
+  originSnapshot           Json
+  packageCodeSnapshot      String
+  weightGrams              Int
+  lengthMm                 Int
+  widthMm                  Int
+  heightMm                 Int
+  packingPlanSnapshot      Json
+  carrierSnapshot          Json
+  serviceSnapshot          Json
+  deliveryEstimateSnapshot Json
+  acceptedAt               DateTime      @db.Timestamptz(3)
+  createdAt                DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime      @updatedAt @db.Timestamptz(3)
+  order                    Order         @relation("OrderPackage_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  packageType              PackageType?  @relation("OrderPackage_packageTypeId", fields: [packageTypeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  quote                    ShippingQuote @relation("OrderPackage_quoteId", fields: [quoteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  warehouse                Warehouse     @relation("OrderPackage_warehouseId", fields: [warehouseId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+}
+
+model OrderLine {
+  id                         String           @id @default(uuid()) @db.Uuid
+  orderId                    String           @db.Uuid
+  position                   Int
+  variantId                  String?          @db.Uuid
+  bundleId                   String?          @db.Uuid
+  kind                       OrderLineKind
+  quantity                   Int
+  nameSnapshot               String
+  skuOrCodeSnapshot          String
+  unitPriceCents             BigInt
+  lineBeforeCouponCents      BigInt
+  couponDiscountCents        BigInt
+  lineAfterCouponCents       BigInt
+  compositionVersionSnapshot Int?
+  createdAt                  DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt                  DateTime         @updatedAt @db.Timestamptz(3)
+  order                      Order            @relation("OrderLine_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  variant                    ProductVariant?  @relation("OrderLine_variantId", fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  bundle                     Bundle?          @relation("OrderLine_bundleId", fields: [bundleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  orderComponent_orderLine   OrderComponent[] @relation("OrderComponent_orderLineId")
+
+  @@unique([id, orderId])
+  @@unique([orderId, position])
+}
+
+model OrderComponent {
+  id                       String         @id @default(uuid()) @db.Uuid
+  orderId                  String         @db.Uuid
+  orderLineId              String         @db.Uuid
+  variantId                String         @db.Uuid
+  quantityPerLineUnit      Int
+  totalQuantity            Int
+  productSnapshot          Json
+  variantSnapshot          Json
+  referenceUnitPriceCents  BigInt
+  allocatedBaseCents       BigInt
+  allocatedCouponCents     BigInt
+  allocatedNetCents        BigInt
+  createdAt                DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt                DateTime       @updatedAt @db.Timestamptz(3)
+  variantUnits             OrderUnit[]    @relation("OrderUnit_componentVariant")
+  order                    Order          @relation("OrderComponent_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  orderLine                OrderLine      @relation("OrderComponent_orderLineId", fields: [orderLineId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  variant                  ProductVariant @relation("OrderComponent_variantId", fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  orderUnit_orderComponent OrderUnit[]    @relation("OrderUnit_orderComponentId")
+
+  @@unique([orderLineId, variantId])
+  @@unique([id, orderId])
+  @@unique([id, variantId])
+}
+
+model OrderUnit {
+  id                          String              @id @default(uuid()) @db.Uuid
+  orderId                     String              @db.Uuid
+  orderComponentId            String              @db.Uuid
+  variantId                   String              @db.Uuid
+  unitOrdinal                 Int
+  lotId                       String?             @db.Uuid
+  lotSnapshot                 Json?
+  baseCents                   BigInt
+  couponCents                 BigInt
+  netGoodsCents               BigInt
+  pointsTenths                BigInt
+  moneyCents                  BigInt
+  returnedAt                  DateTime?           @db.Timestamptz(3)
+  createdAt                   DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime            @updatedAt @db.Timestamptz(3)
+  componentVariant            OrderComponent      @relation("OrderUnit_componentVariant", fields: [orderComponentId, variantId], references: [id, variantId], onDelete: Restrict, onUpdate: NoAction)
+  inventoryMovement_orderUnit InventoryMovement[] @relation("InventoryMovement_orderUnitId")
+  order                       Order               @relation("OrderUnit_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  orderComponent              OrderComponent      @relation("OrderUnit_orderComponentId", fields: [orderComponentId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  variant                     ProductVariant      @relation("OrderUnit_variantId", fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lot                         InventoryLot?       @relation("OrderUnit_lotId", fields: [lotId, variantId], references: [id, variantId], onDelete: Restrict, onUpdate: NoAction)
+  refundAllocation_orderUnit  RefundAllocation[]  @relation("RefundAllocation_orderUnitId")
+  returnItem_orderUnit        ReturnItem[]        @relation("ReturnItem_orderUnitId")
+  priceMatchItem_orderUnit    PriceMatchItem[]    @relation("PriceMatchItem_orderUnitId")
+  review_verifiedOrderUnit    Review[]            @relation("Review_verifiedOrderUnitId")
+
+  @@unique([orderComponentId, unitOrdinal])
+  @@unique([id, orderId])
+  @@index([lotId])
+}
+
+model ReservationSet {
+  id                              String             @id @default(uuid()) @db.Uuid
+  orderId                         String             @db.Uuid
+  attemptNumber                   Int
+  state                           ReservationState   @default(ACTIVE)
+  expiresAt                       DateTime           @db.Timestamptz(3)
+  resolvedAt                      DateTime?          @db.Timestamptz(3)
+  acceptedQuoteId                 String             @db.Uuid
+  checkoutFingerprint             String
+  acceptedCheckoutSnapshot        Json
+  idempotencyKey                  String             @unique
+  resolutionReason                String?
+  createdAt                       DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt                       DateTime           @updatedAt @db.Timestamptz(3)
+  order                           Order              @relation("ReservationSet_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  acceptedQuote                   ShippingQuote      @relation("ReservationSet_acceptedQuoteId", fields: [acceptedQuoteId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reservationStock_reservationSet ReservationStock[] @relation("ReservationStock_reservationSetId")
+  couponUsage_reservationSet      CouponUsage[]      @relation("CouponUsage_reservationSetId")
+  pointReservation_reservationSet PointReservation[] @relation("PointReservation_reservationSetId")
+  paymentAttempt_reservationSet   PaymentAttempt[]   @relation("PaymentAttempt_reservationSetId")
+
+  @@unique([orderId, attemptNumber])
+  @@unique([id, orderId])
+  @@index([state, expiresAt])
+}
+
+model ReservationStock {
+  id                                 String              @id @default(uuid()) @db.Uuid
+  reservationSetId                   String              @db.Uuid
+  lotId                              String              @db.Uuid
+  quantity                           Int
+  createdAt                          DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt                          DateTime            @updatedAt @db.Timestamptz(3)
+  inventoryMovement_reservationStock InventoryMovement[] @relation("InventoryMovement_reservationStockId")
+  reservationSet                     ReservationSet      @relation("ReservationStock_reservationSetId", fields: [reservationSetId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  lot                                InventoryLot        @relation("ReservationStock_lotId", fields: [lotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([reservationSetId, lotId])
+  @@index([lotId, reservationSetId])
+}
+
+model OrderStatusHistory {
+  id         String       @id @default(uuid()) @db.Uuid
+  orderId    String       @db.Uuid
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  actorId    String?      @db.Uuid
+  actorType  ActorType
+  reason     String?
+  eventKey   String       @unique
+  createdAt  DateTime     @default(now()) @db.Timestamptz(3)
+  order      Order        @relation("OrderStatusHistory_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  actor      User?        @relation("OrderStatusHistory_actorId", fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([orderId, createdAt])
+}
+
+model Coupon {
+  id                    String           @id @default(uuid()) @db.Uuid
+  code                  String
+  codeNormalized        String           @unique
+  kind                  CouponKind
+  fixedAmountCents      BigInt?
+  percentageBasisPoints Int?
+  startsAt              DateTime?        @db.Timestamptz(3)
+  endsAt                DateTime?        @db.Timestamptz(3)
+  minimumEligibleCents  BigInt?
+  maxUses               Int?
+  maxUsesPerCustomer    Int?
+  allowOffers           Boolean          @default(false)
+  allowBundles          Boolean          @default(false)
+  scope                 CouponScope      @default(CATALOG)
+  isActive              Boolean          @default(true)
+  version               Int              @default(1)
+  createdAt             DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime         @updatedAt @db.Timestamptz(3)
+  cart_selectedCoupon   Cart[]           @relation("Cart_selectedCouponId")
+  order_coupon          Order[]          @relation("Order_couponId")
+  couponProduct_coupon  CouponProduct[]  @relation("CouponProduct_couponId")
+  couponCategory_coupon CouponCategory[] @relation("CouponCategory_couponId")
+  couponUsage_coupon    CouponUsage[]    @relation("CouponUsage_couponId")
+}
+
+model CouponProduct {
+  couponId  String  @db.Uuid
+  productId String  @db.Uuid
+  coupon    Coupon  @relation("CouponProduct_couponId", fields: [couponId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  product   Product @relation("CouponProduct_productId", fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([couponId, productId])
+  @@index([productId])
+}
+
+model CouponCategory {
+  couponId   String   @db.Uuid
+  categoryId String   @db.Uuid
+  coupon     Coupon   @relation("CouponCategory_couponId", fields: [couponId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  category   Category @relation("CouponCategory_categoryId", fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([couponId, categoryId])
+  @@index([categoryId])
+}
+
+model CouponUsage {
+  id                      String         @id @default(uuid()) @db.Uuid
+  couponId                String         @db.Uuid
+  reservationSetId        String         @unique @db.Uuid
+  orderId                 String         @db.Uuid
+  identityKey             String
+  userId                  String?        @db.Uuid
+  emailNormalizedSnapshot String
+  state                   ResourceState  @default(RESERVED)
+  expiresAt               DateTime       @db.Timestamptz(3)
+  consumedAt              DateTime?      @db.Timestamptz(3)
+  releasedAt              DateTime?      @db.Timestamptz(3)
+  createdAt               DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime       @updatedAt @db.Timestamptz(3)
+  coupon                  Coupon         @relation("CouponUsage_couponId", fields: [couponId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reservationSet          ReservationSet @relation("CouponUsage_reservationSetId", fields: [reservationSetId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  order                   Order          @relation("CouponUsage_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user                    User?          @relation("CouponUsage_userId", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([couponId, state])
+  @@index([couponId, identityKey, state])
+  @@index([couponId, emailNormalizedSnapshot, state])
+}
+
+model LoyaltyAccount {
+  id                         String               @id @default(uuid()) @db.Uuid
+  userId                     String               @unique @db.Uuid
+  balanceTenths              BigInt               @default(0)
+  reservedTenths             BigInt               @default(0)
+  version                    Int                  @default(1)
+  createdAt                  DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt                  DateTime             @updatedAt @db.Timestamptz(3)
+  user                       User                 @relation("LoyaltyAccount_userId", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  loyaltyLedgerEntry_account LoyaltyLedgerEntry[] @relation("LoyaltyLedgerEntry_accountId")
+  pointReservation_account   PointReservation[]   @relation("PointReservation_accountId")
+
+  @@unique([id, userId])
+}
+
+model LoyaltyLedgerEntry {
+  id                 String           @id @default(uuid()) @db.Uuid
+  accountId          String           @db.Uuid
+  orderId            String?          @db.Uuid
+  refundId           String?          @db.Uuid
+  kind               LoyaltyEntryKind
+  deltaTenths        BigInt
+  balanceAfterTenths BigInt
+  idempotencyKey     String           @unique
+  actorId            String?          @db.Uuid
+  reason             String?
+  createdAt          DateTime         @default(now()) @db.Timestamptz(3)
+  account            LoyaltyAccount   @relation("LoyaltyLedgerEntry_accountId", fields: [accountId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  order              Order?           @relation("LoyaltyLedgerEntry_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  refund             Refund?          @relation("LoyaltyLedgerEntry_refundId", fields: [refundId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  actor              User?            @relation("LoyaltyLedgerEntry_actorId", fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([accountId, createdAt, id])
+}
+
+model PointReservation {
+  id               String         @id @default(uuid()) @db.Uuid
+  reservationSetId String         @unique @db.Uuid
+  orderId          String         @db.Uuid
+  accountId        String         @db.Uuid
+  amountTenths     BigInt
+  state            ResourceState  @default(RESERVED)
+  expiresAt        DateTime       @db.Timestamptz(3)
+  consumedAt       DateTime?      @db.Timestamptz(3)
+  releasedAt       DateTime?      @db.Timestamptz(3)
+  createdAt        DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime       @updatedAt @db.Timestamptz(3)
+  userId           String         @db.Uuid
+  reservationSet   ReservationSet @relation("PointReservation_reservationSetId", fields: [reservationSetId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  order            Order          @relation("PointReservation_orderId", fields: [orderId, userId], references: [id, userId], onDelete: Restrict, onUpdate: NoAction)
+  account          LoyaltyAccount @relation("PointReservation_accountId", fields: [accountId, userId], references: [id, userId], onDelete: Restrict, onUpdate: NoAction)
+  user             User           @relation("PointReservation_userId", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([accountId, state])
+}
+
+model PaymentAttempt {
+  id                      String         @id @default(uuid()) @db.Uuid
+  orderId                 String         @db.Uuid
+  reservationSetId        String         @db.Uuid
+  provider                String         @default("STRIPE")
+  providerSessionId       String?        @unique
+  providerPaymentIntentId String?        @unique
+  providerChargeId        String?        @unique
+  amountCents             BigInt
+  currency                String         @default("MXN") @db.Char(3)
+  status                  PaymentStatus  @default(PENDING)
+  appliedToOrder          Boolean        @default(false)
+  idempotencyKey          String         @unique
+  providerPaidAt          DateTime?      @db.Timestamptz(3)
+  lastReconciledAt        DateTime?      @db.Timestamptz(3)
+  failureCode             String?
+  createdAt               DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime       @updatedAt @db.Timestamptz(3)
+  order                   Order          @relation("PaymentAttempt_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reservationSet          ReservationSet @relation("PaymentAttempt_reservationSetId", fields: [reservationSetId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  refund_paymentAttempt   Refund[]       @relation("Refund_paymentAttemptId")
+
+  @@unique([id, orderId])
+  @@index([orderId, status])
+}
+
+model ProviderEvent {
+  id              String              @id @default(uuid()) @db.Uuid
+  provider        String              @default("STRIPE")
+  externalEventId String
+  eventType       String
+  receivedAt      DateTime            @default(now()) @db.Timestamptz(3)
+  processedAt     DateTime?           @db.Timestamptz(3)
+  status          ProviderEventStatus @default(RECEIVED)
+  payloadDigest   String
+  safePayload     Json
+  lastError       String?
+  createdAt       DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime            @updatedAt @db.Timestamptz(3)
+
+  @@unique([provider, externalEventId])
+  @@index([status, receivedAt])
+}
+
+model Refund {
+  id                        String               @id @default(uuid()) @db.Uuid
+  orderId                   String               @db.Uuid
+  paymentAttemptId          String?              @db.Uuid
+  returnRequestId           String?              @db.Uuid
+  priceMatchRequestId       String?              @db.Uuid
+  kind                      RefundKind
+  requestedMoneyCents       BigInt
+  requestedPointsTenths     BigInt
+  shippingRefundCents       BigInt
+  status                    RefundStatus         @default(REQUESTED)
+  providerRefundId          String?              @unique
+  idempotencyKey            String               @unique
+  requestedAt               DateTime             @default(now()) @db.Timestamptz(3)
+  settledAt                 DateTime?            @db.Timestamptz(3)
+  lastError                 String?
+  createdAt                 DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime             @updatedAt @db.Timestamptz(3)
+  currency                  String               @default("MXN") @db.Char(3)
+  loyaltyLedgerEntry_refund LoyaltyLedgerEntry[] @relation("LoyaltyLedgerEntry_refundId")
+  order                     Order                @relation("Refund_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  paymentAttempt            PaymentAttempt?      @relation("Refund_paymentAttemptId", fields: [paymentAttemptId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  returnRequest             ReturnRequest?       @relation("Refund_returnRequestId", fields: [returnRequestId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  priceMatchRequest         PriceMatchRequest?   @relation("Refund_priceMatchRequestId", fields: [priceMatchRequestId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  refundAllocation_refund   RefundAllocation[]   @relation("RefundAllocation_refundId")
+
+  @@unique([id, orderId])
+  @@index([orderId, requestedAt])
+}
+
+model RefundAllocation {
+  id                    String               @id @default(uuid()) @db.Uuid
+  refundId              String               @db.Uuid
+  orderId               String               @db.Uuid
+  orderUnitId           String?              @db.Uuid
+  kind                  RefundAllocationKind
+  moneyCents            BigInt
+  pointsTenths          BigInt
+  benefitReductionCents BigInt
+  createdAt             DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime             @updatedAt @db.Timestamptz(3)
+  refund                Refund               @relation("RefundAllocation_refundId", fields: [refundId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  order                 Order                @relation("RefundAllocation_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  orderUnit             OrderUnit?           @relation("RefundAllocation_orderUnitId", fields: [orderUnitId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([orderUnitId])
+  @@index([refundId])
+}
+
+model ReturnRequest {
+  id                          String          @id @default(uuid()) @db.Uuid
+  orderId                     String          @db.Uuid
+  requestedByUserId           String?         @db.Uuid
+  guestProofId                String?         @db.Uuid
+  reasonCode                  ReturnReason
+  description                 String
+  status                      ReturnStatus    @default(REQUESTED)
+  requestedAt                 DateTime        @default(now()) @db.Timestamptz(3)
+  reviewedById                String?         @db.Uuid
+  reviewedAt                  DateTime?       @db.Timestamptz(3)
+  decisionReason              String?
+  receivedAt                  DateTime?       @db.Timestamptz(3)
+  resolvedAt                  DateTime?       @db.Timestamptz(3)
+  storeFault                  Boolean         @default(false)
+  returnCostPayer             ReturnCostPayer
+  returnCostCents             BigInt?
+  returnLogisticsNote         String?
+  createdAt                   DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime        @updatedAt @db.Timestamptz(3)
+  refund_returnRequest        Refund[]        @relation("Refund_returnRequestId")
+  order                       Order           @relation("ReturnRequest_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  requestedByUser             User?           @relation("ReturnRequest_requestedByUserId", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  guestProof                  ActionToken?    @relation("ReturnRequest_guestProofId", fields: [guestProofId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  reviewedBy                  User?           @relation("ReturnRequest_reviewedById", fields: [reviewedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  returnItem_returnRequest    ReturnItem[]    @relation("ReturnItem_returnRequestId")
+  claimEvidence_returnRequest ClaimEvidence[] @relation("ClaimEvidence_returnRequestId")
+
+  @@unique([id, orderId])
+  @@index([orderId, requestedAt])
+}
+
+model ReturnItem {
+  id                          String            @id @default(uuid()) @db.Uuid
+  returnRequestId             String            @db.Uuid
+  orderId                     String            @db.Uuid
+  orderUnitId                 String            @db.Uuid
+  state                       ReturnItemState   @default(REQUESTED)
+  reportedCondition           ProductCondition?
+  createdAt                   DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt                   DateTime          @updatedAt @db.Timestamptz(3)
+  returnRequest               ReturnRequest     @relation("ReturnItem_returnRequestId", fields: [returnRequestId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  order                       Order             @relation("ReturnItem_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  orderUnit                   OrderUnit         @relation("ReturnItem_orderUnitId", fields: [orderUnitId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  returnInspection_returnItem ReturnInspection? @relation("ReturnInspection_returnItemId")
+
+  @@unique([returnRequestId, orderUnitId])
+  @@index([orderUnitId])
+}
+
+model ReturnInspection {
+  id                                 String              @id @default(uuid()) @db.Uuid
+  returnItemId                       String              @unique @db.Uuid
+  inspectedById                      String              @db.Uuid
+  inspectedAt                        DateTime            @default(now()) @db.Timestamptz(3)
+  condition                          ProductCondition
+  disposition                        ReturnDisposition
+  notes                              String
+  stockMovementKey                   String?             @unique
+  createdAt                          DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt                          DateTime            @updatedAt @db.Timestamptz(3)
+  inventoryMovement_returnInspection InventoryMovement[] @relation("InventoryMovement_returnInspectionId")
+  returnItem                         ReturnItem          @relation("ReturnInspection_returnItemId", fields: [returnItemId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  inspectedBy                        User                @relation("ReturnInspection_inspectedById", fields: [inspectedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+}
+
+model PriceMatchRequest {
+  id                               String           @id @default(uuid()) @db.Uuid
+  orderId                          String           @db.Uuid
+  requestedByUserId                String?          @db.Uuid
+  guestProofId                     String?          @db.Uuid
+  status                           PriceMatchStatus @default(REQUESTED)
+  requestedAt                      DateTime         @default(now()) @db.Timestamptz(3)
+  reviewedById                     String?          @db.Uuid
+  reviewedAt                       DateTime?        @db.Timestamptz(3)
+  decisionReason                   String?
+  comparisonSnapshot               Json
+  createdAt                        DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt                        DateTime         @updatedAt @db.Timestamptz(3)
+  refund_priceMatchRequest         Refund[]         @relation("Refund_priceMatchRequestId")
+  order                            Order            @relation("PriceMatchRequest_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  requestedByUser                  User?            @relation("PriceMatchRequest_requestedByUserId", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  guestProof                       ActionToken?     @relation("PriceMatchRequest_guestProofId", fields: [guestProofId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  reviewedBy                       User?            @relation("PriceMatchRequest_reviewedById", fields: [reviewedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  priceMatchItem_priceMatchRequest PriceMatchItem[] @relation("PriceMatchItem_priceMatchRequestId")
+  claimEvidence_priceMatchRequest  ClaimEvidence[]  @relation("ClaimEvidence_priceMatchRequestId")
+
+  @@unique([id, orderId])
+  @@index([orderId, requestedAt])
+}
+
+model PriceMatchItem {
+  id                               String            @id @default(uuid()) @db.Uuid
+  priceMatchRequestId              String            @db.Uuid
+  orderId                          String            @db.Uuid
+  orderUnitId                      String            @db.Uuid
+  competitorItemCents              BigInt
+  competitorShippingAllocatedCents BigInt
+  approvedDifferenceCents          BigInt?
+  moneyRefundCents                 BigInt?
+  pointsRefundTenths               BigInt?
+  createdAt                        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt                        DateTime          @updatedAt @db.Timestamptz(3)
+  priceMatchRequest                PriceMatchRequest @relation("PriceMatchItem_priceMatchRequestId", fields: [priceMatchRequestId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+  order                            Order             @relation("PriceMatchItem_orderId", fields: [orderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  orderUnit                        OrderUnit         @relation("PriceMatchItem_orderUnitId", fields: [orderUnitId, orderId], references: [id, orderId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([priceMatchRequestId, orderUnitId])
+  @@index([orderUnitId])
+}
+
+model ClaimEvidence {
+  id                  String             @id @default(uuid()) @db.Uuid
+  returnRequestId     String?            @db.Uuid
+  priceMatchRequestId String?            @db.Uuid
+  assetId             String?            @db.Uuid
+  externalUrl         String?
+  description         String?
+  submittedAt         DateTime           @default(now()) @db.Timestamptz(3)
+  createdAt           DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime           @updatedAt @db.Timestamptz(3)
+  returnRequest       ReturnRequest?     @relation("ClaimEvidence_returnRequestId", fields: [returnRequestId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  priceMatchRequest   PriceMatchRequest? @relation("ClaimEvidence_priceMatchRequestId", fields: [priceMatchRequestId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  asset               MediaAsset?        @relation("ClaimEvidence_assetId", fields: [assetId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+}
+
+model Review {
+  id                      String             @id @default(uuid()) @db.Uuid
+  userId                  String             @db.Uuid
+  productId               String             @db.Uuid
+  verifiedOrderUnitId     String             @db.Uuid
+  rating                  Int
+  title                   String?
+  body                    String
+  editedAt                DateTime?          @db.Timestamptz(3)
+  hiddenAt                DateTime?          @db.Timestamptz(3)
+  createdAt               DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime           @updatedAt @db.Timestamptz(3)
+  user                    User               @relation("Review_userId", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  product                 Product            @relation("Review_productId", fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  verifiedOrderUnit       OrderUnit          @relation("Review_verifiedOrderUnitId", fields: [verifiedOrderUnitId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reviewModeration_review ReviewModeration[] @relation("ReviewModeration_reviewId")
+
+  @@unique([userId, productId])
+  @@index([productId, hiddenAt, createdAt])
+}
+
+model ReviewModeration {
+  id        String                 @id @default(uuid()) @db.Uuid
+  reviewId  String                 @db.Uuid
+  adminId   String                 @db.Uuid
+  action    ReviewModerationAction
+  reason    String
+  createdAt DateTime               @default(now()) @db.Timestamptz(3)
+  review    Review                 @relation("ReviewModeration_reviewId", fields: [reviewId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  admin     User                   @relation("ReviewModeration_adminId", fields: [adminId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([reviewId, createdAt])
+}
+
+model RestockSubscription {
+  id                   String         @id @default(uuid()) @db.Uuid
+  variantId            String         @db.Uuid
+  userId               String?        @db.Uuid
+  email                String
+  emailNormalized      String
+  unsubscribeTokenHash String         @unique
+  state                RestockState   @default(ACTIVE)
+  notifiedAt           DateTime?      @db.Timestamptz(3)
+  canceledAt           DateTime?      @db.Timestamptz(3)
+  createdAt            DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime       @updatedAt @db.Timestamptz(3)
+  variant              ProductVariant @relation("RestockSubscription_variantId", fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user                 User?          @relation("RestockSubscription_userId", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([variantId, state])
+}
+
+model OutboxMessage {
+  id               String      @id @default(uuid()) @db.Uuid
+  kind             OutboxKind
+  aggregateType    String
+  aggregateId      String      @db.Uuid
+  deduplicationKey String      @unique
+  payload          Json
+  state            OutboxState @default(PENDING)
+  attempts         Int         @default(0)
+  nextAttemptAt    DateTime    @default(now()) @db.Timestamptz(3)
+  processedAt      DateTime?   @db.Timestamptz(3)
+  lastError        String?
+  createdAt        DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime    @updatedAt @db.Timestamptz(3)
+
+  @@index([state, nextAttemptAt])
+}
+
+model AuditEvent {
+  id            String    @id @default(uuid()) @db.Uuid
+  actorId       String?   @db.Uuid
+  actorType     ActorType
+  action        String
+  entityType    String
+  entityId      String    @db.Uuid
+  reason        String?
+  safeBefore    Json?
+  safeAfter     Json?
+  correlationId String
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  actor         User?     @relation("AuditEvent_actorId", fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([entityType, entityId, createdAt])
+}
+
+model StoreSettings {
+  id               String   @id @default(uuid()) @db.Uuid
+  singletonKey     Int      @unique @default(1)
+  storeName        String
+  contactEmail     String
+  contactPhone     String
+  serviceHours     String
+  policyVersion    Int      @default(1)
+  businessTimezone String   @default("America/Mexico_City")
+  updatedById      String   @db.Uuid
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+  updatedBy        User     @relation("StoreSettings_updatedById", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+}
+
+model ContentPage {
+  id          String    @id @default(uuid()) @db.Uuid
+  slug        String    @unique
+  title       String
+  content     String
+  version     Int       @default(1)
+  publishedAt DateTime? @db.Timestamptz(3)
+  updatedById String    @db.Uuid
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+  updatedBy   User      @relation("ContentPage_updatedById", fields: [updatedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+}
