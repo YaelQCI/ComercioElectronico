@@ -1,6 +1,7 @@
 <script setup>
 // Selector de demostración; persistencia y selector global pertenecen a #22.
 const theme = ref('light')
+const sampleQuery = ref('')
 definePageMeta({ layout: false })
 useHead(() => ({ htmlAttrs: { 'data-theme': theme.value } }))
 const surfaces = [
@@ -36,12 +37,11 @@ const surfaces = [
     <section class="mt-8 grid gap-6 md:grid-cols-2" aria-label="Controles y estados">
       <div class="rounded-sm border border-border bg-surface p-6">
         <h2 class="text-display-m font-bold">Controles</h2>
-        <label for="search" class="mt-4 block">Buscar producto</label>
-        <input id="search" type="search" placeholder="Nombre o presentación" class="mt-2 w-full rounded-sm border border-border bg-surface px-3 py-2 text-ink placeholder:text-ink-2">
+        <UiField id="search" v-model="sampleQuery" label="Buscar producto" type="search" placeholder="Nombre o presentación" class="mt-4" hint="Muestra visual: este campo no consulta el catálogo." />
         <div class="mt-4 flex flex-wrap gap-4">
-          <button type="button" class="min-h-11 rounded-sm bg-accent px-5 py-3 font-semibold text-accent-ink hover:underline">Acción principal</button>
-          <button type="button" class="min-h-11 rounded-sm border border-border bg-surface px-5 py-3 text-ink hover:bg-surface-2">Acción secundaria</button>
-          <button type="button" disabled class="min-h-11 rounded-sm border border-border bg-off-soft px-5 py-3 text-off">No disponible</button>
+          <UiButton>Acción principal</UiButton>
+          <UiButton variant="secondary">Acción secundaria</UiButton>
+          <UiButton disabled>No disponible</UiButton>
         </div>
         <p class="mt-4 text-accent-text">Acento textual accesible</p>
       </div>
@@ -53,12 +53,14 @@ const surfaces = [
           <li class="rounded-sm bg-off-soft px-3 py-2 text-off">— Agotado</li>
           <li class="rounded-sm bg-crit-soft px-3 py-2 text-crit">× No se pudo completar la operación</li>
         </ul>
-        <table class="mt-6 w-full border-collapse text-left">
-          <caption class="mb-2 text-left text-ink-2">Ejemplo de cifras tabulares</caption>
-          <thead><tr class="border-b border-line"><th scope="col" class="py-2">Dato</th><th scope="col" class="py-2 text-right">Importe</th></tr></thead>
-          <tbody><tr><th scope="row" class="py-2 font-normal">Ejemplo visual</th><td class="py-2 text-right font-mono tabular-nums">$1,499.00</td></tr></tbody>
-        </table>
+        <UiTable class="mt-6" caption="Ejemplo de cifras tabulares, datos ilustrativos" :columns="[{ key: 'label', label: 'Dato' }, { key: 'amount', label: 'Importe', numeric: true }]" :rows="[{ id: 'sample', label: 'Ejemplo visual', amount: '$1,499.00' }]" />
       </div>
+    </section>
+    <section class="mt-8 max-w-sm" aria-label="Tarjeta de referencia del prototipo">
+      <UiCard title="Creatina monohidratada" image="/images/references/creatina-monohidratada-300g.webp" image-alt="Bote de creatina monohidratada del prototipo">
+        <p class="text-body-s text-ink-2">Referencia visual del prototipo; no es un producto publicado para venta.</p>
+        <template #actions><UiButton disabled>Venta no habilitada</UiButton></template>
+      </UiCard>
     </section>
     <footer class="mt-8 rounded-sm bg-ink p-6 text-on-ink">
       <p class="font-display text-display-m">Superficie de marca</p>

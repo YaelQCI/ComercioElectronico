@@ -18,14 +18,14 @@ function search() {
 <template>
   <header class="sticky top-0 z-30 border-b border-line bg-surface text-ink" @keydown.esc="closeMenu">
     <div class="mx-auto max-w-nav px-4 md:px-8">
-      <div class="flex min-h-16 items-center justify-between gap-4 py-2">
+      <div class="flex min-h-16 flex-wrap items-center justify-between gap-4 py-2">
         <NuxtLink to="/" aria-label="The Fitness Stuff, ir al inicio" class="shrink-0 leading-none">
           <span class="block font-mono text-label uppercase">The</span>
           <span class="block font-display text-display-m font-bold uppercase">Fitness Stuff</span>
           <span class="mt-1 block h-1 w-12 bg-accent" aria-hidden="true" />
         </NuxtLink>
         <nav aria-label="Secciones principales" class="flex flex-wrap items-center justify-end gap-4 text-body-s">
-          <NuxtLink to="/catalogo" class="min-h-11 content-center hover:underline">Catálogo</NuxtLink>
+          <NuxtLink to="/catalogo" class="inline-flex min-h-11 items-center hover:underline">Catálogo</NuxtLink>
           <NuxtLink to="/carrito" class="inline-flex min-h-11 items-center gap-2 hover:underline"><UiIcon name="cart" /><span>Carrito</span></NuxtLink>
           <button ref="menuButton" type="button" :aria-expanded="menuOpen" aria-controls="mobile-categories" class="inline-flex min-h-11 items-center gap-2 rounded-sm border border-border px-3 lg:hidden" @click="menuOpen = !menuOpen">
             <UiIcon :name="menuOpen ? 'close' : 'menu'" /><span>Menú</span>

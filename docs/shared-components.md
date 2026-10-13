@@ -6,6 +6,8 @@ Rutas iniciales: `/`, `/catalogo`, `/carrito`, y políticas pendientes bajo `/po
 
 Contacto mediante `NUXT_PUBLIC_CONTACT_EMAIL`, `NUXT_PUBLIC_CONTACT_PHONE` y `NUXT_PUBLIC_SERVICE_HOURS`. No se activaron los datos ilustrativos del prototipo como contacto real. Políticas muestran que su contenido aún está pendiente de #27.
 
-Pendiente para completar #2: tarjetas/tablas/controles compartidos, detalle dinámico con identificadores de productos, migración visual completa del prototipo y comprobación de menú/teclado/tacto en navegador a 480/768/1100 px. Catálogo real y acciones de carrito dependen de los issues de datos y compra. Este avance no afirma esos criterios como terminados.
+Componentes adicionales: `UiCard` para tarjetas con imagen, título y acciones; `UiField` para inputs/selects con etiquetas y mensajes enlazados mediante aria-describedby; `UiTable` con caption, encabezados, slots por columna, estado vacío y región desplazable. La muestra visual usa estos componentes e incluye una imagen original del prototipo marcada como referencia sin venta habilitada. La cabecera permite envolver sus enlaces en pantallas pequeñas y el destino del salto al contenido tiene margen para la cabecera sticky.
+
+Pendiente para completar #2: detalle dinámico con identificadores de productos, migración visual completa del prototipo y comprobación de menú/teclado/tacto en navegador a 480/768/1100 px. Catálogo real y acciones de carrito dependen de los issues de datos y compra. El propietario confirmó que todavía no existen datos definitivos de productos, contacto ni políticas. Este avance no afirma esos criterios como terminados.
 
 Validación del avance: `npm.cmd run build` correcto; respuestas SSR 200 para inicio, catálogo por categoría, carrito y privacidad, con cabecera, pie y un único elemento main; política desconocida responde 404. `git diff --check` correcto. La interacción y apariencia en navegador siguen pendientes.
