@@ -23,10 +23,10 @@ export function parseCatalogFilters(raw) {
 }
 export function filterProducts(products, filters) {
   const matches = (selected, actual) => !selected.length || selected.some(value => actual.includes(value))
-  return products.filter(product => {
-    if (!matches(filters.categories, product.categories.map(c => c.slug)) || !matches(filters.goals, product.facets.filter(f => f.kind === 'GOAL').map(f => f.slug)) || !matches(filters.disciplines, product.facets.filter(f => f.kind === 'DISCIPLINE').map(f => f.slug))) return false
+  return products.flatMap(product => {
+    if (!matches(filters.categories, product.categories.map(c => c.slug)) || !matches(filters.goals, product.facets.filter(f => f.kind === 'GOAL').map(f => f.slug)) || !matches(filters.disciplines, product.facets.filter(f => f.kind === 'DISCIPLINE').map(f => f.slug))) return []
     // Variant-specific groups must all match the SAME presentation.
-    return product.variants.some(variant => {
+    const variants = product.variants.filter(variant => {
       const price = money(variant.priceCents)
       if (filters.minPriceCents != null && price < BigInt(filters.minPriceCents) || filters.maxPriceCents != null && price > BigInt(filters.maxPriceCents)) return false
       if (!matches(filters.presentations, [variant.presentationLabel])) return false
@@ -39,6 +39,7 @@ export function filterProducts(products, filters) {
       }
       return true
     })
+    return variants.length ? [{ ...product, variants }] : []
   })
 }
 export function catalogFilterOptions(products) {

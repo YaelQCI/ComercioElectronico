@@ -1,6 +1,7 @@
 import { searchPattern } from '../../../shared/features/catalog/search.js'
 import { availableFromLots } from '../../../shared/features/inventory/availability.js'
 import { filterProducts, catalogFilterOptions } from '../../../shared/features/catalog/filters.js'
+import { paginateCatalog } from '../../../shared/features/catalog/pagination.js'
 
 const published = () => ({ deletedAt: null, publishedAt: { lte: new Date() }, productVariant_product: { some: { deletedAt: null } }, OR: [{ brandId: null }, { brand: { isActive: true } }] })
 const includes = {
@@ -18,6 +19,7 @@ function publicImage(media) {
 export function catalogProductDTO(product) {
   return {
     id: product.id, slug: product.slug, name: product.name, description: product.description,
+    publishedAt: product.publishedAt?.toISOString() ?? null, featuredPosition: product.featuredPosition,
     ingredients: product.ingredients, usageInstructions: product.usageInstructions, allergenInformation: product.allergenInformation,
     brand: product.brand ? { name: product.brand.name, slug: product.brand.slug } : null,
     categories: product.productCategory_product.map(({ category, isPrimary }) => ({ slug: category.slug, name: category.name, isPrimary })),
@@ -56,10 +58,10 @@ export function createCatalogRepository(db) {
       if (products.length > 10000) throw new Error('Catálogo excede el límite de lectura configurado; requiere consulta indexada.')
       return products.map(catalogProductDTO)
     },
-    async browse(filters) {
+    async browse(filters, pagination) {
       const all = await this.list()
       const queried = filters.q ? await this.list({ q: filters.q }) : all
-      return { products: filterProducts(queried, filters), options: catalogFilterOptions(all), catalogTotal: all.length }
+      return { ...paginateCatalog(filterProducts(queried, filters), { ...pagination, q: filters.q }), options: catalogFilterOptions(all), catalogTotal: all.length }
     },
     async getById(id) {
       const product = await db.product.findFirst({ where: { ...published(), id }, include: includes })
