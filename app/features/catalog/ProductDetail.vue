@@ -1,6 +1,7 @@
 <script setup>
 import { comparePresentations, variantPricing, formatMXN } from '~~/shared/features/pricing/prices.js'
 import { selectedVariant, productQuantity, nutritionRows } from '~~/shared/features/catalog/product-selection.js'
+import ProductGallery from './ProductGallery.vue'
 const props = defineProps({ id: { type: String, required: true } })
 const { data, status, error, refresh } = await useFetch(() => `/api/catalog/products/${props.id}`)
 if ([400, 404].includes(error.value?.statusCode)) throw createError({ statusCode: 404, statusMessage: 'Producto no disponible.' })
@@ -18,7 +19,6 @@ const presentation = computed({ get: () => variant.value?.presentationLabel ?? '
 const quantityError = computed(() => { if (!variant.value?.availableQty) return ''; try { productQuantity(quantity.value, variant.value.availableQty); return '' } catch { return 'Usa una cantidad entera entre 1 y las piezas disponibles.' } })
 const nutrition = computed(() => nutritionRows(variant.value?.nutritionData))
 const pricing = computed(() => variant.value ? variantPricing(variant.value) : null)
-const image = computed(() => product.value?.images.find(i => i.kind === 'FRONT' && i.variantId === variantId.value) ?? product.value?.images.find(i => i.kind === 'FRONT' && !i.variantId))
 const rows = computed(() => comparePresentations(product.value?.variants ?? []))
 const crumbs = computed(() => [{ label: 'Catálogo', to: '/catalogo' }, ...(product.value?.categories.find(c => c.isPrimary) ? [{ label: product.value.categories.find(c => c.isPrimary).name, to: { path: '/catalogo', query: { categoria: product.value.categories.find(c => c.isPrimary).slug } } }] : []), { label: product.value?.name ?? 'Producto' }])
 useHead(() => ({ title: `${product.value?.name ?? 'Producto'} — The Fitness Stuff` }))
@@ -30,7 +30,7 @@ useHead(() => ({ title: `${product.value?.name ?? 'Producto'} — The Fitness St
     <div v-else-if="error" role="alert"><h1 class="text-display-l font-bold">Producto no disponible</h1><p class="mt-4">No pudimos cargar el producto.</p><UiButton class="mt-4" @click="refresh()">Reintentar</UiButton></div>
     <template v-else-if="product">
       <div class="grid gap-8 md:grid-cols-2">
-        <div class="aspect-square rounded-sm border border-line bg-packshot p-6"><img v-if="image" :src="image.url" :alt="image.alt" width="600" height="600" class="h-full w-full object-contain"><p v-else class="text-packshot-ink-2">Imagen pendiente.</p></div>
+        <ProductGallery :images="product.images" :variant-id="variantId" />
         <div>
           <p v-if="product.brand" class="font-mono text-label uppercase text-ink-2">{{ product.brand.name }}</p>
           <h1 class="mt-2 text-display-l font-bold">{{ product.name }}</h1>
