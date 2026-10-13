@@ -1,0 +1,98 @@
+/* Claro: paleta #42. Oscuro y apoyo: references/styles.original.css.
+   Ajustes de contraste documentados en docs/design-tokens.md. */
+:root {
+  color-scheme: light dark;
+  --t-paper: light-dark(#EFF0F5, #12142B);
+  --t-surface: light-dark(#FFFFFF, #1C1F3F);
+  --t-surface-2: light-dark(#E2E4EC, #22254A);
+  --t-ink: light-dark(#293379, #E9EAF3);
+  --t-ink-2: light-dark(#4A5078, #A6ABC9);
+  --t-ink-3: light-dark(#5B6079, #A6ABC9);
+  --t-line: light-dark(#D2D5E2, #2B2F54);
+  --t-border: light-dark(#787DA0, #858BB5);
+  --t-accent: light-dark(#E5A300, #F3C13F);
+  --t-accent-ink: light-dark(#293379, #12142B);
+  --t-accent-text: light-dark(#7E5A00, #F3C13F);
+  --t-accent-soft: light-dark(#FBEDCC, #3A2F12);
+  --t-on-ink: var(--t-paper);
+  --t-on-ink-2: light-dark(#B6BBDA, #4A5078);
+  --t-on-ink-3: light-dark(#B6BBDA, #4A5078);
+  --t-on-ink-accent: light-dark(#E5A300, #7E5A00);
+  --t-ok: light-dark(#1A6B44, #5FCB96);
+  --t-ok-soft: light-dark(#DBEDE3, #12352A);
+  --t-warn: light-dark(#8A5A00, #E0AE55);
+  --t-warn-soft: light-dark(#F4E9D3, #33280F);
+  --t-off: light-dark(#5B6079, #A6ABC9);
+  --t-off-soft: var(--t-surface-2);
+  --t-crit: light-dark(#B3261E, #F08078);
+  --t-crit-soft: light-dark(#F6DEDC, #3A1A18);
+  /* Packshots nunca se invierten. Tinta terciaria ajustada para texto normal. */
+  --t-packshot: #FFFFFF;
+  --t-packshot-ink: #293379;
+  --t-packshot-ink-2: #4A5078;
+  --t-packshot-ink-3: #5B6079;
+  --t-packshot-off: #5B6079;
+  --t-packshot-line: #787DA0;
+  --t-packshot-accent: #E5A300;
+}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+/* Las mismas utilidades reaccionan al sistema o a data-theme (#22). */
+@theme inline {
+  --color-*: initial;
+  --color-paper: var(--t-paper);
+  --color-surface: var(--t-surface);
+  --color-surface-2: var(--t-surface-2);
+  --color-ink: var(--t-ink);
+  --color-ink-2: var(--t-ink-2);
+  --color-ink-3: var(--t-ink-3);
+  --color-line: var(--t-line);
+  --color-border: var(--t-border);
+  --color-accent: var(--t-accent);
+  --color-accent-ink: var(--t-accent-ink);
+  --color-accent-text: var(--t-accent-text);
+  --color-accent-soft: var(--t-accent-soft);
+  --color-on-ink: var(--t-on-ink);
+  --color-on-ink-2: var(--t-on-ink-2);
+  --color-on-ink-3: var(--t-on-ink-3);
+  --color-on-ink-accent: var(--t-on-ink-accent);
+  --color-ok: var(--t-ok);
+  --color-ok-soft: var(--t-ok-soft);
+  --color-warn: var(--t-warn);
+  --color-warn-soft: var(--t-warn-soft);
+  --color-off: var(--t-off);
+  --color-off-soft: var(--t-off-soft);
+  --color-crit: var(--t-crit);
+  --color-crit-soft: var(--t-crit-soft);
+  --color-packshot: var(--t-packshot);
+  --color-packshot-ink: var(--t-packshot-ink);
+  --color-packshot-ink-2: var(--t-packshot-ink-2);
+  --color-packshot-ink-3: var(--t-packshot-ink-3);
+  --color-packshot-off: var(--t-packshot-off);
+  --color-packshot-line: var(--t-packshot-line);
+  --color-packshot-accent: var(--t-packshot-accent);
+}
+@theme {
+  --font-sans: "IBM Plex Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --spacing: 4px;
+  --radius-*: initial;
+  --radius-sm: 2px;
+  --radius-pill: 999px;
+  --container-store: 1180px;
+  --container-nav: 1320px;
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1100px;
+  --text-display-xl: clamp(44px, 8vw, 64px);
+  --text-display-l: clamp(30px, 4.4vw, 40px);
+  --text-display-m: 21px;
+  --text-body-l: 17px;
+  --text-body-m: 16px;
+  --text-body-s: 13px;
+  --text-label: 11px;
+  --text-data-l: 22px;
+  --text-data-s: 10.5px;
+}

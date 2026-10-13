@@ -38,7 +38,7 @@ Sin Docker: instalar PostgreSQL 17.7, crear una base y un usuario con permisos s
 | Ruta | Uso |
 | --- | --- |
 | `app/pages`, `app/components` | Rutas Vue y componentes compartidos |
-| `app/assets/css/main.css` | Entrada Tailwind; tokens completos pendientes de #42 |
+| `app/assets/css/main.css`, `tokens.css` | Entrada Tailwind, tipografías y colores semánticos claro/oscuro |
 | `public/images` | Imágenes servidas estáticamente |
 | `references` | Prototipo original y fuentes sin reemplazarlos |
 | `server/api`, `server/utils` | API Nuxt y singleton Prisma con pool limitado |
@@ -83,6 +83,8 @@ La prueba pendiente de persistencia, una vez disponible #33, consiste en inserta
 
 ## Alcance pendiente para aceptar #43
 
-La migración integral, semilla y demostración de lectura/escritura persistente se coordinan con #33. #42 completa la identidad visual y #41 cubre AWS/Route 53. Esta base no integra cobros ni recursos cloud.
+La migración integral, semilla y demostración de lectura/escritura persistente se coordinan con #33. #41 cubre AWS/Route 53. Esta base no integra cobros ni recursos cloud.
+
+Los tokens de #42 están documentados en [docs/design-tokens.md](docs/design-tokens.md). Abrir `/sistema-visual` para probar ambos temas y ejecutar `npm run check:contrast` para medir sus parejas de colores. La preferencia persistente se implementa en #22.
 
 La evidencia y los avisos pendientes de dependencias están en [docs/validation.md](docs/validation.md). En este equipo responde un servicio PostgreSQL en el puerto 5432 que rechaza las credenciales de ejemplo; Docker no está iniciado. Configurar una base propia o un puerto libre antes de validar persistencia.

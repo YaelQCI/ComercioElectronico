@@ -1,14 +1,20 @@
+@import "@fontsource/big-shoulders-display/700";
+@import "@fontsource/ibm-plex-sans/400";
+@import "@fontsource/ibm-plex-sans/600";
+@import "@fontsource/ibm-plex-mono/400";
+@import "@fontsource/ibm-plex-mono/600";
 @import "tailwindcss";
+@import "./tokens.css";
 
-/* Entrada mínima; los tokens y temas completos pertenecen al issue #42. */
-@theme {
-  --color-brand: #293379;
-  --color-accent: #e5a300;
-  --color-canvas: #eff0f5;
-}
-
-body {
-  background: var(--color-canvas);
-  color: #1c2035;
-  font-family: Arial, sans-serif;
+@layer base {
+  body { @apply bg-paper text-ink font-sans text-body-m; line-height: 1.6; }
+  h1, h2, h3 { @apply font-display; text-wrap: balance; }
+  :where(button, input, select, textarea) { font: inherit; }
+  :focus-visible {
+    outline: 2px solid var(--t-accent-text);
+    outline-offset: 3px;
+    border-radius: var(--radius-sm);
+  }
+  :where(button):not(:disabled) { cursor: pointer; }
+  :where(button):disabled { cursor: not-allowed; }
 }
