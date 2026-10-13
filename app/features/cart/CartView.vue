@@ -2,7 +2,7 @@
 import { useCart } from './useCart.js'
 import { formatMXN } from '~~/shared/features/pricing/prices.js'
 import { observeCart } from './cart-observation.js'
-const { data, error, status, refresh, busy, edit } = await useCart()
+const { data, error, status, refresh, busy, edit, move } = await useCart()
 const drafts = ref({})
 const inputErrors = ref({})
 const changes = ref([])
@@ -28,9 +28,11 @@ function update(line) {
         <p v-if="!line.valid || !line.stockSufficient" role="alert" class="mt-2 text-crit">Esta selección requiere revisión: publicación o existencias cambiaron.</p>
         <form class="mt-4 flex flex-wrap items-end gap-2" @submit.prevent="update(line)"><UiButton variant="secondary" :disabled="busy || line.quantity <= 1" :aria-label="`Restar una pieza de ${line.name}`" @click="edit(line.id, line.quantity - 1)">−</UiButton><UiField :id="`quantity-${line.id}`" v-model="drafts[line.id]" label="Cantidad" type="number" min="1" step="1" :max="Math.max(1, line.maxQuantity)" :disabled="busy" :error="inputErrors[line.id]" class="max-w-36" /><UiButton variant="secondary" :disabled="busy || line.quantity >= line.maxQuantity" :aria-label="`Agregar una pieza de ${line.name}`" @click="edit(line.id, line.quantity + 1)">+</UiButton><UiButton type="submit" variant="secondary" :disabled="busy">Actualizar</UiButton><UiButton variant="secondary" :disabled="busy" :aria-label="`Quitar ${line.name} del carrito`" @click="edit(line.id, 0, true)">Quitar</UiButton></form>
       </li></ul>
+      <div class="mt-4 flex flex-wrap gap-2"><UiButton v-for="line in data.lines" :key="line.id" variant="secondary" :disabled="busy" @click="move(line.id, 'SAVE')">Guardar {{ line.name }} · {{ line.presentation }} para después</UiButton></div>
       <p class="mt-6 font-mono font-semibold" role="status">Total provisional de productos: {{ formatMXN(data.totals.goodsMoneyCents) }}</p><p class="mt-2 text-ink-2">Envío pendiente de cotizar; puede aumentar el total. Cupones y puntos se calcularán cuando estén habilitados. Precio y stock se verifican al recuperar el carrito; lote y caducidad se asignarán al iniciar pago.</p><UiButton class="mt-6" disabled>Pago pendiente de habilitar</UiButton>
       <div class="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface p-4 lg:hidden" aria-label="Resumen del carrito móvil"><div><p class="font-mono font-semibold">Provisional {{ formatMXN(data.totals.goodsMoneyCents) }}</p><p class="text-body-s">{{ data.pieces }} piezas · Envío pendiente</p></div><UiButton disabled>Pago pendiente</UiButton></div>
     </template>
     <div v-else class="mt-6"><p>Tu carrito está vacío.</p><UiButton class="mt-4" to="/catalogo">Explorar catálogo</UiButton></div>
+    <section v-if="!error && status !== 'pending' && data?.saved.length" class="mt-10" aria-label="Guardados para después"><h2 class="text-display-m font-bold">Guardado para después</h2><p class="mt-2 text-ink-2">Estos productos no cuentan para piezas, total, envío gratis ni puntos y no reservan stock.</p><ul class="mt-4 space-y-4"><li v-for="line in data.saved" :key="line.id" class="rounded-sm border border-line bg-surface p-4"><h3 class="font-semibold">{{ line.name }}</h3><p>{{ line.presentation }} · SKU {{ line.sku }} · {{ line.quantity }} piezas · {{ formatMXN(line.unitPriceCents) }} por pieza</p><p v-if="!line.valid || line.availableQty < line.quantity" class="mt-2 text-off">Presentación no disponible o cantidad superior al stock actual. Los avisos de reposición están pendientes de habilitar.</p><div class="mt-3 flex flex-wrap gap-2"><UiButton :disabled="busy || !line.valid || line.availableQty < line.quantity" @click="move(line.id, 'RESTORE')">Mover al carrito</UiButton><UiButton variant="secondary" :disabled="busy" @click="move(line.id, 'REMOVE')">Quitar guardado</UiButton><UiButton v-if="line.productId" variant="secondary" :to="{ path: `/producto/${line.productId}`, query: { variante: line.variantId } }">Ver producto</UiButton></div></li></ul></section>
   </section>
 </template>

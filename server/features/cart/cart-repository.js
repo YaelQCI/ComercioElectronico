@@ -16,7 +16,7 @@ function describe(item, now) {
   return { id: item.id, variantId: item.variantId, bundleId: item.bundleId, quantity: item.quantity, sku: item.variant?.sku ?? item.bundle?.code, name: item.variant?.product.name ?? item.bundle?.name, productId: item.variant?.productId ?? null, presentation: item.variant ? `${item.variant.presentationLabel} · ${item.variant.flavor}` : 'Combo', unitPriceCents: (item.variant?.priceCents ?? item.bundle.priceCents).toString(), availableQty, valid, components }
 }
 function snapshot(cart, items) {
-  const now = new Date(), described = items.map(item => {
+  const now = new Date(), saved = items.filter(i => i.state === 'SAVED').map(item => { const { components, ...line } = describe(item, now); return line }), described = items.filter(i => i.state === 'ACTIVE').map(item => {
     const line = describe(item, now)
     const media = item.variant?.product.productMedia_product.find(m => m.kind === 'FRONT' && m.variantId === item.variantId) ?? item.variant?.product.productMedia_product.find(m => m.kind === 'FRONT' && !m.variantId)
     const path = media?.asset.storageKey ?? item.bundle?.imageAsset?.storageKey
@@ -27,11 +27,11 @@ function snapshot(cart, items) {
   for (const line of described) for (const c of line.components) demand.set(c.variant.id, (demand.get(c.variant.id) ?? 0) + line.quantity * c.quantity)
   const lines = described.map(({ components, ...line }) => ({ ...line, maxQuantity: line.valid ? Math.max(0, Math.min(...components.map(c => Math.floor((availableFromLots(c.variant.inventoryLot_variant, now) - (demand.get(c.variant.id) - line.quantity * c.quantity)) / c.quantity)))) : 0, stockSufficient: line.valid && components.every(c => demand.get(c.variant.id) <= availableFromLots(c.variant.inventoryLot_variant, now)) }))
   const totals = lines.length ? calculateCart({ lines: lines.map(line => ({ id: line.id, unitPriceCents: line.unitPriceCents, quantity: line.quantity, couponEligible: false })), shippingQuotedCents: '0' }) : null
-  return { version: cart?.version ?? 1, lines, pieces: lines.reduce((n, l) => n + l.quantity, 0), products: lines.length, totals, provisional: true }
+  return { version: cart?.version ?? 1, lines, saved, pieces: lines.reduce((n, l) => n + l.quantity, 0), products: lines.length, totals, provisional: true }
 }
 export const emptyCart = () => snapshot(null, [])
 export function createCartRepository(db) {
-  async function items(tx, id) { return tx.cartItem.findMany({ where: { cartId: id, state: 'ACTIVE' }, include: itemInclude, orderBy: [{ position: 'asc' }, { id: 'asc' }] }) }
+  async function items(tx, id) { return tx.cartItem.findMany({ where: { cartId: id }, include: itemInclude, orderBy: [{ position: 'asc' }, { id: 'asc' }] }) }
   return {
     async read(hash) {
       if (!hash) return emptyCart()
@@ -79,6 +79,37 @@ export function createCartRepository(db) {
         const nextItems = await items(tx, cart.id)
         if (!remove && !snapshot(current, nextItems).lines.find(l => l.id === item.id)?.stockSufficient) throw new CartError(409, 'No hay stock suficiente para la demanda conjunta del carrito.')
         await tx.shippingQuote.updateMany({ where: { cartId: cart.id, status: { in: ['AVAILABLE', 'ACCEPTED'] } }, data: { status: 'INVALIDATED' } })
+        const updated = await tx.cart.update({ where: { id: cart.id }, data: { version: { increment: 1 } } })
+        return snapshot(updated, nextItems)
+      })
+    },
+    async move(hash, input) {
+      if (!hash || !input || !Number.isInteger(input.version) || input.version < 1 || !['SAVE', 'RESTORE', 'REMOVE'].includes(input.action) || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.itemId ?? '')) throw new CartError(400, 'Acción inválida.')
+      return db.$transaction(async tx => {
+        const cart = await tx.cart.findFirst({ where: { guestTokenHash: hash, status: 'ACTIVE', userId: null } })
+        if (!cart) throw new CartError(404, 'Carrito no disponible.')
+        await tx.$queryRaw`SELECT id FROM "Cart" WHERE id = ${cart.id}::uuid FOR UPDATE`
+        const current = await tx.cart.findUnique({ where: { id: cart.id } })
+        if (current.status !== 'ACTIVE' || current.version !== input.version) throw new CartError(409, 'El carrito cambió. Actualízalo antes de continuar.')
+        const sourceState = input.action === 'SAVE' ? 'ACTIVE' : 'SAVED'
+        const item = await tx.cartItem.findFirst({ where: { id: input.itemId, cartId: cart.id, state: sourceState } })
+        if (!item) throw new CartError(404, 'Línea no disponible en tu carrito.')
+        let targetId = item.id
+        if (input.action === 'REMOVE') await tx.cartItem.delete({ where: { id: item.id } })
+        else {
+          const targetState = input.action === 'SAVE' ? 'SAVED' : 'ACTIVE'
+          const target = await tx.cartItem.findFirst({ where: { cartId: cart.id, state: targetState, variantId: item.variantId, bundleId: item.bundleId } })
+          const quantity = item.quantity + (target?.quantity ?? 0)
+          if (quantity > 2147483647) throw new CartError(400, 'Cantidad inválida.')
+          if (target) {
+            await tx.cartItem.update({ where: { id: target.id }, data: { quantity } })
+            await tx.cartItem.delete({ where: { id: item.id } })
+            targetId = target.id
+          } else await tx.cartItem.update({ where: { id: item.id }, data: { state: targetState } })
+        }
+        const nextItems = await items(tx, cart.id)
+        if (input.action === 'RESTORE' && !snapshot(current, nextItems).lines.find(l => l.id === targetId)?.stockSufficient) throw new CartError(409, 'No hay stock suficiente para mover esta selección al carrito.')
+        if (input.action !== 'REMOVE') await tx.shippingQuote.updateMany({ where: { cartId: cart.id, status: { in: ['AVAILABLE', 'ACCEPTED'] } }, data: { status: 'INVALIDATED' } })
         const updated = await tx.cart.update({ where: { id: cart.id }, data: { version: { increment: 1 } } })
         return snapshot(updated, nextItems)
       })

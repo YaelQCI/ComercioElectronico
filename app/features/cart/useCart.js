@@ -29,5 +29,15 @@ export async function useCart() {
     } catch (e) { failure.value = e.data?.statusMessage ?? 'No pudimos actualizar el carrito.'; await refresh() }
     finally { busy.value = false }
   }
-  return { data, error, status, refresh, busy, message, failure, add, edit }
+  async function move(itemId, action) {
+    if (busy.value || !data.value) return
+    busy.value = true; message.value = ''; failure.value = ''
+    try {
+      data.value = await $fetch('/api/cart/saved', { method: 'POST', body: { itemId, action, version: data.value.version } })
+      observeCart(data.value)
+      message.value = action === 'SAVE' ? 'Producto guardado para después.' : action === 'RESTORE' ? 'Producto movido al carrito.' : 'Producto guardado eliminado.'
+    } catch (e) { failure.value = e.data?.statusMessage ?? 'No pudimos actualizar los guardados.'; await refresh() }
+    finally { busy.value = false }
+  }
+  return { data, error, status, refresh, busy, message, failure, add, edit, move }
 }
