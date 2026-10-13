@@ -3,6 +3,7 @@ import { comparePresentations, variantPricing, formatMXN } from '~~/shared/featu
 import { selectedVariant, productQuantity, nutritionRows } from '~~/shared/features/catalog/product-selection.js'
 import ProductGallery from './ProductGallery.vue'
 import ProductLots from './ProductLots.vue'
+import ConfiguredRecommendations from './ConfiguredRecommendations.vue'
 import { useCart } from '../cart/useCart.js'
 const cart = await useCart()
 const props = defineProps({ id: { type: String, required: true } })
@@ -67,6 +68,7 @@ useHead(() => ({ title: `${product.value?.name ?? 'Producto'} — The Fitness St
         <details class="rounded-sm border border-line bg-surface p-4"><summary class="min-h-11 cursor-pointer py-3 font-semibold">Envíos y devoluciones</summary><p class="mt-2">Las condiciones comerciales aún no están publicadas.</p><NuxtLink to="/politicas/devoluciones" class="mt-3 inline-flex min-h-11 items-center text-accent-text underline">Consultar devoluciones</NuxtLink></details>
         <UiTable v-if="nutrition.length" caption="Información nutrimental de la presentación seleccionada" :columns="[{ key: 'nutrient', label: 'Nutrimento' }, { key: 'amount', label: 'Cantidad declarada', numeric: true }]" :rows="nutrition" />
       </section>
+      <ConfiguredRecommendations :source-ids="[product.id]" kind="RELATED" />
       <div v-if="variant && pricing" class="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface p-4 lg:hidden" aria-label="Resumen de compra móvil">
         <div><p class="font-mono text-body-s tabular-nums">{{ pricing.priceLabel }}</p><p class="text-body-s text-ink-2">{{ variant.presentationLabel }} · {{ variant.flavor }} · Cantidad {{ quantity }}</p></div><UiButton :disabled="cart.busy.value || !variant.availableQty || !!quantityError" @click="cart.add(variantId, quantity)">Agregar al carrito</UiButton>
       </div>

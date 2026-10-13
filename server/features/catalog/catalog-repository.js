@@ -3,6 +3,7 @@ import { availableFromLots } from '../../../shared/features/inventory/availabili
 import { filterProducts, catalogFilterOptions } from '../../../shared/features/catalog/filters.js'
 import { paginateCatalog } from '../../../shared/features/catalog/pagination.js'
 import { sellableLots } from '../../../shared/features/inventory/lots.js'
+import { publicBundle, bundleIncludes } from './bundle-repository.js'
 
 const published = () => ({ deletedAt: null, publishedAt: { lte: new Date() }, productVariant_product: { some: { deletedAt: null } }, OR: [{ brandId: null }, { brand: { isActive: true } }] })
 const includes = {
@@ -34,6 +35,17 @@ export function catalogProductDTO(product) {
 }
 export function createCatalogRepository(db) {
   return {
+    async bundles() {
+      const bundles = await db.bundle.findMany({ where: { deletedAt: null }, include: bundleIncludes, orderBy: [{ featuredPosition: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }], take: 1001 })
+      if (bundles.length > 1000) throw new Error('Límite de lectura de combos excedido.')
+      return bundles.map(b => publicBundle(b)).filter(Boolean)
+    },
+    async recommendations(sourceIds, kind, excludedVariantIds = []) {
+      if (!sourceIds.length) return []
+      const relations = await db.productRelation.findMany({ where: { sourceProductId: { in: sourceIds }, kind, sourceProduct: published(), targetProduct: published() }, include: { targetProduct: { include: includes } }, orderBy: [{ position: 'asc' }, { targetProductId: 'asc' }], take: 100 })
+      const seen = new Set()
+      return relations.map(r => catalogProductDTO(r.targetProduct)).filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); p.variants = p.variants.filter(v => !excludedVariantIds.includes(v.id)); return p.variants.length > 0 }).slice(0, 8)
+    },
     async home() {
       const [products, categories] = await db.$transaction([
         db.product.findMany({ where: { ...published(), featuredPosition: { not: null } }, include: includes, orderBy: [{ featuredPosition: 'asc' }, { id: 'asc' }], take: 8 }),

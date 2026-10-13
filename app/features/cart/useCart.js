@@ -5,12 +5,12 @@ export async function useCart() {
   const message = useState('cart-message', () => '')
   const failure = useState('cart-failure', () => '')
   const { data, error, status, refresh } = await useFetch('/api/cart', { key: 'store-cart' })
-  async function add(variantId, quantity, buyNow = false) {
+  async function add(variantId, quantity, buyNow = false, bundleId = null) {
     if (busy.value) return
     busy.value = true; message.value = ''; failure.value = ''
     try {
       if (!data.value || error.value) { await refresh(); if (error.value || !data.value) throw new Error('No pudimos recuperar el carrito.') }
-      data.value = await $fetch('/api/cart/items', { method: 'POST', body: { variantId, quantity: Number(quantity), version: data.value.version } })
+      data.value = await $fetch('/api/cart/items', { method: 'POST', body: { variantId, bundleId, quantity: Number(quantity), version: data.value.version } })
       observeCart(data.value)
       message.value = `Producto agregado. ${data.value.pieces} piezas en ${data.value.products} líneas de producto.`
       if (buyNow) await navigateTo('/carrito')
@@ -39,5 +39,6 @@ export async function useCart() {
     } catch (e) { failure.value = e.data?.statusMessage ?? 'No pudimos actualizar los guardados.'; await refresh() }
     finally { busy.value = false }
   }
-  return { data, error, status, refresh, busy, message, failure, add, edit, move }
+  const addBundle = (bundleId, quantity = 1) => add(null, quantity, false, bundleId)
+  return { data, error, status, refresh, busy, message, failure, add, addBundle, edit, move }
 }

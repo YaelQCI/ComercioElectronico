@@ -5,6 +5,7 @@ import { PrismaClient } from '../../generated/prisma/client.ts'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { importCatalog } from '../../server/features/catalog/import-catalog.js'
 import { createCartRepository } from '../../server/features/cart/cart-repository.js'
+import { createCatalogRepository } from '../../server/features/catalog/catalog-repository.js'
 
 const url = process.env.TEST_DATABASE_URL
 if (!url || !new URL(url).pathname.startsWith('/fitness_migration_test')) throw new Error('Usar base aislada fitness_migration_test*.')
@@ -91,4 +92,26 @@ test('guardados despublicados permanecen visibles pero restauración rechazada',
   assert.equal(read.saved[0].valid, false)
   await assert.rejects(repository.move(owner, { itemId: saved.saved[0].id, action: 'RESTORE', version: saved.version }), /stock/)
   assert.equal((await repository.read(owner)).saved.length, 1)
+})
+test('agregar combo usa componentes fijos, cuenta piezas reales y suma demanda con unidades', async () => {
+  const variants = await fixture(), owner = hash()
+  const bundle = await db.bundle.create({ data: { code: `FIXTURE-${randomUUID()}`, slug: `fixture-${randomUUID()}`, name: 'Combo sintético', priceCents: 2500n, bundleComponent_bundle: { create: variants.map((v, i) => ({ variantId: v.id, quantity: i + 1 })) } } })
+  const first = await repository.add(owner, { bundleId: bundle.id, quantity: 2, version: 1 })
+  assert.equal(first.pieces, 6); assert.equal(first.products, 1); assert.equal(first.totals.goodsMoneyCents, '5000')
+  const second = await repository.add(owner, { variantId: variants[1].id, quantity: 8, version: first.version })
+  assert.equal(second.pieces, 14)
+  await assert.rejects(repository.add(owner, { bundleId: bundle.id, quantity: 1, version: second.version }), /stock/)
+  assert.equal((await repository.read(owner)).pieces, 14)
+  const lots = await db.inventoryLot.findMany({ where: { variantId: { in: variants.map(v => v.id) } } })
+  assert.ok(lots.every(l => l.reservedQty === 0 && l.onHandQty === 12))
+})
+test('relacionados son relaciones explícitas y excluyen SKU activo y productos ocultos', async () => {
+  const [source] = await fixture(), targets = await fixture()
+  const catalog = createCatalogRepository(db)
+  await db.productRelation.create({ data: { sourceProductId: source.productId, targetProductId: targets[0].productId, kind: 'CROSS_SELL' } })
+  assert.equal((await catalog.recommendations([source.productId], 'RELATED')).length, 0)
+  const result = await catalog.recommendations([source.productId], 'CROSS_SELL', [targets[0].id])
+  assert.equal(result.length, 1); assert.deepEqual(result[0].variants.map(v => v.id), [targets[1].id])
+  await db.product.update({ where: { id: targets[0].productId }, data: { publishedAt: null } })
+  assert.equal((await catalog.recommendations([source.productId], 'CROSS_SELL')).length, 0)
 })
