@@ -6,7 +6,7 @@ La fuente activa es `app/assets/css/tokens.css`. La paleta clara procede del iss
 
 Integración existente mediante `@tailwindcss/vite` en `nuxt.config.js`. Se configura con CSS (`@theme` y `@theme inline`), sin `tailwind.config.js` de Tailwind 3. Se deshabilita la paleta por defecto para evitar colores ajenos a la identidad. [Variables de tema oficiales](https://tailwindcss.com/docs/theme).
 
-Los colores usan `light-dark()` y `color-scheme`: respetan el sistema por defecto; `data-theme="light"` o `data-theme="dark"` en `<html>` fuerza una selección. #22 debe resolver y persistir la preferencia global antes de pintar la página. Los componentes no necesitan duplicar clases para cada tema. El selector de `/sistema-visual` solo demuestra los dos modos y no guarda preferencias.
+Los colores usan `light-dark()` y `color-scheme`: respetan el sistema por defecto; `data-theme="light"` o `data-theme="dark"` en `<html>` fuerza una selección. El controlador de #22 resuelve la preferencia global en el head antes de pintar. Los componentes no necesitan duplicar clases para cada tema. Cabecera y `/sistema-visual` comparten el selector persistente; ver [preferencia de apariencia](theme-preference.md).
 
 ## Nombres y usos
 
@@ -52,7 +52,7 @@ Los hex de esta sección son registro histórico; los componentes obtienen todos
 
 `/` usa tokens semánticos y tipografía. `/sistema-visual` demuestra superficies, botón primario/secundario/deshabilitado, campo de búsqueda, selector, estados, tabla con cifras tabulares y pie sobre tinta en ambos temas. Es una referencia visual, no un catálogo ni un flujo comercial.
 
-Cabecera, pie comercial, tarjetas, filtros, detalle, carrito, cuenta, checkout y administración todavía no existen: los issues que los implementen deben usar este contrato. #22 añade persistencia; #29 verifica navegación por teclado y contraste en contextos reales. El checkout alojado de Stripe se configura mediante las opciones de marca de Stripe, no con Tailwind local.
+Cabecera, pie, catálogo, detalle y carrito usan este contrato. Cuenta, checkout y administración deben incorporarlo al implementarse. #22 añade persistencia; #29 verifica navegación por teclado y contraste en contextos reales. El checkout alojado de Stripe se configura mediante las opciones de marca de Stripe, no con Tailwind local.
 
 ## Verificación realizada
 

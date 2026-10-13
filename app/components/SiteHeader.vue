@@ -1,6 +1,7 @@
 <script setup>
 import { storeCategories } from '~/utils/navigation'
 import { useCart } from '~/features/cart/useCart.js'
+import ThemeControl from '~/features/appearance/ThemeControl.vue'
 const cart = await useCart()
 const route = useRoute()
 const menuOpen = ref(false)
@@ -32,6 +33,7 @@ function search() {
           <span class="mt-1 block h-1 w-12 bg-accent" aria-hidden="true" />
         </NuxtLink>
         <nav aria-label="Secciones principales" class="flex flex-wrap items-center justify-end gap-4 text-body-s">
+          <ThemeControl />
           <NuxtLink to="/catalogo" class="inline-flex min-h-11 items-center hover:underline">Catálogo</NuxtLink>
           <NuxtLink to="/carrito" class="inline-flex min-h-11 items-center gap-2 hover:underline"><UiIcon name="cart" /><span>Carrito<span v-if="cart.data.value"> · {{ cart.data.value.pieces }} piezas</span></span></NuxtLink>
           <button ref="menuButton" type="button" :aria-expanded="menuOpen" aria-controls="mobile-categories" class="inline-flex min-h-11 items-center gap-2 rounded-sm border border-border px-3 lg:hidden" @click="menuOpen = !menuOpen">

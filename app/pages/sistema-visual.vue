@@ -1,9 +1,7 @@
 <script setup>
-// Selector de demostración; persistencia y selector global pertenecen a #22.
-const theme = ref('light')
+import ThemeControl from '~/features/appearance/ThemeControl.vue'
 const sampleQuery = ref('')
 definePageMeta({ layout: false })
-useHead(() => ({ htmlAttrs: { 'data-theme': theme.value } }))
 const surfaces = [
   ['paper', 'bg-paper text-ink'], ['surface', 'bg-surface text-ink'],
   ['surface-2', 'bg-surface-2 text-ink'], ['accent', 'bg-accent text-accent-ink'],
@@ -18,12 +16,7 @@ const surfaces = [
         <NuxtLink to="/" class="text-accent-text underline">The Fitness Stuff</NuxtLink>
         <h1 class="mt-2 text-display-l font-bold">Sistema visual</h1>
       </div>
-      <label class="flex items-center gap-3" for="theme">
-        Tema de la muestra
-        <select id="theme" v-model="theme" class="rounded-sm border border-border bg-surface px-3 py-2 text-ink">
-          <option value="light">Claro</option><option value="dark">Oscuro</option>
-        </select>
-      </label>
+      <ThemeControl />
     </header>
     <section class="mt-8" aria-labelledby="palette">
       <h2 id="palette" class="text-display-m font-bold">Superficies y colores</h2>

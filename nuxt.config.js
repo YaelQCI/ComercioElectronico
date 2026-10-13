@@ -1,4 +1,5 @@
 import tailwindcss from '@tailwindcss/vite'
+import { themeBootstrap } from './app/features/appearance/theme.js'
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-11-01',
@@ -20,5 +21,5 @@ export default defineNuxtConfig({
       serviceHours: '',
     },
   },
-  app: { head: { htmlAttrs: { lang: 'es' }, title: 'The Fitness Stuff' } },
+  app: { head: { htmlAttrs: { lang: 'es' }, title: 'The Fitness Stuff', script: [{ key: 'fitness-theme', innerHTML: themeBootstrap, tagPosition: 'head' }] } },
 })

@@ -85,6 +85,6 @@ Las pruebas de #33 usan una base exclusiva y fixtures sintéticas: `TEST_DATABAS
 
 La migración integral y lectura/escritura Prisma ya se validaron en PostgreSQL aislado. La semilla comercial, servicios autorizados y validación del entorno PostgreSQL 17.7/Docker siguen coordinándose con #33. #41 cubre AWS/Route 53. Esta base no integra cobros ni recursos cloud.
 
-Los tokens de #42 están documentados en [docs/design-tokens.md](docs/design-tokens.md). Abrir `/sistema-visual` para probar ambos temas y ejecutar `npm run check:contrast` para medir sus parejas de colores. La preferencia persistente se implementa en #22.
+Los tokens de #42 están documentados en [docs/design-tokens.md](docs/design-tokens.md). Abrir `/sistema-visual` para probar ambos temas y ejecutar `npm run check:contrast` para medir sus parejas de colores. La [preferencia persistente de #22](docs/theme-preference.md) está disponible en la cabecera y la muestra visual.
 
 La evidencia y los avisos pendientes de dependencias están en [docs/validation.md](docs/validation.md). En este equipo responde un servicio PostgreSQL en el puerto 5432 que rechaza las credenciales de ejemplo; Docker no está iniciado. Configurar una base propia o un puerto libre antes de validar persistencia.
