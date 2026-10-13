@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict'
+const base = process.env.TEST_HTTP_URL
+if (!base || !/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(base)) throw new Error('Usar TEST_HTTP_URL local con base aislada y fixtures.')
+const catalog = await (await fetch(`${base}/api/catalog/products`)).json()
+const variant = catalog.products.flatMap(p => p.variants).find(v => v.availableQty > 0)
+assert.ok(variant, 'Requiere fixture disponible')
+const body = JSON.stringify({ variantId: variant.id, quantity: 1, version: 1 })
+const response = await fetch(`${base}/api/cart/items`, { method: 'POST', headers: { Origin: base, 'Content-Type': 'application/json' }, body })
+assert.equal(response.status, 200)
+assert.equal((await response.json()).pieces, 1)
+const setCookie = response.headers.get('set-cookie')
+assert.match(setCookie, /HttpOnly/i)
+assert.match(setCookie, /SameSite=Strict/i)
+const headers = { Cookie: setCookie.split(';')[0] }
+const cart = await (await fetch(`${base}/api/cart`, { headers })).json()
+assert.equal(cart.pieces, 1)
+const html = await (await fetch(`${base}/carrito`, { headers })).text()
+assert.match(html, /1 piezas/)
+const duplicate = await fetch(`${base}/api/cart/items`, { method: 'POST', headers: { ...headers, Origin: base, 'Content-Type': 'application/json' }, body })
+assert.equal(duplicate.status, 409)
+const foreign = await fetch(`${base}/api/cart/items`, { method: 'POST', headers: { ...headers, Origin: 'https://example.invalid', 'Content-Type': 'application/json' }, body })
+assert.equal(foreign.status, 403)
+console.log('HTTP: cookie protegida, persistencia, SSR, versión duplicada y origen rechazado aprobados.')

@@ -1,0 +1,13 @@
+# Agregar al carrito (#14)
+
+Las tarjetas identifican la presentación y el sabor que agregan; ficha y barra móvil comparten la misma operación y cantidad. Comprar ahora agrega una vez y abre `/carrito`. La cabecera anuncia éxito/error y cuenta piezas, mientras el carrito distingue líneas de producto.
+
+El visitante recibe un token aleatorio de 256 bits en cookie HttpOnly, SameSite Strict y Secure en producción, con duración de 90 días. PostgreSQL guarda únicamente SHA-256 del token. No se aceptan identificadores de propietario enviados por el navegador. GET no crea carritos y recupera vacío ante token inválido; POST exige Origin del mismo sitio. Sin almacenamiento local, la persistencia requiere cookies habilitadas; perder la cookie no permite recuperar un carrito ajeno.
+
+Las mutaciones bloquean el carrito y exigen su versión. Dos solicitudes simultáneas o una repetición con versión anterior producen un único agregado y un conflicto recuperable. El navegador bloquea las acciones mientras existe una operación en curso. Un SKU se consolida dentro de ACTIVE, sin fusionarse con SAVED. La demanda incluye componentes de combos ya presentes y unidades sueltas. No hay tope comercial de diez piezas: se admiten enteros hasta el stock disponible y el límite técnico Int32 del modelo. Carrito no modifica reservas ni movimientos de inventario. Una lectura vuelve a consultar precio, publicación y disponibilidad; la existencia sigue sujeta a validación al pagar.
+
+Cambiar contenido incrementa versión e invalida cotizaciones disponibles. Los importes son cadenas de centavos calculadas por el módulo de precios; el resumen actual es provisional de productos y declara envío pendiente, con promociones/puntos todavía sin habilitar.
+
+Validación: tres pruebas PostgreSQL aisladas cubren persistencia, separación/consolidación, aislamiento, cantidades de más de diez piezas, rollback por stock, concurrencia, revalidación y demanda conjunta de combo. `scripts/check-cart-http.mjs` comprueba cookie, recuperación por HTTP, renderizado SSR y rechazo de origen/versión. Ejecutarlo solamente contra un servidor local conectado a `fitness_migration_test*`; crea carritos sintéticos. Build Nuxt y comprobación HTTP deben aprobar antes del commit.
+
+Pendiente de aceptación: integración con carritos autenticados al implementar #23, alta de combos desde su interfaz #17 y validación de doble clic, teclado, tacto y adaptación visual en navegador. No existen datos comerciales definitivos según el propietario. Checkout permanece deshabilitado hasta integrar sus dependencias; agregar al carrito no constituye compra.

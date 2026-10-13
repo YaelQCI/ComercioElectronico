@@ -3,6 +3,8 @@ import { comparePresentations, variantPricing, formatMXN } from '~~/shared/featu
 import { selectedVariant, productQuantity, nutritionRows } from '~~/shared/features/catalog/product-selection.js'
 import ProductGallery from './ProductGallery.vue'
 import ProductLots from './ProductLots.vue'
+import { useCart } from '../cart/useCart.js'
+const cart = await useCart()
 const props = defineProps({ id: { type: String, required: true } })
 const { data, status, error, refresh } = await useFetch(() => `/api/catalog/products/${props.id}`)
 if ([400, 404].includes(error.value?.statusCode)) throw createError({ statusCode: 404, statusMessage: 'Producto no disponible.' })
@@ -47,8 +49,7 @@ useHead(() => ({ title: `${product.value?.name ?? 'Producto'} — The Fitness St
             <p class="mt-3 text-body-s" :class="variant.availableQty ? 'text-ok' : 'text-off'">{{ variant.availableQty === 0 ? 'Agotado' : variant.availableQty <= 5 ? `Últimas ${variant.availableQty} piezas` : `${variant.availableQty} piezas disponibles` }}</p>
             <UiField id="product-quantity" v-model="quantity" label="Cantidad" type="number" min="1" step="1" :max="Math.max(1, variant.availableQty)" :disabled="!variant.availableQty" :error="quantityError" class="mt-4 max-w-40" />
           </template>
-          <UiButton class="mt-6" disabled>Compra no habilitada</UiButton>
-          <p class="mt-2 text-body-s text-ink-2">Estamos preparando la compra en línea.</p>
+          <div class="mt-6 flex flex-wrap gap-3"><UiButton :disabled="cart.busy.value || !variant?.availableQty || !!quantityError" @click="cart.add(variantId, quantity)">Agregar al carrito</UiButton><UiButton variant="secondary" :disabled="cart.busy.value || !variant?.availableQty || !!quantityError" @click="cart.add(variantId, quantity, true)">Comprar ahora</UiButton></div>
           <ProductLots v-if="variant" :variant="variant" />
         </div>
       </div>
@@ -67,7 +68,7 @@ useHead(() => ({ title: `${product.value?.name ?? 'Producto'} — The Fitness St
         <UiTable v-if="nutrition.length" caption="Información nutrimental de la presentación seleccionada" :columns="[{ key: 'nutrient', label: 'Nutrimento' }, { key: 'amount', label: 'Cantidad declarada', numeric: true }]" :rows="nutrition" />
       </section>
       <div v-if="variant && pricing" class="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface p-4 lg:hidden" aria-label="Resumen de compra móvil">
-        <div><p class="font-mono text-body-s tabular-nums">{{ pricing.priceLabel }}</p><p class="text-body-s text-ink-2">{{ variant.presentationLabel }} · {{ variant.flavor }} · Cantidad {{ quantity }}</p></div><UiButton disabled>Compra no habilitada</UiButton>
+        <div><p class="font-mono text-body-s tabular-nums">{{ pricing.priceLabel }}</p><p class="text-body-s text-ink-2">{{ variant.presentationLabel }} · {{ variant.flavor }} · Cantidad {{ quantity }}</p></div><UiButton :disabled="cart.busy.value || !variant.availableQty || !!quantityError" @click="cart.add(variantId, quantity)">Agregar al carrito</UiButton>
       </div>
     </template>
   </section>
