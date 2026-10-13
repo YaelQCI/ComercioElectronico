@@ -10,6 +10,8 @@ const pricing = computed(() => props.product.variants[0] ? variantPricing(props.
     <p v-if="pricing" class="mt-2 font-mono text-data-l font-semibold tabular-nums"><span v-if="product.variants.length > 1" class="text-body-s">Desde </span>{{ pricing.priceLabel }}</p>
     <p v-if="pricing?.compareAtPriceLabel" class="mt-1 text-body-s text-ink-2">Precio anterior: <s>{{ pricing.compareAtPriceLabel }}</s></p>
     <p v-if="pricing?.servingCostLabel" class="mt-2 font-mono text-body-s tabular-nums">{{ pricing.servingCostLabel }}</p>
+    <p v-if="product.variants[0]" class="mt-2 font-mono text-body-s text-ink-2">SKU {{ product.variants[0].sku }}</p>
+    <p v-if="product.variants[0]" class="mt-2 text-body-s" :class="product.variants[0].availableQty ? 'text-ok' : 'text-off'">{{ product.variants[0].availableQty === 0 ? 'Presentación mostrada agotada' : product.variants[0].availableQty <= 5 ? `Últimas ${product.variants[0].availableQty} piezas` : 'Disponible' }}</p>
     <template #actions><UiButton :to="`/producto/${product.id}`" variant="secondary">Ver producto</UiButton></template>
   </UiCard>
 </template>
