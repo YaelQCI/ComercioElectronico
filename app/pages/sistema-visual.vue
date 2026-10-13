@@ -1,6 +1,7 @@
 <script setup>
 // Selector de demostración; persistencia y selector global pertenecen a #22.
 const theme = ref('light')
+definePageMeta({ layout: false })
 useHead(() => ({ htmlAttrs: { 'data-theme': theme.value } }))
 const surfaces = [
   ['paper', 'bg-paper text-ink'], ['surface', 'bg-surface text-ink'],

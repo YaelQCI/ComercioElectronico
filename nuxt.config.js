@@ -8,7 +8,12 @@ export default defineNuxtConfig({
   runtimeConfig: {
     stripeSecretKey: '',
     stripeWebhookSecret: '',
-    public: { stripePublishableKey: '' },
+    public: {
+      stripePublishableKey: '',
+      contactEmail: '',
+      contactPhone: '',
+      serviceHours: '',
+    },
   },
   app: { head: { htmlAttrs: { lang: 'es' }, title: 'The Fitness Stuff' } },
 })
