@@ -1,4 +1,4 @@
-const published = () => ({ deletedAt: null, publishedAt: { lte: new Date() }, OR: [{ brandId: null }, { brand: { isActive: true } }] })
+const published = () => ({ deletedAt: null, publishedAt: { lte: new Date() }, productVariant_product: { some: { deletedAt: null } }, OR: [{ brandId: null }, { brand: { isActive: true } }] })
 const includes = {
   brand: true,
   productCategory_product: { where: { category: { isActive: true } }, include: { category: true } },
@@ -24,6 +24,13 @@ export function catalogProductDTO(product) {
 }
 export function createCatalogRepository(db) {
   return {
+    async home() {
+      const [products, categories] = await db.$transaction([
+        db.product.findMany({ where: { ...published(), featuredPosition: { not: null } }, include: includes, orderBy: [{ featuredPosition: 'asc' }, { id: 'asc' }], take: 8 }),
+        db.category.findMany({ where: { isActive: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }], select: { slug: true, name: true, _count: { select: { productCategory_category: { where: { product: published() } } } } } }),
+      ])
+      return { featured: products.map(catalogProductDTO), categories: categories.map(c => ({ slug: c.slug, name: c.name, productCount: c._count.productCategory_category })) }
+    },
     async list() {
       const products = await db.product.findMany({ where: published(), include: includes, orderBy: [{ name: 'asc' }, { id: 'asc' }], take: 100 })
       return products.map(catalogProductDTO)
