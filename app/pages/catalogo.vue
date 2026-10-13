@@ -1,5 +1,6 @@
 <script setup>
 import { storeCategories } from '~/utils/navigation'
+import CatalogListing from '~/features/catalog/CatalogListing.vue'
 const route = useRoute()
 const category = computed(() => storeCategories.find(item => item.slug === route.query.categoria))
 const crumbs = computed(() => category.value ? [{ label: 'Catálogo', to: '/catalogo' }, { label: category.value.name }] : [{ label: 'Catálogo' }])
@@ -10,7 +11,8 @@ useHead({ title: 'Catálogo — The Fitness Stuff' })
     <UiBreadcrumbs :items="crumbs" />
     <h1 class="text-display-l font-bold">{{ category?.name || 'Catálogo' }}</h1>
     <p v-if="route.query.q" class="mt-3 text-ink-2">Búsqueda: {{ route.query.q }}</p>
-    <p class="mt-6 text-ink-2">Estamos preparando los productos de esta sección.</p>
+    <p v-if="route.query.categoria || route.query.q" class="mt-3 text-body-s text-ink-2">Por ahora mostramos el catálogo completo.</p>
+    <CatalogListing />
     <div class="mt-6"><UiButton to="/" variant="secondary">Volver al inicio</UiButton></div>
   </section>
 </template>
