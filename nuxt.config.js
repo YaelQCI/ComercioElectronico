@@ -6,6 +6,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   vite: { plugins: [tailwindcss()] },
   runtimeConfig: {
+    catalogAssetDirectory: '',
     stripeSecretKey: '',
     stripeWebhookSecret: '',
     public: {

@@ -2,19 +2,23 @@ import { searchPattern } from '../../../shared/features/catalog/search.js'
 import { availableFromLots } from '../../../shared/features/inventory/availability.js'
 import { filterProducts, catalogFilterOptions } from '../../../shared/features/catalog/filters.js'
 import { paginateCatalog } from '../../../shared/features/catalog/pagination.js'
+import { sellableLots } from '../../../shared/features/inventory/lots.js'
 
 const published = () => ({ deletedAt: null, publishedAt: { lte: new Date() }, productVariant_product: { some: { deletedAt: null } }, OR: [{ brandId: null }, { brand: { isActive: true } }] })
 const includes = {
   brand: true,
   productCategory_product: { where: { category: { isActive: true } }, include: { category: true } },
   productFacet_product: { include: { facet: true } },
-  productVariant_product: { where: { deletedAt: null }, include: { inventoryLot_variant: { include: { warehouse: { select: { timezone: true } } } } }, orderBy: [{ priceCents: 'asc' }, { id: 'asc' }] },
+  productVariant_product: { where: { deletedAt: null }, include: { inventoryLot_variant: { include: { warehouse: { select: { timezone: true } }, certificateAsset: true } } }, orderBy: [{ priceCents: 'asc' }, { id: 'asc' }] },
   productMedia_product: { include: { asset: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }] },
 }
 function publicImage(media) {
   // Local reviewed assets supported by the importer. Never expose storage internals.
   if (!/^\/images\/catalog\/[a-zA-Z0-9/_-]+\.(?:webp|png|jpg|jpeg)$/.test(media.asset.storageKey)) return null
   return { id: media.id, url: media.asset.storageKey, alt: media.altText, kind: media.kind, variantId: media.variantId }
+}
+function publicLots(variant) {
+  return sellableLots(variant.inventoryLot_variant).map(lot => ({ id: lot.id, lotCode: lot.lotCode, expiresOn: lot.expiresOn?.toISOString().slice(0, 10) ?? null, expiryPrecision: lot.expiryPrecision, importedOn: lot.importedOn?.toISOString().slice(0, 10) ?? null, customsEntry: lot.customsEntry, origin: lot.origin, availableQty: lot.onHandQty - lot.reservedQty, certificateUrl: lot.certificateAsset?.mimeType === 'application/pdf' ? `/api/catalog/lots/${lot.id}/certificate` : null }))
 }
 export function catalogProductDTO(product) {
   return {
@@ -25,7 +29,7 @@ export function catalogProductDTO(product) {
     categories: product.productCategory_product.map(({ category, isPrimary }) => ({ slug: category.slug, name: category.name, isPrimary })),
     facets: product.productFacet_product.map(({ facet }) => ({ kind: facet.kind, slug: facet.slug, name: facet.name })),
     images: product.productMedia_product.map(publicImage).filter(Boolean),
-    variants: product.productVariant_product.map(v => ({ id: v.id, sku: v.sku, flavor: v.flavor, presentationLabel: v.presentationLabel, contentAmount: v.contentAmount.toString(), contentUnit: v.contentUnit, servings: v.servings?.toString() ?? null, servingAmount: v.servingAmount?.toString() ?? null, servingUnit: v.servingUnit, nutritionData: v.nutritionData, priceCents: v.priceCents.toString(), compareAtPriceCents: v.compareAtPriceCents?.toString() ?? null, availableQty: availableFromLots(v.inventoryLot_variant), weightGrams: v.weightGrams, lengthMm: v.lengthMm, widthMm: v.widthMm, heightMm: v.heightMm })),
+    variants: product.productVariant_product.map(v => ({ id: v.id, sku: v.sku, flavor: v.flavor, presentationLabel: v.presentationLabel, contentAmount: v.contentAmount.toString(), contentUnit: v.contentUnit, servings: v.servings?.toString() ?? null, servingAmount: v.servingAmount?.toString() ?? null, servingUnit: v.servingUnit, nutritionData: v.nutritionData, priceCents: v.priceCents.toString(), compareAtPriceCents: v.compareAtPriceCents?.toString() ?? null, availableQty: availableFromLots(v.inventoryLot_variant), lots: publicLots(v), weightGrams: v.weightGrams, lengthMm: v.lengthMm, widthMm: v.widthMm, heightMm: v.heightMm })),
   }
 }
 export function createCatalogRepository(db) {
@@ -66,6 +70,10 @@ export function createCatalogRepository(db) {
     async getById(id) {
       const product = await db.product.findFirst({ where: { ...published(), id }, include: includes })
       return product ? catalogProductDTO(product) : null
+    },
+    async certificateForLot(id) {
+      const lot = await db.inventoryLot.findFirst({ where: { id, variant: { deletedAt: null, product: published() } }, include: { certificateAsset: true } })
+      return lot?.certificateAsset ?? null
     },
   }
 }

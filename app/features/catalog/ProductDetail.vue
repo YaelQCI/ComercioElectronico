@@ -2,6 +2,7 @@
 import { comparePresentations, variantPricing, formatMXN } from '~~/shared/features/pricing/prices.js'
 import { selectedVariant, productQuantity, nutritionRows } from '~~/shared/features/catalog/product-selection.js'
 import ProductGallery from './ProductGallery.vue'
+import ProductLots from './ProductLots.vue'
 const props = defineProps({ id: { type: String, required: true } })
 const { data, status, error, refresh } = await useFetch(() => `/api/catalog/products/${props.id}`)
 if ([400, 404].includes(error.value?.statusCode)) throw createError({ statusCode: 404, statusMessage: 'Producto no disponible.' })
@@ -48,6 +49,7 @@ useHead(() => ({ title: `${product.value?.name ?? 'Producto'} — The Fitness St
           </template>
           <UiButton class="mt-6" disabled>Compra no habilitada</UiButton>
           <p class="mt-2 text-body-s text-ink-2">Estamos preparando la compra en línea.</p>
+          <ProductLots v-if="variant" :variant="variant" />
         </div>
       </div>
       <section v-if="rows.length" class="mt-10" aria-label="Comparación de presentaciones">
