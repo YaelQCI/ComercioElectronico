@@ -11,7 +11,6 @@ useHead({ title: 'Catálogo — The Fitness Stuff' })
     <UiBreadcrumbs :items="crumbs" />
     <h1 class="text-display-l font-bold">{{ category?.name || 'Catálogo' }}</h1>
     <p v-if="route.query.q" class="mt-3 text-ink-2">Búsqueda: {{ route.query.q }}</p>
-    <p v-if="route.query.categoria" class="mt-3 text-body-s text-ink-2">El filtro de categoría aún no está disponible.</p>
     <CatalogListing />
     <div class="mt-6"><UiButton to="/" variant="secondary">Volver al inicio</UiButton></div>
   </section>

@@ -1,8 +1,8 @@
 import { readCatalog } from '../../../features/catalog/catalog-http.js'
-import { searchQuery } from '../../../../shared/features/catalog/search.js'
+import { parseCatalogFilters } from '../../../../shared/features/catalog/filters.js'
 export default defineEventHandler(async event => {
   setHeader(event, 'Cache-Control', 'no-store')
-  let q
-  try { q = searchQuery(getQuery(event).q) } catch { throw createError({ statusCode: 400, statusMessage: 'Consulta inválida: máximo 120 caracteres.' }) }
-  return { products: await readCatalog(repository => repository.list({ q })) }
+  let filters
+  try { filters = parseCatalogFilters(getQuery(event)) } catch { throw createError({ statusCode: 400, statusMessage: 'Consulta o filtros inválidos.' }) }
+  return readCatalog(repository => repository.browse(filters))
 })

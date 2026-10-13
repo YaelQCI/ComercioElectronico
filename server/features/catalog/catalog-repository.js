@@ -1,11 +1,13 @@
 import { searchPattern } from '../../../shared/features/catalog/search.js'
+import { availableFromLots } from '../../../shared/features/inventory/availability.js'
+import { filterProducts, catalogFilterOptions } from '../../../shared/features/catalog/filters.js'
 
 const published = () => ({ deletedAt: null, publishedAt: { lte: new Date() }, productVariant_product: { some: { deletedAt: null } }, OR: [{ brandId: null }, { brand: { isActive: true } }] })
 const includes = {
   brand: true,
   productCategory_product: { where: { category: { isActive: true } }, include: { category: true } },
   productFacet_product: { include: { facet: true } },
-  productVariant_product: { where: { deletedAt: null }, orderBy: [{ priceCents: 'asc' }, { id: 'asc' }] },
+  productVariant_product: { where: { deletedAt: null }, include: { inventoryLot_variant: { include: { warehouse: { select: { timezone: true } } } } }, orderBy: [{ priceCents: 'asc' }, { id: 'asc' }] },
   productMedia_product: { include: { asset: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }] },
 }
 function publicImage(media) {
@@ -21,7 +23,7 @@ export function catalogProductDTO(product) {
     categories: product.productCategory_product.map(({ category, isPrimary }) => ({ slug: category.slug, name: category.name, isPrimary })),
     facets: product.productFacet_product.map(({ facet }) => ({ kind: facet.kind, slug: facet.slug, name: facet.name })),
     images: product.productMedia_product.map(publicImage).filter(Boolean),
-    variants: product.productVariant_product.map(v => ({ id: v.id, sku: v.sku, flavor: v.flavor, presentationLabel: v.presentationLabel, contentAmount: v.contentAmount.toString(), contentUnit: v.contentUnit, servings: v.servings?.toString() ?? null, servingAmount: v.servingAmount?.toString() ?? null, servingUnit: v.servingUnit, nutritionData: v.nutritionData, priceCents: v.priceCents.toString(), compareAtPriceCents: v.compareAtPriceCents?.toString() ?? null, weightGrams: v.weightGrams, lengthMm: v.lengthMm, widthMm: v.widthMm, heightMm: v.heightMm })),
+    variants: product.productVariant_product.map(v => ({ id: v.id, sku: v.sku, flavor: v.flavor, presentationLabel: v.presentationLabel, contentAmount: v.contentAmount.toString(), contentUnit: v.contentUnit, servings: v.servings?.toString() ?? null, servingAmount: v.servingAmount?.toString() ?? null, servingUnit: v.servingUnit, nutritionData: v.nutritionData, priceCents: v.priceCents.toString(), compareAtPriceCents: v.compareAtPriceCents?.toString() ?? null, availableQty: availableFromLots(v.inventoryLot_variant), weightGrams: v.weightGrams, lengthMm: v.lengthMm, widthMm: v.widthMm, heightMm: v.heightMm })),
   }
 }
 export function createCatalogRepository(db) {
@@ -50,8 +52,14 @@ export function createCatalogRepository(db) {
         `
         ids = matches.map(m => m.id)
       }
-      const products = await db.product.findMany({ where: { ...published(), ...(ids ? { id: { in: ids } } : {}) }, include: includes, orderBy: [{ name: 'asc' }, { id: 'asc' }], take: 100 })
+      const products = await db.product.findMany({ where: { ...published(), ...(ids ? { id: { in: ids } } : {}) }, include: includes, orderBy: [{ name: 'asc' }, { id: 'asc' }], take: 10001 })
+      if (products.length > 10000) throw new Error('Catálogo excede el límite de lectura configurado; requiere consulta indexada.')
       return products.map(catalogProductDTO)
+    },
+    async browse(filters) {
+      const all = await this.list()
+      const queried = filters.q ? await this.list({ q: filters.q }) : all
+      return { products: filterProducts(queried, filters), options: catalogFilterOptions(all), catalogTotal: all.length }
     },
     async getById(id) {
       const product = await db.product.findFirst({ where: { ...published(), id }, include: includes })
