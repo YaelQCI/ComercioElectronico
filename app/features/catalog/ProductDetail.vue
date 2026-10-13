@@ -3,6 +3,7 @@ import { comparePresentations, variantPricing, formatMXN } from '~~/shared/featu
 import { selectedVariant, productQuantity, nutritionRows } from '~~/shared/features/catalog/product-selection.js'
 import ProductGallery from './ProductGallery.vue'
 import ProductLots from './ProductLots.vue'
+import RestockForm from '../restock/RestockForm.vue'
 import ConfiguredRecommendations from './ConfiguredRecommendations.vue'
 import { useCart } from '../cart/useCart.js'
 const cart = await useCart()
@@ -52,6 +53,7 @@ useHead(() => ({ title: `${product.value?.name ?? 'Producto'} — The Fitness St
           </template>
           <div class="mt-6 flex flex-wrap gap-3"><UiButton :disabled="cart.busy.value || !variant?.availableQty || !!quantityError" @click="cart.add(variantId, quantity)">Agregar al carrito</UiButton><UiButton variant="secondary" :disabled="cart.busy.value || !variant?.availableQty || !!quantityError" @click="cart.add(variantId, quantity, true)">Comprar ahora</UiButton></div>
           <ProductLots v-if="variant" :variant="variant" />
+          <RestockForm v-if="variant && variant.availableQty === 0" :key="variant.id" :variant-id="variant.id" :sku="variant.sku" :presentation="`${variant.presentationLabel} · ${variant.flavor}`" />
         </div>
       </div>
       <section v-if="rows.length" class="mt-10" aria-label="Comparación de presentaciones">

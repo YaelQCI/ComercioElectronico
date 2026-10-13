@@ -58,9 +58,9 @@ async function movement(c, f, data) {
 // Ledgers have no updatedAt. Strip it centrally before executing an INSERT.
 const ledgers = new Set(['InventoryMovement', 'LoyaltyLedgerEntry', 'OrderStatusHistory', 'AuditEvent', 'ReviewModeration'])
 
-test('57 tablas del diccionario y lectura/escritura con Prisma', async () => {
+test('57 tablas iniciales más observación de disponibilidad y lectura/escritura con Prisma', async () => {
   const result = await pool.query(`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name <> '_prisma_migrations'`)
-  assert.equal(result.rows[0].n, 57)
+  assert.equal(result.rows[0].n, 58)
   const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url, options: '-c timezone=UTC' }) })
   try {
     const slug = `integration-${randomUUID()}`

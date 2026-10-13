@@ -485,6 +485,7 @@ model ProductVariant {
   orderComponent_variant      OrderComponent[]      @relation("OrderComponent_variantId")
   orderUnit_variant           OrderUnit[]           @relation("OrderUnit_variantId")
   restockSubscription_variant RestockSubscription[] @relation("RestockSubscription_variantId")
+  availabilityObservation     VariantAvailability?
 
   @@unique([productId, flavorNormalized, presentationNormalized])
   @@unique([id, productId])
@@ -1356,6 +1357,13 @@ model ReviewModeration {
   admin     User                   @relation("ReviewModeration_adminId", fields: [adminId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([reviewId, createdAt])
+}
+
+model VariantAvailability {
+  variantId    String         @id @db.Uuid
+  isAvailable  Boolean        @default(false)
+  checkedAt    DateTime       @default(now()) @db.Timestamptz(3)
+  variant      ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 }
 
 model RestockSubscription {

@@ -7,6 +7,7 @@ export default defineNuxtConfig({
   vite: { plugins: [tailwindcss()] },
   runtimeConfig: {
     catalogAssetDirectory: '',
+    restockTokenSecret: '',
     enviaToken: '',
     enviaEnvironment: 'test',
     enviaCarrier: '',

@@ -3,6 +3,7 @@ import { variantPricing } from '~~/shared/features/pricing/prices.js'
 import CardPackshot from './CardPackshot.vue'
 import { expiryLabel } from '~~/shared/features/inventory/lots.js'
 import { useCart } from '../cart/useCart.js'
+import RestockForm from '../restock/RestockForm.vue'
 const cart = await useCart()
 const props = defineProps({ product: { type: Object, required: true } })
 const pricing = computed(() => props.product.variants[0] ? variantPricing(props.product.variants[0]) : null)
@@ -17,6 +18,7 @@ const pricing = computed(() => props.product.variants[0] ? variantPricing(props.
     <p v-if="product.variants[0]" class="mt-2 font-mono text-body-s text-ink-2">SKU {{ product.variants[0].sku }}</p>
     <p v-if="product.variants[0]?.lots?.[0]" class="mt-2 font-mono text-body-s text-ink-2">Lote orientativo {{ product.variants[0].lots[0].lotCode }} · CAD {{ expiryLabel(product.variants[0].lots[0]) }}</p>
     <p v-if="product.variants[0]" class="mt-2 text-body-s" :class="product.variants[0].availableQty ? 'text-ok' : 'text-off'">{{ product.variants[0].availableQty === 0 ? 'Presentación mostrada agotada' : product.variants[0].availableQty <= 5 ? `Últimas ${product.variants[0].availableQty} piezas` : 'Disponible' }}</p>
+    <RestockForm v-if="product.variants[0]?.availableQty === 0" :variant-id="product.variants[0].id" :sku="product.variants[0].sku" :presentation="`${product.variants[0].presentationLabel} · ${product.variants[0].flavor}`" />
     <template #actions><div class="flex flex-wrap gap-2"><UiButton :to="`/producto/${product.id}`" variant="secondary">Ver producto</UiButton><UiButton :disabled="cart.busy.value || !product.variants[0]?.availableQty" @click="cart.add(product.variants[0].id, 1)">Agregar {{ product.variants[0]?.presentationLabel }} · {{ product.variants[0]?.flavor }}</UiButton></div></template>
   </UiCard>
 </template>
