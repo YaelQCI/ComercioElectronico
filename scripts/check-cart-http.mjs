@@ -41,7 +41,12 @@ if (process.env.TEST_ENVIA_UNCONFIGURED === '1') {
   assert.equal(unconfigured.status, 503)
   assert.match((await unconfigured.json()).statusMessage, /configurada/)
 }
-const remove = await fetch(`${base}/api/cart/items`, { method: 'DELETE', headers: { ...headers, Origin: base, 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: lineId, version: restored.version }) })
+const badCoupon = await fetch(`${base}/api/cart/coupon`, { method: 'POST', headers: { ...headers, Origin: base, 'Content-Type': 'application/json' }, body: JSON.stringify({ code: '', version: restored.version }) })
+assert.equal(badCoupon.status, 400)
+const removeCoupon = await fetch(`${base}/api/cart/coupon`, { method: 'POST', headers: { ...headers, Origin: base, 'Content-Type': 'application/json' }, body: JSON.stringify({ remove: true, version: restored.version }) })
+assert.equal(removeCoupon.status, 200)
+const noCoupon = await removeCoupon.json()
+const remove = await fetch(`${base}/api/cart/items`, { method: 'DELETE', headers: { ...headers, Origin: base, 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: lineId, version: noCoupon.version }) })
 assert.equal(remove.status, 200)
 assert.equal((await remove.json()).pieces, 0)
 console.log('HTTP: cookie protegida, persistencia, SSR, versión duplicada y origen rechazado aprobados.')

@@ -23,6 +23,7 @@ export async function cartRequest(event, mutation = false) {
     const repository = createCartRepository(getDatabase())
     if (!mutation) return await repository.read(tokenHash(token))
     const input = await readBody(event)
+    if (mutation === 'coupon') return await repository.coupon(tokenHash(token), input)
     if (mutation === 'move') return await repository.move(tokenHash(token), input)
     if (mutation === 'edit' || mutation === 'remove') return await repository.edit(tokenHash(token), input, mutation === 'remove')
     return await repository.add(tokenHash(token), input)

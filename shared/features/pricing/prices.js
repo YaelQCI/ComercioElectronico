@@ -84,11 +84,14 @@ export function calculateCart({ lines, coupon = null, requestedPointsTenths = '0
     if (typeof line.id !== 'string' || !line.id || ids.has(line.id) || !Number.isSafeInteger(line.quantity) || line.quantity < 1) throw new RangeError('Renglón de carrito inválido.')
     ids.add(line.id)
     const unit = money(line.unitPriceCents), compare = line.compareAtPriceCents == null ? unit : money(line.compareAtPriceCents)
-    return { id: line.id, base: unit * BigInt(line.quantity), saving: (compare > unit ? compare - unit : 0n) * BigInt(line.quantity), eligible: line.couponEligible === true }
+    const base = unit * BigInt(line.quantity)
+    const eligibleBase = line.eligibleAmountCents != null ? money(line.eligibleAmountCents) : line.couponEligible === true ? base : 0n
+    if (eligibleBase > base) throw new RangeError('Importe elegible superior al renglón.')
+    return { id: line.id, base, saving: (compare > unit ? compare - unit : 0n) * BigInt(line.quantity), eligibleBase }
   })
   const subtotal = items.reduce((s, i) => s + i.base, 0n)
-  const eligible = items.filter(i => i.eligible)
-  const eligibleTotal = eligible.reduce((s, i) => s + i.base, 0n)
+  const eligible = items.filter(i => i.eligibleBase > 0n)
+  const eligibleTotal = eligible.reduce((s, i) => s + i.eligibleBase, 0n)
   let discount = 0n
   if (coupon) {
     if (coupon.kind === 'FIXED') discount = money(coupon.amountCents)
@@ -96,7 +99,7 @@ export function calculateCart({ lines, coupon = null, requestedPointsTenths = '0
     else throw new RangeError('Cupón inválido.')
     if (discount > eligibleTotal) discount = eligibleTotal
   }
-  const couponAllocation = new Map(discount ? allocateCents(discount, eligible.map(i => ({ id: i.id, weightCents: i.base.toString() }))).map(i => [i.id, money(i.cents)]) : [])
+  const couponAllocation = new Map(discount ? allocateCents(discount, eligible.map(i => ({ id: i.id, weightCents: i.eligibleBase.toString() }))).map(i => [i.id, money(i.cents)]) : [])
   const afterCoupon = subtotal - discount
   const requested = money(requestedPointsTenths), available = money(availablePointsTenths)
   if (requested > available || requested > afterCoupon) throw new RangeError('Canje de puntos superior al saldo o al importe de productos.')

@@ -1,0 +1,15 @@
+# Cupones (#19)
+
+El carrito admite un código ASCII alfanumérico, guion o guion bajo (máximo 60 caracteres), sin distinguir mayúsculas. Aplicar otro cupón reemplaza el anterior; retirar y cualquier cambio recalculan resumen y base de envío e invalidan cotización. No hay descuento doble de ofertas. La selección se revalida al recuperar o modificar carrito: si vence/cambia elegibilidad, se informa y no se conserva un importe obsoleto.
+
+El módulo puro valida periodo, alcance catálogo/productos/categorías, mínimo sobre precio vigente elegible, límite global y por cliente. Ofertas y combos se excluyen por defecto; habilitación explícita permite usar solo la parte elegible de componentes ya prorrateados. Descuento fijo se limita al importe elegible y porcentaje se redondea en centavos; asignaciones exactas por línea/componente. El cálculo compartido admite elegibilidad parcial sin reducir toda la línea.
+
+Carrito no reserva usos y puede mostrar una previsión antes de conocer el correo. Un límite por cliente pendiente se declara en interfaz. Las primitivas de checkout derivan identidad del pedido (usuario y correo normalizado), nunca del navegador. Invitados por correo no equivalen a identidad verificada; el conteo considera correo de usos anteriores para evitar separar invitado/cuenta del mismo correo.
+
+`reserveCoupon`, `consumeCoupon` y `releaseCoupon` requieren el contexto transaccional compartido de inventario. Bloquean pedido, reserva y cupón, revalidan versión/vigencia/snapshots/importes, cuentan RESERVED + CONSUMED y asignan vencimiento igual a la reserva. No liberan automáticamente un uso vencido si Stripe no está reconciliado. Consumo requiere pago MXN/importe/instante válidos o total cero vigente sin intento Stripe; operaciones idempotentes. Coordinar cupones antes de adquirir bloqueos de inventario y resolver todos los recursos/confirmación del pedido dentro de la misma transacción.
+
+Contrato de snapshots de checkout: cada OrderComponent.productSnapshot contiene `id` y `categoryIds`; variantSnapshot contiene `compareAtPriceCents` cuando existe. Valores base/cupón por componente deben coincidir con el reparto del evaluador. No se permite aceptar un descuento que cambió desde su versión aprobada. Cambios posteriores del catálogo no sustituyen el historial del pedido.
+
+Validación: tres pruebas puras específicas, regresión de nueve pruebas de precios, prueba PostgreSQL de aplicar/revalidar/reemplazar y tres pruebas de reservas (último uso concurrente, consumo/liberación idempotentes, correo normalizado, reconciliación, vencimiento y cambio de versión). Build y HTTP se verifican antes del commit. Fixtures aisladas, sin pagos ni cupones comerciales reales.
+
+Pendiente: coordinación final desde checkout/Stripe/worker (#24/#25), snapshots de compra de combos, cuentas (#23) y herramientas administrativas (#34). Se probaron primitivas, no un pedido comercial confirmado con todos sus recursos. Validación visual/teclado/tacto y datos definitivos siguen pendientes.

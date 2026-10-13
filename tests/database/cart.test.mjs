@@ -146,3 +146,27 @@ test('cotizaciones persisten snapshot autoritativo, aíslan propietario y se inv
     await db.packageType.update({ where: { id: packageType.id }, data: { isActive: false } })
   }
 })
+test('cupón se aplica una vez, reemplaza, se revalida y desaparece descuento al vencer', async () => {
+  const [variant] = await fixture(), owner = hash(), code = `fixture-${randomUUID()}`
+  const coupon = await db.coupon.create({ data: { code, codeNormalized: code, kind: 'PERCENTAGE', percentageBasisPoints: 1000 } })
+  const first = await repository.add(owner, { variantId: variant.id, quantity: 2, version: 1 })
+  const applied = await repository.coupon(owner, { code: code.toUpperCase(), version: first.version })
+  assert.equal(applied.totals.couponDiscountCents, '200'); assert.equal(applied.totals.goodsAfterCouponCents, '1800')
+  assert.deepEqual(await repository.read(owner), applied)
+  assert.equal(await db.couponUsage.count({ where: { couponId: coupon.id } }), 0)
+  const changed = await repository.edit(owner, { itemId: first.lines[0].id, quantity: 3, version: applied.version })
+  assert.equal(changed.totals.couponDiscountCents, '300')
+  await db.coupon.update({ where: { id: coupon.id }, data: { endsAt: new Date(Date.now() - 1000) } })
+  const expired = await repository.read(owner)
+  assert.equal(expired.totals.couponDiscountCents, '0'); assert.match(expired.couponError, /vigencia/)
+  const removed = await repository.coupon(owner, { remove: true, version: changed.version })
+  assert.equal(removed.coupon, null); assert.equal(removed.couponError, null)
+  const secondCode = `fixture-${randomUUID()}`
+  await db.coupon.create({ data: { code: secondCode, codeNormalized: secondCode, kind: 'FIXED', fixedAmountCents: 100n } })
+  const selected = await repository.coupon(owner, { code: secondCode, version: removed.version })
+  assert.equal(selected.totals.couponDiscountCents, '100')
+  const replacementCode = `fixture-${randomUUID()}`
+  await db.coupon.create({ data: { code: replacementCode, codeNormalized: replacementCode, kind: 'FIXED', fixedAmountCents: 200n } })
+  const replaced = await repository.coupon(owner, { code: replacementCode, version: selected.version })
+  assert.equal(replaced.coupon.code, replacementCode); assert.equal(replaced.totals.couponDiscountCents, '200')
+})

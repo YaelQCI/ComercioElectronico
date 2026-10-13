@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { useCart } from './useCart.js'
 import { formatMXN } from '~~/shared/features/pricing/prices.js'
 import { observeCart } from './cart-observation.js'
@@ -6,7 +6,8 @@ import ConfiguredRecommendations from '../catalog/ConfiguredRecommendations.vue'
 import ConfiguredBundles from '../catalog/ConfiguredBundles.vue'
 import ShippingProgress from '../shipping/ShippingProgress.vue'
 import ShippingCalculator from '../shipping/ShippingCalculator.vue'
-const { data, error, status, refresh, busy, edit, move, selectedQuote } = await useCart()
+const { data, error, status, refresh, busy, edit, move, selectedQuote, applyCoupon } = await useCart()
+const code = ref('')
 const quote = computed(() => selectedQuote.value?.cartVersion === data.value?.version ? selectedQuote.value : null)
 const total = computed(() => data.value?.totals ? (BigInt(data.value.totals.goodsMoneyCents) + BigInt(quote.value?.chargedAmountCents ?? '0')).toString() : '0')
 const drafts = ref({})
@@ -36,8 +37,10 @@ function update(line) {
       </li></ul>
       <div class="mt-4 flex flex-wrap gap-2"><UiButton v-for="line in data.lines" :key="line.id" variant="secondary" :disabled="busy" @click="move(line.id, 'SAVE')">Guardar {{ line.name }} · {{ line.presentation }} para después</UiButton></div>
       <ShippingProgress :base-cents="data.totals.goodsAfterCouponCents" />
+      <form class="mt-6 flex flex-wrap items-end gap-3" @submit.prevent="applyCoupon(code)"><UiField id="cart-coupon" v-model="code" label="Código de cupón" maxlength="60" autocomplete="off" :disabled="busy" /><UiButton type="submit" variant="secondary" :disabled="busy">Aplicar cupón</UiButton><UiButton v-if="data.coupon || data.couponError" variant="secondary" :disabled="busy" @click="applyCoupon('', true)">Retirar cupón</UiButton></form>
+      <p v-if="data.coupon" class="mt-3 text-body-s text-ok">{{ data.coupon.code }} · Descuento {{ formatMXN(data.totals.couponDiscountCents) }}<span v-if="data.coupon.customerLimitPending"> · Límite por cliente pendiente de validar con correo al iniciar pago.</span></p><p v-if="data.couponError" role="alert" class="mt-3 text-body-s text-crit">{{ data.couponError }} No se aplicó descuento; revisa tu total.</p>
       <ShippingCalculator :version="data.version" :disabled="busy || data.lines.some(l => !l.stockSufficient)" />
-      <p class="mt-6 font-mono font-semibold" role="status">Total provisional{{ quote ? ' con envío seleccionado' : ' de productos' }}: {{ formatMXN(total) }}</p><p class="mt-2 text-ink-2">{{ quote ? 'La tarifa seleccionada se volverá a validar antes de pagar.' : 'Envío pendiente de cotizar; puede aumentar el total.' }} Cupones y puntos se calcularán cuando estén habilitados. Precio y stock se verifican al recuperar el carrito; lote y caducidad se asignarán al iniciar pago.</p><UiButton class="mt-6" disabled>Pago pendiente de habilitar</UiButton>
+      <p class="mt-6 font-mono font-semibold" role="status">Total provisional{{ quote ? ' con envío seleccionado' : ' de productos' }}: {{ formatMXN(total) }}</p><p class="mt-2 text-ink-2">{{ quote ? 'La tarifa seleccionada se volverá a validar antes de pagar.' : 'Envío pendiente de cotizar; puede aumentar el total.' }} Los puntos se calcularán cuando estén habilitados. Precio y stock se verifican al recuperar el carrito; lote y caducidad se asignarán al iniciar pago.</p><UiButton class="mt-6" disabled>Pago pendiente de habilitar</UiButton>
       <div class="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface p-4 lg:hidden" aria-label="Resumen del carrito móvil"><div><p class="font-mono font-semibold">Provisional {{ formatMXN(total) }}</p><p class="text-body-s">{{ data.pieces }} piezas · {{ quote ? 'Envío seleccionado' : 'Envío pendiente' }}</p></div><UiButton disabled>Pago pendiente</UiButton></div>
     </template>
     <div v-else class="mt-6"><p>Tu carrito está vacío.</p><UiButton class="mt-4" to="/catalogo">Explorar catálogo</UiButton></div>
