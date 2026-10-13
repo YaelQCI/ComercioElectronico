@@ -4,6 +4,7 @@ const route = useRoute()
 const menuOpen = ref(false)
 const menuButton = ref(null)
 const query = ref('')
+watch(() => route.query.q, value => { query.value = typeof value === 'string' ? value : '' }, { immediate: true })
 watch(() => route.fullPath, () => { menuOpen.value = false })
 function closeMenu() {
   if (!menuOpen.value) return
@@ -12,7 +13,11 @@ function closeMenu() {
 }
 function search() {
   const q = query.value.trim()
-  navigateTo({ path: '/catalogo', query: q ? { q } : {} })
+  const next = route.path === '/catalogo' ? { ...route.query } : {}
+  delete next.pagina
+  if (q) next.q = q
+  else delete next.q
+  navigateTo({ path: '/catalogo', query: next })
 }
 </script>
 <template>
@@ -40,7 +45,7 @@ function search() {
         </nav>
         <form role="search" class="flex w-full items-center gap-2 lg:w-72" @submit.prevent="search">
           <label for="header-search" class="sr-only">Buscar productos</label>
-          <input id="header-search" v-model="query" name="q" type="search" placeholder="Creatina, whey…" class="min-h-11 min-w-0 flex-1 rounded-sm border border-border bg-surface px-3 text-ink placeholder:text-ink-2">
+          <input id="header-search" v-model="query" name="q" type="search" maxlength="120" placeholder="Creatina, whey…" class="min-h-11 min-w-0 flex-1 rounded-sm border border-border bg-surface px-3 text-ink placeholder:text-ink-2">
           <button type="submit" aria-label="Buscar" class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm border border-border bg-surface hover:bg-surface-2"><UiIcon name="search" /></button>
         </form>
       </div>

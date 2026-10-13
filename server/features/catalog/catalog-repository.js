@@ -1,3 +1,5 @@
+import { searchPattern } from '../../../shared/features/catalog/search.js'
+
 const published = () => ({ deletedAt: null, publishedAt: { lte: new Date() }, productVariant_product: { some: { deletedAt: null } }, OR: [{ brandId: null }, { brand: { isActive: true } }] })
 const includes = {
   brand: true,
@@ -31,8 +33,24 @@ export function createCatalogRepository(db) {
       ])
       return { featured: products.map(catalogProductDTO), categories: categories.map(c => ({ slug: c.slug, name: c.name, productCount: c._count.productCategory_category })) }
     },
-    async list() {
-      const products = await db.product.findMany({ where: published(), include: includes, orderBy: [{ name: 'asc' }, { id: 'asc' }], take: 100 })
+    async list({ q = '' } = {}) {
+      let ids = null
+      if (q) {
+        const pattern = searchPattern(q)
+        const likeEscape = '\\'
+        const marks = Array.from({ length: 112 }, (_, i) => String.fromCharCode(0x300 + i)).join('')
+        const matches = await db.$queryRaw`
+          SELECT DISTINCT p.id FROM "Product" p
+          LEFT JOIN "ProductVariant" v ON v."productId" = p.id AND v."deletedAt" IS NULL
+          LEFT JOIN "ProductCategory" pc ON pc."productId" = p.id
+          LEFT JOIN "Category" c ON c.id = pc."categoryId" AND c."isActive" = true
+          WHERE translate(lower(normalize(p.name, NFKD)), ${marks}, '') LIKE ${pattern} ESCAPE ${likeEscape}
+             OR translate(lower(normalize(v.sku, NFKD)), ${marks}, '') LIKE ${pattern} ESCAPE ${likeEscape}
+             OR translate(lower(normalize(c.name, NFKD)), ${marks}, '') LIKE ${pattern} ESCAPE ${likeEscape}
+        `
+        ids = matches.map(m => m.id)
+      }
+      const products = await db.product.findMany({ where: { ...published(), ...(ids ? { id: { in: ids } } : {}) }, include: includes, orderBy: [{ name: 'asc' }, { id: 'asc' }], take: 100 })
       return products.map(catalogProductDTO)
     },
     async getById(id) {
