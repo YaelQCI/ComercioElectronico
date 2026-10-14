@@ -14,6 +14,7 @@ const store = useRuntimeConfig().public
           <li><NuxtLink to="/politicas/privacidad" class="underline focus-visible:outline-on-ink-accent">Aviso de privacidad</NuxtLink></li>
           <li><NuxtLink to="/politicas/terminos" class="underline focus-visible:outline-on-ink-accent">Términos y condiciones</NuxtLink></li>
           <li><NuxtLink to="/politicas/devoluciones" class="underline focus-visible:outline-on-ink-accent">Devoluciones</NuxtLink></li>
+          <li><NuxtLink to="/contacto" class="underline focus-visible:outline-on-ink-accent">Contacto</NuxtLink></li>
         </ul>
       </nav>
       <div>

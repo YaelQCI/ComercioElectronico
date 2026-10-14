@@ -1,0 +1,6 @@
+<script setup>
+const config = useRuntimeConfig().public
+const email = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(config.contactEmail) ? config.contactEmail : '')
+const phone = computed(() => /^[+\d ()-]{7,25}$/.test(config.contactPhone) ? config.contactPhone : '')
+</script>
+<template><section class="mx-auto max-w-store px-4 py-12 md:px-8"><UiBreadcrumbs :items="[{ label: 'Contacto' }]" /><h1 class="text-display-l font-bold">Contacto</h1><dl class="mt-6 grid gap-4"><div><dt class="font-semibold">Correo</dt><dd><a v-if="email" :href="`mailto:${email}`" class="inline-flex min-h-11 items-center text-accent-text underline">{{ email }}</a><span v-else>Pendiente de configurar.</span></dd></div><div><dt class="font-semibold">Teléfono</dt><dd><a v-if="phone" :href="`tel:${phone.replace(/[^+\d]/g, '')}`" class="inline-flex min-h-11 items-center text-accent-text underline">{{ phone }}</a><span v-else>Pendiente de configurar.</span></dd></div><div><dt class="font-semibold">Horario de atención</dt><dd>{{ config.serviceHours || 'Pendiente de configurar.' }}</dd></div></dl><NuxtLink to="/catalogo" class="mt-6 inline-flex min-h-11 items-center text-accent-text underline">Volver al catálogo</NuxtLink></section></template>
