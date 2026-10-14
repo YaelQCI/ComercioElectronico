@@ -1,4 +1,5 @@
 <script setup>
+import LoyaltyBalance from '~/features/loyalty/LoyaltyBalance.vue'
 const { data, error, status, refresh } = await useFetch('/api/account/session')
 const mode = ref('login'), busy = ref(false), failure = ref(''), message = ref('')
 const email = ref(''), password = ref(''), displayName = ref(''), phone = ref(''), currentPassword = ref(''), newPassword = ref('')
@@ -52,7 +53,7 @@ onMounted(loadProfile)
         <div><h2 class="text-display-m font-bold">Direcciones</h2><p v-if="!profile?.addresses.length" class="mt-3">Aún no hay direcciones guardadas.</p>
           <ul class="mt-4 grid gap-4"><li v-for="item in profile?.addresses" :key="item.id" class="rounded-sm border border-line p-4"><p>{{ item.recipientName }} · {{ item.label }}</p><p>{{ item.street }} {{ item.exteriorNumber }}, {{ item.district }}, {{ item.city }}, {{ item.state }} · {{ item.postalCode }}</p><p v-if="item.isDefault">Predeterminada</p><UiButton v-else class="mt-2" variant="secondary" :disabled="busy" @click="perform('addresses', { ...item, isDefault: true })">Usar como predeterminada</UiButton></li></ul>
           <form class="mt-6 grid gap-4" @submit.prevent="perform('addresses', address)"><h3 class="font-semibold">Agregar dirección</h3><UiField v-for="field in [{ key: 'label', label: 'Etiqueta (opcional)' }, { key: 'recipientName', label: 'Destinatario' }, { key: 'phone', label: 'Teléfono' }, { key: 'postalCode', label: 'Código postal' }, { key: 'state', label: 'Estado' }, { key: 'city', label: 'Ciudad' }, { key: 'district', label: 'Colonia' }, { key: 'street', label: 'Calle' }, { key: 'exteriorNumber', label: 'Número exterior' }, { key: 'interiorNumber', label: 'Número interior (opcional)' }]" :id="`address-${field.key}`" :key="field.key" v-model="address[field.key]" :label="field.label" :required="!['label', 'interiorNumber'].includes(field.key)" maxlength="120" /><label class="flex min-h-11 items-center gap-3"><input v-model="address.isDefault" type="checkbox">Guardar como predeterminada</label><UiButton type="submit" :disabled="busy">Guardar dirección</UiButton></form>
-          <NuxtLink to="/pedidos" class="mt-6 inline-flex min-h-11 items-center text-accent-text underline">Consultar mis pedidos</NuxtLink><p class="mt-3 text-ink-2">Los puntos se conectarán cuando ese servicio esté habilitado.</p>
+          <NuxtLink to="/pedidos" class="mt-6 inline-flex min-h-11 items-center text-accent-text underline">Consultar mis pedidos</NuxtLink><LoyaltyBalance />
         </div>
       </div>
     </template>

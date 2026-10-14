@@ -1,5 +1,6 @@
 import { AccountError, accountText } from '../accounts/credentials.js'
 import { requireAdministrator } from '../../utils/authorization.js'
+import { creditDeliveredOrder } from '../loyalty/loyalty-repository.js'
 const validId = value => { if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value ?? '')) throw new AccountError(400, 'Pedido inválido.'); return value }
 const include = { orderLine_order: { orderBy: { position: 'asc' } }, orderStatusHistory_order: { orderBy: { createdAt: 'asc' } } }
 export function publicOrder(order) {
@@ -43,6 +44,7 @@ export function createOrders(db) {
         if (order.status !== input.expectedStatus || nextStates[order.status] !== input.status || !['PAID', 'NOT_REQUIRED', 'PARTIALLY_REFUNDED'].includes(order.moneyStatus)) throw new AccountError(409, 'El pedido cambió o no admite esta transición.')
         await tx.orderStatusHistory.create({ data: { orderId, fromStatus: order.status, toStatus: input.status, actorId: adminId, actorType: 'ADMIN', reason, eventKey } })
         await tx.order.update({ where: { id: orderId }, data: { status: input.status, ...(input.status === 'SHIPPED' ? { shippedAt: new Date() } : input.status === 'DELIVERED' ? { deliveredAt: new Date() } : {}) } })
+        if (input.status === 'DELIVERED') await creditDeliveredOrder(tx, orderId)
         return { ok: true, status: input.status, repeated: false }
       })
     },
