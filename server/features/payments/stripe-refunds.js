@@ -14,8 +14,8 @@ export async function submitStripeRefund(db,stripe,adminId,refundId) {
     await tx.$queryRaw`SELECT id FROM "Refund" WHERE id=${refundId}::uuid FOR UPDATE`
     const refund=await tx.refund.findUnique({where:{id:refundId},include:{paymentAttempt:true,order:true,returnRequest:true,priceMatchRequest:true}}),a=refund.paymentAttempt
     if(refund.status==='SETTLED')return{settled:true}
-    if(!a||a.orderId!==refund.orderId||!a.providerPaymentIntentId||refund.requestedMoneyCents<=0n||refund.currency!=='MXN'||!['REQUESTED','PROCESSING'].includes(refund.status))throw new PaymentError(409,'Solicitud de reembolso no preparada para Stripe.')
-    if(refund.kind==='COMPENSATION'?(a.appliedToOrder||refund.requestedPointsTenths!==0n):(!a.appliedToOrder||a.status!=='SUCCEEDED'))throw new PaymentError(409,'Origen del reembolso incompatible.')
+    if((refund.requestedMoneyCents>0n&&(!a||a.orderId!==refund.orderId||!a.providerPaymentIntentId))||refund.currency!=='MXN'||!['REQUESTED','PROCESSING'].includes(refund.status))throw new PaymentError(409,'Solicitud de reembolso no preparada para Stripe.')
+    if(refund.kind==='COMPENSATION'?(!a||a.appliedToOrder||refund.requestedPointsTenths!==0n):(refund.requestedMoneyCents>0n&&(!a.appliedToOrder||a.status!=='SUCCEEDED')))throw new PaymentError(409,'Origen del reembolso incompatible.')
     if(refund.kind==='CANCELLATION'&&(refund.order.status!=='CANCELED'||refund.order.shippedAt))throw new PaymentError(409,'La cancelación debe estar aprobada y registrada antes del reembolso.')
     if(refund.kind==='RETURN'&&refund.returnRequest?.status!=='RECEIVED')throw new PaymentError(409,'La devolución requiere recepción e inspección antes del reembolso.')
     if(refund.kind==='RETURN'){
@@ -26,11 +26,11 @@ export async function submitStripeRefund(db,stripe,adminId,refundId) {
     if(refund.kind==='PRICE_MATCH'&&refund.priceMatchRequest?.status!=='APPROVED')throw new PaymentError(409,'Price Match requiere aprobación registrada antes del reembolso.')
     await tx.refund.update({where:{id:refundId},data:{status:'PROCESSING'}})
     await tx.outboxMessage.upsert({where:{deduplicationKey:`refund:${refundId}`},create:{kind:'REFUND',aggregateType:'Refund',aggregateId:refundId,deduplicationKey:`refund:${refundId}`,payload:{refundId}},update:{}})
-    return{paymentIntentId:a.providerPaymentIntentId,amountCents:refund.requestedMoneyCents.toString(),idempotencyKey:refund.idempotencyKey,providerRefundId:refund.providerRefundId}
+    return{paymentIntentId:a?.providerPaymentIntentId,amountCents:refund.requestedMoneyCents.toString(),idempotencyKey:refund.idempotencyKey,providerRefundId:refund.providerRefundId}
   })
   if(request.settled)return{settled:true}
   let response
-  try{response=request.providerRefundId?await stripe.refundStatus(request.providerRefundId):await stripe.refund(request);if(response.paymentIntentId&&response.paymentIntentId!==request.paymentIntentId)throw new PaymentError(409,'Reembolso pertenece a otro intento.')}catch(e){await db.refund.updateMany({where:{id:refundId,status:'PROCESSING'},data:{lastError:'Resultado Stripe incierto; reintentar la misma clave.'}});throw e}
+  try{response=request.amountCents==='0'?{id:null,status:'succeeded',amountCents:'0',currency:'MXN'}:request.providerRefundId?await stripe.refundStatus(request.providerRefundId):await stripe.refund(request);if(response.paymentIntentId&&response.paymentIntentId!==request.paymentIntentId)throw new PaymentError(409,'Reembolso pertenece a otro intento.')}catch(e){await db.refund.updateMany({where:{id:refundId,status:'PROCESSING'},data:{lastError:'Resultado Stripe incierto; reintentar la misma clave.'}});throw e}
   return db.$transaction(async tx=>{
     const found=await tx.refund.findUnique({where:{id:refundId}})
     await tx.$queryRaw`SELECT id FROM "Order" WHERE id=${found.orderId}::uuid FOR UPDATE`
@@ -59,7 +59,7 @@ export async function submitStripeRefund(db,stripe,adminId,refundId) {
         }
       }
       const total=await tx.refund.aggregate({where:{orderId:order.id,status:'SETTLED',kind:{not:'COMPENSATION'}},_sum:{requestedMoneyCents:true}})
-      await tx.order.update({where:{id:order.id},data:{moneyStatus:(total._sum.requestedMoneyCents??0n)>=order.totalMoneyCents?'REFUNDED':'PARTIALLY_REFUNDED'}})
+      if(order.totalMoneyCents>0n)await tx.order.update({where:{id:order.id},data:{moneyStatus:(total._sum.requestedMoneyCents??0n)>=order.totalMoneyCents?'REFUNDED':'PARTIALLY_REFUNDED'}})
     }
     await tx.outboxMessage.updateMany({where:{deduplicationKey:`refund:${refundId}`},data:{state:'PROCESSED',processedAt:new Date(),lastError:null}})
     return{settled:true}
