@@ -35,6 +35,8 @@ Sin Docker: instalar PostgreSQL 17.7, crear una base y un usuario con permisos s
 
 ## Estructura
 
+La [propuesta de negocio de #31](docs/business-proposal.md) define oferta, público, modelo B2C, recorrido del cliente y estrategia comercial, distinguiendo las capacidades actuales de los servicios pendientes.
+
 La [arquitectura y contratos de #32](docs/architecture.md) describen responsabilidades por dominio, flujos, modelo relacional, configuración por entorno y capacidades pendientes.
 
 | Ruta | Uso |
