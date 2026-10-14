@@ -1,0 +1,11 @@
+[Unit]
+Description=The Fitness Stuff - revision de reservas cada minuto
+
+[Timer]
+OnBootSec=60
+OnUnitInactiveSec=60
+Persistent=true
+Unit=fitness-reconcile.service
+
+[Install]
+WantedBy=timers.target

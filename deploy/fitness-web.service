@@ -1,0 +1,25 @@
+[Unit]
+Description=The Fitness Stuff - Nuxt
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fitness
+Group=fitness
+WorkingDirectory=/opt/fitness/current
+Environment=NODE_ENV=production
+Environment=NITRO_HOST=127.0.0.1
+Environment=NITRO_PORT=3000
+EnvironmentFile=/etc/fitness/runtime.env
+ExecStart=/usr/bin/node .output/server/index.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

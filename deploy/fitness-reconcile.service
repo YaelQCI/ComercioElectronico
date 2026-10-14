@@ -1,0 +1,17 @@
+[Unit]
+Description=The Fitness Stuff - reconciliacion supervisada de pagos
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=fitness
+Group=fitness
+WorkingDirectory=/opt/fitness/current
+EnvironmentFile=/etc/fitness/runtime.env
+ExecStart=/usr/bin/node scripts/reconcile-payments.mjs --apply
+TimeoutStartSec=90
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+UMask=0077

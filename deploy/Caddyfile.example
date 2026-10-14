@@ -1,0 +1,5 @@
+# Sustituir dominio tras comprobar propiedad y configurar DNS.
+tienda.example.invalid {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:3000
+}
