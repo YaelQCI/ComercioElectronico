@@ -14,7 +14,7 @@ async function run(action){
 }
 </script>
 <template>
-  <main class="mx-auto max-w-3xl space-y-6 px-6 py-12">
+  <section class="mx-auto max-w-3xl space-y-6 px-6 py-12">
     <h1 class="text-3xl font-bold">Solicitudes del pedido</h1>
     <p>Consulta tus devoluciones y solicitudes de Price Match. Cada solicitud requiere revisión de la tienda y evidencia. No envíes productos antes de recibir instrucciones de retorno.</p>
     <form class="space-y-3" @submit.prevent="run('list')">
@@ -46,7 +46,7 @@ async function run(action){
       <p v-if="!data.returns.length&&!data.priceMatches.length">Aún no hay solicitudes.</p>
       <article v-for="claim in [...data.returns,...data.priceMatches]" :key="claim.id" class="rounded border p-4"><p>{{ claim.id }} · {{ labels[claim.status] }}</p><p>{{ claim.decision }}</p><p v-for="refund in claim.refunds" :key="refund.id">Reintegro {{ refund.id }} · {{ labels[refund.status] }}</p></article>
     </template>
-  </main>
+  </section>
 </template>
 <style scoped>
 input,select,textarea { background:var(--t-surface); color:var(--t-ink); min-height:44px; }

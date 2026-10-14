@@ -2,6 +2,8 @@
 
 La [entrega técnica y evidencia por parcial](docs/technical-delivery.md) reúne los módulos implementados, pruebas y pendientes actuales. El [modelo físico](docs/modelo-base-de-datos.md) y las [decisiones](docs/decisiones-base-de-datos.md) enlazan esquema y migraciones; los apartados iniciales siguientes conservan contexto histórico de la base.
 
+El [estado de implementación por issue](docs/implementation-status.md) registra la auditoría del 14 de octubre, cierres verificados y criterios pendientes.
+
 Base de implementación del [issue #43](https://github.com/YaelQCI/ComercioElectronico/issues/43).
 
 ## Requisitos y versiones
