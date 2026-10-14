@@ -1,0 +1,16 @@
+.git
+.agents
+.codex
+.aws
+.env
+.env.*
+node_modules
+.nuxt
+.output
+generated
+.local-db
+.npm-cache
+*.log
+docs
+references
+deploy

@@ -1,0 +1,72 @@
+name: fitness-stuff-local
+services:
+  postgres:
+    image: postgres:17.7-bookworm
+    environment:
+      POSTGRES_USER: fitness
+      POSTGRES_PASSWORD: ${DOCKER_POSTGRES_PASSWORD:?Ejecuta node scripts/prepare-docker-env.mjs}
+      POSTGRES_DB: fitness_docker
+    volumes:
+      - docker_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U fitness -d fitness_docker']
+      interval: 3s
+      timeout: 5s
+      retries: 30
+  migrate:
+    build:
+      context: .
+      target: tools
+    environment:
+      DATABASE_URL: postgresql://fitness:${DOCKER_POSTGRES_PASSWORD}@postgres:5432/fitness_docker
+    command: [npm, run, db:deploy]
+    depends_on:
+      postgres:
+        condition: service_healthy
+  app:
+    build:
+      context: .
+      target: runtime
+    environment:
+      DATABASE_URL: postgresql://fitness:${DOCKER_POSTGRES_PASSWORD}@postgres:5432/fitness_docker
+      NUXT_AUTH_SECRET: ${DOCKER_AUTH_SECRET:?Ejecuta node scripts/prepare-docker-env.mjs}
+      NUXT_STRIPE_ENABLED: 'false'
+      NUXT_STRIPE_ENVIRONMENT: test
+    ports:
+      - '127.0.0.1:${DOCKER_APP_PORT:-3001}:3000'
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  test-postgres:
+    profiles: [tests]
+    image: postgres:17.7-bookworm
+    environment:
+      POSTGRES_USER: fitness_test
+      POSTGRES_PASSWORD: ${DOCKER_POSTGRES_PASSWORD}
+      POSTGRES_DB: fitness_migration_test_docker
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U fitness_test -d fitness_migration_test_docker']
+      interval: 3s
+      timeout: 5s
+      retries: 30
+  tests:
+    profiles: [tests]
+    build:
+      context: .
+      target: tools
+    environment:
+      DATABASE_URL: postgresql://fitness_test:${DOCKER_POSTGRES_PASSWORD}@test-postgres:5432/fitness_migration_test_docker
+      TEST_DATABASE_URL: postgresql://fitness_test:${DOCKER_POSTGRES_PASSWORD}@test-postgres:5432/fitness_migration_test_docker
+    command: [node, scripts/run-docker-tests.mjs]
+    depends_on:
+      test-postgres:
+        condition: service_healthy
+volumes:
+  docker_postgres_data:

@@ -19,6 +19,8 @@ Aplicación y scripts en JavaScript. `prisma.config.ts` y el cliente generado en
 
 ## Instalación local
 
+Para ejecutar aplicación y PostgreSQL juntos sin usar la base habitual, seguir [Docker local](docs/docker-local.md). Publica la tienda en http://localhost:3001 y dispone de pruebas en PostgreSQL17.7 aislado.
+
 Desde un clon limpio, en PowerShell:
 
 ```powershell
