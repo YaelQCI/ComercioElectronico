@@ -28,7 +28,7 @@ Pruebas unitarias: `node --test tests/catalog/*.test.mjs tests/pricing/*.test.mj
 |P2: persistencia, usuarios, CRUD, carrito, checkout|Migraciones #33/#43, pruebas PostgreSQL, cuentas #23, administración #34, carrito #14–#20, checkout #24|Capturas y recorrido browser con diez productos aprobados; CRUD visual y persistencia tras reinicio final|
 |P3: integración/demostración|Pagos #30, cancelación #25, pedidos #35, puntos #26, posventa #28; scripts y tests|Stripe sandbox, venta real obligatoria #38, operación AWS/DNS #41, grabación final y estado consistente|
 
-RFID/venta real: no existe lector ni demostración ejecutada en este checkout. El curso exige verificar #38; pruebas simuladas no lo sustituyen. Documentar dispositivo/identificación o alternativa autorizada según issue, compra real, trazabilidad pedido/pago/inventario y evidencia anonimizada antes de afirmar cumplimiento.
+La ruta elegida es venta real con Stripe; RFID queda fuera del alcance actual. No existe demostración real ejecutada en este checkout. El [procedimiento de venta real](real-sale-demonstration.md) prepara #38; pruebas simuladas no lo sustituyen. Documentar compra real, trazabilidad pedido/pago/inventario y evidencia anonimizada antes de afirmar cumplimiento.
 
 ## Limitaciones, desarrollo y mejoras
 
