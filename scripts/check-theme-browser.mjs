@@ -24,10 +24,12 @@ try {
   await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject })
   let sequence = 0
   let loadEvents = 0
+  let registrationRequests = 0
   const pending = new Map()
   socket.onmessage = event => {
     const message = JSON.parse(event.data)
     if (message.method === 'Page.loadEventFired') loadEvents++
+    if (message.method === 'Network.requestWillBeSent' && message.params.request.method === 'POST' && new URL(message.params.request.url).pathname === '/api/account/register') registrationRequests++
     if (message.id && pending.has(message.id)) {
       const { resolve, reject, timer } = pending.get(message.id)
       clearTimeout(timer); pending.delete(message.id)
@@ -132,6 +134,40 @@ try {
     await until(()=>evaluate(`new URL(location.href).searchParams.get('orden')==='precio-desc'&&!new URL(location.href).searchParams.has('pagina')`));await settled()
     await evaluate('history.back()');await until(()=>evaluate(`new URL(location.href).searchParams.get('pagina')==='2'`));await settled()
     console.log('Catálogo: búsqueda por Enter, preservación orden/reset página, sin resultados, checkbox/chip, recarga, limpiar, paginación, orden y navegación atrás correctos. Datos sintéticos.')
+  }
+  if(process.env.TEST_REGISTRATION_CONFIRMATION==='true'){
+    await command('Network.enable')
+    const load=loadEvents;await command('Page.navigate',{url:base+'/cuenta'});await until(()=>loadEvents>load);await loaded()
+    await until(()=>evaluate(`!!Array.from(document.querySelectorAll('button')).find(b=>b.textContent.trim()==='Crear cuenta')`))
+    await click('Crear cuenta')
+    await until(()=>evaluate(`!!document.querySelector('#account-password-confirmation')`))
+    const type=async(id,value)=>{await evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.focus();e.select()})()`);await command('Input.insertText',{text:value})}
+    await type('account-name','Prueba sintética de confirmación')
+    await type('account-email','confirmacion-browser@example.invalid')
+    await type('account-password','Contraseña de prueba 123')
+    await type('account-password-confirmation','Otra contraseña de prueba')
+    await click('Registrarme')
+    await until(()=>evaluate(`document.getElementById('account-password-confirmation').getAttribute('aria-invalid')==='true'&&document.body.textContent.includes('Las contraseñas no coinciden.')`))
+    assert.equal(await evaluate('document.activeElement.id'),'account-password-confirmation')
+    assert.equal(registrationRequests,0,'No enviar un registro inválido al servidor.')
+    await type('account-password-confirmation','Contraseña de prueba 123')
+    await until(()=>evaluate(`!document.getElementById('account-password-confirmation').hasAttribute('aria-invalid')`))
+    assert.equal(await evaluate(`document.querySelector('[role=alert]')?.textContent.includes('Las contraseñas no coinciden.')??false`),false)
+    assert.equal(await evaluate(`document.getElementById('account-password-confirmation').getAttribute('autocomplete')`),'new-password')
+    await click('Iniciar sesión')
+    await until(()=>evaluate(`!document.getElementById('account-password-confirmation')`))
+    await click('Crear cuenta')
+    await until(()=>evaluate(`document.getElementById('account-password-confirmation')?.value===''`))
+    const rejected=await evaluate(`(async()=>{
+      const statuses=[];
+      for(const confirmation of [undefined,'','Contraseña diferente']){
+        const response=await fetch('/api/account/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'confirmacion-http@example.invalid',displayName:'Prueba sintética',password:'Contraseña de prueba 123',passwordConfirmation:confirmation})});
+        statuses.push(response.status);
+      }
+      return statuses;
+    })()`)
+    assert.deepEqual(rejected,[400,400,400])
+    console.log('Registro browser: confirmación obligatoria, discrepancia anunciada/foco, envío bloqueado, corrección de error y campo exclusivo del registro correctos. No se creó cuenta.')
   }
   console.log('Navegador: sistema, selección, recarga, navegación Nuxt, vuelta al sistema y móvil correctos.')
 } finally {

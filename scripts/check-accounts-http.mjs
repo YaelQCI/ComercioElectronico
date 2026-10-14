@@ -14,8 +14,13 @@ try {
   let ready = false
   for (let i = 0; i < 100; i++) { try { if ((await request('/api/health')).ok) { ready = true; break } } catch {} await new Promise(resolve => setTimeout(resolve, 200)) }
   assert.ok(ready, 'Servidor no disponible')
-  const input = { email: `${randomUUID()}@example.invalid`, displayName: 'HTTP sintético', password: 'Contraseña sintética 123' }
+  const input = { email: `${randomUUID()}@example.invalid`, displayName: 'HTTP sintético', password: 'Contraseña sintética 123', passwordConfirmation: 'Contraseña sintética 123' }
   assert.equal((await request('/api/account/register', input, true, true)).status, 403)
+  for (const passwordConfirmation of [undefined, '', 'Confirmación distinta']) {
+    const rejected = await request('/api/account/register', { ...input, passwordConfirmation })
+    assert.equal(rejected.status, 400)
+    assert.equal(rejected.headers.getSetCookie().length, 0)
+  }
   const registered = await request('/api/account/register', input)
   assert.equal(registered.status, 200)
   assert.equal(registered.headers.get('x-content-type-options'), 'nosniff')

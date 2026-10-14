@@ -1,5 +1,7 @@
 # Cuentas y autenticación (#23)
 
+Registro exige `passwordConfirmation` idéntica a `password`, sin normalizar espacios ni mayúsculas. El formulario muestra «Confirmar contraseña» solo en registro, error asociado al campo y anuncio al intentar enviar una discrepancia. El servidor rechaza confirmación ausente/vacía/distinta con400 antes de crear usuario/sesión; no almacena ni devuelve confirmación. Login no requiere este campo.
+
 `/cuenta` permite registro, login/logout, edición de nombre/teléfono, direcciones múltiples y predeterminada, cambio de contraseña y desactivación con confirmación de contraseña. El servidor ignora roles/propietarios enviados por el cliente. Registro crea CUSTOMER; no existe alta pública de administradores. Correo normalizado conserva puntos/etiquetas y unicidad incluso tras desactivación.
 
 Contraseña scrypt asíncrona (N=131072, r=8, p=1), sal aleatoria de 16 bytes, salida de 64 bytes y comparación de tiempo constante. Longitud mínima de alta/cambio: 12 caracteres, máximo 256 bytes. Nunca se devuelve hash/contraseña/tokens en el JSON público. Referencia: [Node crypto](https://nodejs.org/docs/latest-v24.x/api/crypto.html#cryptoscryptpassword-salt-keylen-options-callback).

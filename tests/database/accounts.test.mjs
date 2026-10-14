@@ -10,7 +10,15 @@ if (!url || !new URL(url).pathname.startsWith('/fitness_migration_test')) throw 
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) })
 test.after(() => db.$disconnect())
 const accounts = createAccounts(db, randomBytes(32).toString('base64'))
-const fixture = () => ({ email: `${randomUUID()}@example.invalid`, displayName: 'Cuenta sintética', password: 'Contraseña sintética 123' })
+const fixture = () => ({ email: `${randomUUID()}@example.invalid`, displayName: 'Cuenta sintética', password: 'Contraseña sintética 123', passwordConfirmation: 'Contraseña sintética 123' })
+
+test('registro rechaza confirmación ausente o distinta sin crear usuario', async () => {
+  const input = fixture()
+  for (const passwordConfirmation of [undefined, '', 'Otra contraseña', `${input.password} `]) {
+    await assert.rejects(accounts.register({ ...input, passwordConfirmation }), e => e.status === 400)
+    assert.equal(await db.user.count({ where: { emailNormalized: input.email } }), 0)
+  }
+})
 
 test('registro cliente, duplicado normalizado, login inválido, perfil y aislamiento de direcciones', async () => {
   const input = fixture(), registered = await accounts.register({ ...input, role: 'ADMIN' })

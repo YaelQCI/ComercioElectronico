@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { passwordConfirmationError } from '../../../shared/features/accounts/registration.js'
 import { AccountError, emailAddress, accountText, hashPassword, verifyPassword, opaqueToken, secretHash, issueAccess, verifyAccess } from './credentials.js'
 
 export const publicAccount = u => ({ id: u.id, email: u.email, displayName: u.displayName, phone: u.phone, role: u.role, emailVerified: !!u.emailVerifiedAt })
@@ -17,6 +18,8 @@ export function createAccounts(db, secret) {
   }
   return {
     async register(input) {
+      const confirmationError = passwordConfirmationError(input?.password, input?.passwordConfirmation)
+      if (confirmationError) throw new AccountError(400, confirmationError)
       const email = emailAddress(input?.email), displayName = accountText(input?.displayName, 'Nombre'), passwordHash = await hashPassword(input?.password)
       try { return await db.$transaction(async tx => session(tx, await tx.user.create({ data: { email: input.email.trim(), emailNormalized: email, displayName, passwordHash, role: 'CUSTOMER' } }))) }
       catch (e) { if (e.code === 'P2002') throw new AccountError(409, 'No se pudo registrar la cuenta con esos datos.'); throw e }

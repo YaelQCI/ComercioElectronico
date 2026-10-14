@@ -35,7 +35,7 @@ test('ajuste por ledger idempotente y desactivación de cuenta revoca sesiones',
   assert.equal(first.movementId, second.movementId); assert.equal((await db.inventoryLot.findUnique({ where: { id: f.lot.id } })).onHandQty, 3)
   await assert.rejects(admin.adjustStock(actor.id, { ...input, delta: 4 }))
   await assert.rejects(admin.adjustStock(actor.id, { ...input, delta: -4, idempotencyKey: randomUUID() }))
-  const accounts = createAccounts(db, randomBytes(32).toString('base64')), registered = await accounts.register({ email: `${randomUUID()}@example.invalid`, displayName: 'Fixture', password: 'Contraseña de pruebas 123' })
+  const accounts = createAccounts(db, randomBytes(32).toString('base64')), registered = await accounts.register({ email: `${randomUUID()}@example.invalid`, displayName: 'Fixture', password: 'Contraseña de pruebas 123', passwordConfirmation: 'Contraseña de pruebas 123' })
   await admin.deactivateUser(actor.id, registered.user.id, { reason: 'Fixture' })
   assert.equal(await accounts.authenticate(registered.access), null)
   assert.ok((await admin.users(actor.id)).every(u => !('passwordHash' in u)))

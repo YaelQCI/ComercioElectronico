@@ -1,16 +1,34 @@
 <script setup>
 import LoyaltyBalance from '~/features/loyalty/LoyaltyBalance.vue'
+import { passwordConfirmationError } from '~~/shared/features/accounts/registration.js'
 const { data, error, status, refresh } = await useFetch('/api/account/session')
 const mode = ref('login'), busy = ref(false), failure = ref(''), message = ref('')
 const email = ref(''), password = ref(''), displayName = ref(''), phone = ref(''), currentPassword = ref(''), newPassword = ref('')
 const profile = ref(null)
+const passwordConfirmation = ref(''), confirmationTouched = ref(false)
+const confirmationError = computed(() => mode.value === 'register' && confirmationTouched.value ? passwordConfirmationError(password.value, passwordConfirmation.value) : '')
+watch(mode, () => { passwordConfirmation.value = ''; confirmationTouched.value = false; failure.value = '' })
+watch([password, passwordConfirmation], () => {
+  if (['Confirma tu contraseña.', 'Las contraseñas no coinciden.'].includes(failure.value)) failure.value = ''
+})
+async function submitAccount() {
+  if (mode.value === 'register') {
+    confirmationTouched.value = true
+    if (confirmationError.value) {
+      failure.value = confirmationError.value
+      document.getElementById('account-password-confirmation')?.focus()
+      return
+    }
+  }
+  await perform(mode.value, { email: email.value, password: password.value, displayName: displayName.value, ...(mode.value === 'register' ? { passwordConfirmation: passwordConfirmation.value } : {}) })
+}
 const address = reactive({ recipientName: '', phone: '', postalCode: '', state: '', city: '', district: '', street: '', exteriorNumber: '', interiorNumber: '', label: '', isDefault: false })
 async function perform(action, body = {}) {
   if (busy.value) return
   busy.value = true; failure.value = ''; message.value = ''
   try {
     const result = await $fetch(`/api/account/${action}`, { method: action === 'profile' ? 'PATCH' : 'POST', body })
-    password.value = ''; currentPassword.value = ''; newPassword.value = ''
+    password.value = ''; passwordConfirmation.value = ''; confirmationTouched.value = false; currentPassword.value = ''; newPassword.value = ''
     if (result.user) { displayName.value = result.user.displayName; phone.value = result.user.phone ?? '' }
     await refresh(); await loadProfile()
     message.value = action === 'logout' ? 'Sesión cerrada.' : action === 'password' ? 'Contraseña cambiada. Inicia sesión de nuevo.' : action === 'deactivate' ? 'Cuenta desactivada; el historial se conserva.' : 'Cambios guardados.'
@@ -34,10 +52,11 @@ onMounted(loadProfile)
     <template v-if="!error && status !== 'pending'">
       <div v-if="!data?.user" class="mt-6 max-w-xl">
         <div class="flex flex-wrap gap-3"><UiButton variant="secondary" :aria-pressed="mode === 'login'" @click="mode = 'login'">Iniciar sesión</UiButton><UiButton variant="secondary" :aria-pressed="mode === 'register'" @click="mode = 'register'">Crear cuenta</UiButton></div>
-        <form class="mt-6 grid gap-4" @submit.prevent="perform(mode, { email, password, displayName })">
+        <form class="mt-6 grid gap-4" @submit.prevent="submitAccount">
           <UiField v-if="mode === 'register'" id="account-name" v-model="displayName" label="Nombre público" required maxlength="120" autocomplete="name" />
           <UiField id="account-email" v-model="email" label="Correo" type="email" required maxlength="254" autocomplete="username" />
           <UiField id="account-password" v-model="password" label="Contraseña" type="password" required :minlength="mode === 'register' ? 12 : undefined" maxlength="256" :autocomplete="mode === 'register' ? 'new-password' : 'current-password'" :hint="mode === 'register' ? 'Al menos 12 caracteres.' : undefined" />
+          <UiField v-if="mode === 'register'" id="account-password-confirmation" v-model="passwordConfirmation" label="Confirmar contraseña" type="password" required maxlength="256" autocomplete="new-password" :error="confirmationError" @blur="confirmationTouched = true" />
           <UiButton type="submit" :disabled="busy">{{ busy ? 'Procesando…' : mode === 'login' ? 'Entrar' : 'Registrarme' }}</UiButton>
         </form>
         <UiButton variant="secondary" class="mt-4" :disabled="busy" @click="perform('refresh')">Renovar mi sesión</UiButton>
