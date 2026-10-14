@@ -42,6 +42,14 @@ function snapshot(cart, items) {
   return { version: cart?.version ?? 1, lines, saved, coupon, couponError, pieces: [...demand.values()].reduce((sum, q) => sum + q, 0), products: lines.length, totals, provisional: true }
 }
 export const emptyCart = () => snapshot(null, [])
+export async function checkoutCart(tx, hash) {
+  const cart = await tx.cart.findFirst({ where: { guestTokenHash: hash, status: 'ACTIVE', userId: null }, include: cartCouponInclude })
+  if (!cart) throw new CartError(404, 'Carrito no disponible.')
+  const items = await tx.cartItem.findMany({ where: { cartId: cart.id, state: 'ACTIVE' }, include: itemInclude, orderBy: [{ position: 'asc' }, { id: 'asc' }] })
+  const current = snapshot(cart, items)
+  if (!items.length || current.lines.some(l => !l.stockSufficient) || current.couponError) throw new CartError(409, 'Revisa productos, existencias y cupón antes de preparar el pedido.')
+  return { cart, items, current }
+}
 export async function shippingCart(tx, hash) {
   if (!hash) throw new CartError(404, 'Carrito no disponible.')
   const cart = await tx.cart.findFirst({ where: { guestTokenHash: hash, status: 'ACTIVE', userId: null }, include: cartCouponInclude })
