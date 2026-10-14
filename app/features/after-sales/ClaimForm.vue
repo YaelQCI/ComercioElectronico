@@ -49,7 +49,8 @@ async function run(action){
   </main>
 </template>
 <style scoped>
-input,select,textarea { background:var(--color-surface); color:var(--color-text); }
+input,select,textarea { background:var(--t-surface); color:var(--t-ink); min-height:44px; }
+input[type=checkbox] { width:44px; vertical-align:middle; }
 input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible { outline:2px solid currentColor; outline-offset:3px; }
 button { min-height:44px; }
 button:disabled { opacity:.5; }

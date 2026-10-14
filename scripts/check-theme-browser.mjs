@@ -13,7 +13,7 @@ const browser = spawn(executable, ['--headless=new', '--disable-gpu', '--no-firs
 let socket
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 async function until(fn) {
-  for (let i = 0; i < 100; i++) { const result = await fn().catch(() => false); if (result) return result; await sleep(100) }
+  for (let i = 0; i < 100; i++) { const result = await Promise.resolve().then(fn).catch(() => false); if (result) return result; await sleep(100) }
   throw Error('La comprobación del navegador excedió 10 segundos.')
 }
 try {
@@ -79,6 +79,28 @@ try {
   if (process.env.TEST_SCREENSHOT_PATH) {
     const shot = await command('Page.captureScreenshot', { format: 'png' })
     await writeFile(process.env.TEST_SCREENSHOT_PATH, Buffer.from(shot.data, 'base64'))
+  }
+  if(process.env.TEST_LAYOUT_AUDIT==='true'){
+    const routes=['/','/catalogo?q=sin-resultados-sinteticos','/carrito','/checkout','/cuenta','/pedidos','/solicitudes','/politicas/devoluciones','/contacto']
+    const report=[]
+    for(const theme of ['light','dark'])for(const width of [360,480,768,1100])for(const route of routes){
+      await command('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<768})
+      const load=loadEvents
+      await command('Page.navigate',{url:base+route})
+      await until(()=>loadEvents>load);await loaded()
+      if(await evaluate('document.documentElement.dataset.theme')!==theme)await click(`Usar tema ${theme==='light'?'claro':'oscuro'}`)
+      await until(()=>evaluate(`document.documentElement.dataset.theme === '${theme}'`))
+      const result=await evaluate(`(()=>{
+        const visible=e=>e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden';
+        const controls=[...document.querySelectorAll('button,input:not([type=hidden]),select,textarea')].filter(visible).map(e=>e.matches('input[type=checkbox],input[type=radio]')&&e.labels?.length?e.labels[0]:e);
+        return {scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth,overflowElements:[...document.querySelectorAll("body *")].filter(e=>{const r=e.getBoundingClientRect();return r.right>innerWidth+1&&r.width>0}).slice(0,12).map(e=>({tag:e.tagName,class:e.className,text:e.textContent.slice(0,60)})),overflow:document.documentElement.scrollWidth>innerWidth+1,missingAlt:[...document.images].filter(i=>!i.hasAttribute('alt')).length,smallControls:controls.filter(e=>{const r=e.getBoundingClientRect();return r.width<44||r.height<44}).map(e=>({tag:e.tagName,type:e.type,text:(e.textContent||e.getAttribute('aria-label')||'').trim().slice(0,60)})),title:document.title,h1:document.querySelector('h1')?.textContent.trim(),brokenPage:document.title.includes('404')};
+      })()`)
+      report.push({theme,width,route,...result})
+    }
+    if(process.env.TEST_AUDIT_PATH)await writeFile(process.env.TEST_AUDIT_PATH,JSON.stringify(report,null,2))
+    console.log(`Auditoría: ${report.length} escenarios; desbordamientos ${report.filter(r=>r.overflow).length}; páginas 404 ${report.filter(r=>r.brokenPage).length}; imágenes sin alt ${report.reduce((s,r)=>s+r.missingAlt,0)}; controles pequeños ${report.reduce((s,r)=>s+r.smallControls.length,0)}. Informe requiere revisión, no equivale a auditoría WCAG completa.`)
+    assert.ok(report.every(r=>!r.overflow),'Hay desbordamientos horizontales; revisar informe.')
+    assert.ok(report.every(r=>!r.missingAlt),'Hay imágenes sin atributo alt.')
   }
   console.log('Navegador: sistema, selección, recarga, navegación Nuxt, vuelta al sistema y móvil correctos.')
 } finally {

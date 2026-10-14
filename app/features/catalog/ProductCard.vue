@@ -9,7 +9,7 @@ const props = defineProps({ product: { type: Object, required: true } })
 const pricing = computed(() => props.product.variants[0] ? variantPricing(props.product.variants[0]) : null)
 </script>
 <template>
-  <UiCard :title="product.name" :to="`/producto/${product.id}`">
+  <UiCard :title="product.name" :to="`/producto/${product.id}`" class="min-w-0 [overflow-wrap:anywhere]">
     <template #image><CardPackshot :images="product.images" :variant-id="product.variants[0]?.id" /></template>
     <p v-if="product.brand" class="text-body-s text-ink-2">{{ product.brand.name }}</p>
     <p v-if="pricing" class="mt-2 font-mono text-data-l font-semibold tabular-nums"><span v-if="product.variants.length > 1" class="text-body-s">Desde </span>{{ pricing.priceLabel }}</p>
