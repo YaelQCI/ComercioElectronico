@@ -18,6 +18,8 @@ try {
   assert.equal((await request('/api/account/register', input, true, true)).status, 403)
   const registered = await request('/api/account/register', input)
   assert.equal(registered.status, 200)
+  assert.equal(registered.headers.get('x-content-type-options'), 'nosniff')
+  assert.equal(registered.headers.get('x-frame-options'), 'DENY')
   const cookies = registered.headers.getSetCookie()
   assert.ok(cookies.every(c => /HttpOnly/i.test(c) && /Secure/i.test(c) && /SameSite=Strict/i.test(c)))
   const account = await registered.json(); assert.equal(account.user.role, 'CUSTOMER'); assert.ok(!('access' in account))
@@ -29,5 +31,6 @@ try {
   cookieJar.set('fitness_access', access)
   assert.equal((await request('/api/account/profile')).status, 401)
   const page = await request('/cuenta'); assert.equal(page.status, 200); assert.match(await page.text(), /Mi cuenta/)
+  for (let i = 0; i < 11; i++) { const attempt = await request('/api/account/login', { email: input.email, password: 'incorrecta' }); assert.ok([401, 429].includes(attempt.status)); if (i === 10) assert.equal(attempt.status, 429) }
   console.log('HTTP: alta, cookies, Origin, propiedad, renovación, revocación y SSR de cuenta correctos.')
 } finally { server.kill() }

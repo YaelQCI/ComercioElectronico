@@ -284,6 +284,15 @@ model User {
   contentPage_updatedBy             ContentPage[]         @relation("ContentPage_updatedById")
 }
 
+// Contadores compartidos por todas las instancias; claves SHA-256, nunca IP/correo.
+model RequestLimit {
+  keyHash   String   @id @db.Char(64)
+  hits      Int
+  expiresAt DateTime @db.Timestamptz(3)
+
+  @@index([expiresAt])
+}
+
 model AuthSession {
   id                        String              @id @default(uuid()) @db.Uuid
   userId                    String              @db.Uuid
