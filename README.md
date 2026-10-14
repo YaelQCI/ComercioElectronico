@@ -1,5 +1,7 @@
 # The Fitness Stuff · ComercioElectronico
 
+La [entrega técnica y evidencia por parcial](docs/technical-delivery.md) reúne los módulos implementados, pruebas y pendientes actuales. El [modelo físico](docs/modelo-base-de-datos.md) y las [decisiones](docs/decisiones-base-de-datos.md) enlazan esquema y migraciones; los apartados iniciales siguientes conservan contexto histórico de la base.
+
 Base de implementación del [issue #43](https://github.com/YaelQCI/ComercioElectronico/issues/43).
 
 ## Requisitos y versiones

@@ -1,0 +1,11 @@
+# Modelo de base de datos de The Fitness Stuff
+
+El diccionario y cardinalidades aprobados se conservan íntegros en [fuente revisada #33](database-model-source.md). El modelo físico ejecutable es [schema.prisma](../prisma/schema.prisma); sus claves UUID, unicidad, índices y relaciones se complementan con las restricciones SQL de [migraciones](../prisma/migrations/README.md). La revisión histórica del 13 de octubre describe diseño antes de implementación; hoy existen tres migraciones y 59 modelos/tablas, comprobados contra PostgreSQL aislado.
+
+Relaciones centrales: Product 1:N ProductVariant; ProductVariant 1:N InventoryLot; Bundle N:M variantes mediante BundleComponent; Order 1:N OrderLine 1:N OrderComponent 1:N OrderUnit; Order 1:N intentos/reservas/reintegros/solicitudes. Una unidad pertenece simultáneamente a pedido, componente, variante y lote histórico; claves compuestas impiden mezclar pedidos. Cuenta opcional de pedido permite invitados con prueba ActionToken, nunca número público suficiente. RefundAllocation enlaza unidad y pedido, o envío sin unidad, conservando saldo por medio.
+
+Importes BIGINT en centavos MXN; puntos en décimas (una décima equivale a un centavo de canje). JSON expone importes como texto. Snapshots congelados al confirmar preservan dirección, políticas, precios, composición y paquete aunque catálogo cambie. Libro de movimientos mantiene stock/reservas/no vendibles; libro de puntos admite saldo negativo tras ajustes, pero no habilita canjes negativos. Único paquete por pedido requiere caja/cobertura válida; no se separa automáticamente la compra.
+
+Transacciones y bloqueos serializan pedido/reserva, productos/variantes/lotes, cupones y cuenta de puntos. Red se consulta fuera de bloqueo; inbox/outbox e idempotencia permiten reconciliar resultados. Reintegros pendientes cuentan contra límites, incluidos Price Match previo y compensación limitada al intento no aplicado, que no afecta compra legítima. [Reservas](inventory-reservations.md), [pagos](stripe-payments.md) y [posventa](after-sales.md) documentan límites operativos y pendientes de recuperación.
+
+Verificación y carga de muestras: [migraciones](database-migrations.md), tests/database y [auditoría](acceptance-audit.md). Fixtures son sintéticos y aislados; diez productos comerciales requieren datos del propietario.
