@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 // Synthetic delivered zero-total order. No Stripe, no commercial data, all DB guards active.
-export async function deliveredFixture(db, userId, { bundle = false } = {}) {
+export async function deliveredFixture(db, userId, { bundle = false, confirmedOnly = false } = {}) {
   return db.$transaction(async tx => {
     const code = randomUUID(), warehouse = await tx.warehouse.findFirst(), user = await tx.user.findUnique({ where: { id: userId } })
     const product = await tx.product.create({ data: { name: 'Producto sintético', description: 'Solo pruebas', slug: code, publishedAt: new Date() } })
@@ -19,7 +19,7 @@ export async function deliveredFixture(db, userId, { bundle = false } = {}) {
     await tx.orderPackage.create({ data: { orderId: order.id, quoteId: quote.id, warehouseId: warehouse.id, originSnapshot: {}, packageCodeSnapshot: 'FIXTURE', weightGrams: 100, lengthMm: 100, widthMm: 100, heightMm: 100, packingPlanSnapshot: {}, carrierSnapshot: {}, serviceSnapshot: {}, deliveryEstimateSnapshot: {}, acceptedAt: new Date() } })
     await tx.reservationSet.update({ where: { id: reservation.id }, data: { state: 'CONSUMED', resolvedAt: new Date() } })
     let from = 'PENDING_PAYMENT'
-    for (const to of ['CONFIRMED', 'PREPARING', 'SHIPPED', 'DELIVERED']) {
+    for (const to of confirmedOnly ? ['CONFIRMED'] : ['CONFIRMED', 'PREPARING', 'SHIPPED', 'DELIVERED']) {
       await tx.orderStatusHistory.create({ data: { orderId: order.id, fromStatus: from, toStatus: to, actorType: 'SYSTEM', eventKey: randomUUID() } })
       await tx.order.update({ where: { id: order.id }, data: { status: to, ...(to === 'CONFIRMED' ? { confirmedAt: new Date(), moneyStatus: 'NOT_REQUIRED' } : to === 'SHIPPED' ? { shippedAt: new Date() } : to === 'DELIVERED' ? { deliveredAt: new Date() } : {}) } })
       from = to
