@@ -13,7 +13,7 @@ Una aplicación Nuxt integra interfaz Vue, renderizado inicial SSR, navegación 
 | Tailwind CSS / plugin Vite | 4.3.3 | Utilidades semánticas y tokens centralizados, sin duplicar colores |
 | PostgreSQL | 17.7 en Compose | Relaciones, restricciones y transacciones para stock/pedidos |
 | Prisma / adapter-pg | 7.10.0 | Consultas desde servidor y migraciones versionadas |
-| Stripe | Integración pendiente #30 | Checkout alojado propuesto para tarjetas; captura fuera de la tienda |
+| Stripe | Cliente REST y ciclo de pago #30; activación/prueba real pendientes | Checkout alojado para tarjetas; captura fuera de la tienda, webhooks firmados e inbox/outbox |
 | Envia.com | Cliente de cotización existente #44 | Consultar tarifas; nunca generar guías ni envíos |
 | AWS / Route 53 | Servicios pendientes #41 | Alojamiento, PostgreSQL, DNS y HTTPS; no hay recursos aprovisionados |
 | Git / npm | Lockfile versionado | Historial y dependencias reproducibles |
@@ -29,8 +29,8 @@ flowchart LR
   API --> Casos[Casos de uso por dominio]
   Casos --> DB[(PostgreSQL vía Prisma)]
   Casos --> Envia[Envia.com: solo cotización]
-  Casos -. pendiente .-> Stripe[Stripe Checkout]
-  Stripe -. webhook firmado pendiente .-> API
+  Casos --> Stripe[Stripe Checkout alojado]
+  Stripe -- webhook firmado --> API
   Casos --> Cola[Outbox persistente]
   Cola -. proveedor pendiente .-> Correo[Correo transaccional]
 ```
@@ -94,7 +94,7 @@ Las claves compuestas y triggers de la migración protegen pertenencia entre ped
 | Reposición | Correo, variante y consentimiento | Validación, suscripción deduplicada y cancelación opaca; proveedor de correo pendiente |
 | Cuenta (#23 pendiente) | Correo/contraseña; perfil sin hashes ni tokens en JSON | JWT 15 min en cookie HttpOnly/Secure; sesión revocable hasta 7 días y renovación rotatoria |
 | Checkout (#24 pendiente) | Datos de entrega y aceptación de importes; pedido | Propiedad, revalidación completa, idempotencia y reserva conjunta de 30 min |
-| Stripe (#30 pendiente) | Importe desde pedido; sesión/referencia proveedor | Idempotencia, firma sobre cuerpo original, correspondencia de pedido/moneda/importe |
+| Stripe (#30, activación pendiente) | Importe desde pedido; sesión/referencia proveedor | Idempotencia, firma sobre cuerpo original, correspondencia de pedido/moneda/importe; límites en [pagos](stripe-payments.md) |
 | Administración (#34 pendiente) | Cambios de negocio con motivo | Rol administrador revalidado en servidor y auditoría; no edición directa de saldos |
 
 Registro público siempre crea cliente. Revocación se comprueba además de la firma del JWT. Cambio de contraseña/desactivación invalidan acceso anterior. Recuperación usa token de un uso de 30 minutos; vinculación de compra invitada exige verificar control del correo. Son contratos acordados, todavía no implementados en este commit.

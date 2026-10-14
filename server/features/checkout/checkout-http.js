@@ -13,6 +13,7 @@ export async function checkoutRequest(event, guest = false) {
     if(guest)return{order:await service.guestRead(input?.token)}
     const hash=guestCartHash(event),identity=await accountIdentity(event,false)
     await limitRequest(db,`checkout:${hash??getRequestIP(event,{xForwardedFor:false})}`,5)
-    return await service.prepare(hash,identity?.user.id,input)
+    const result=await service.prepare(hash,identity?.user.id,input),config=useRuntimeConfig(event)
+    return {...result,paymentEnabled:config.stripeEnabled===true||config.stripeEnabled==='true'}
   }catch(e){const known=e instanceof AccountError||e instanceof CartError||e instanceof ShippingError||e instanceof RequestLimitError;throw createError({statusCode:known?e.status:503,statusMessage:known?e.message:'No pudimos preparar el pedido. Conservamos tu carrito.'})}
 }

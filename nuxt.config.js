@@ -15,6 +15,10 @@ export default defineNuxtConfig({
     enviaCarrier: '',
     stripeSecretKey: '',
     stripeWebhookSecret: '',
+    stripeEnabled: false,
+    stripeEnvironment: 'test',
+    stripeSiteUrl: '',
+    stripeMinimumCents: '1000',
     public: {
       stripePublishableKey: '',
       contactEmail: '',

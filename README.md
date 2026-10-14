@@ -66,6 +66,8 @@ Para aplicar la migración inicial en una base propia vacía: `npm run db:deploy
 
 ## Build y persistencia
 
+La [integración de Stripe #30](docs/stripe-payments.md) conecta Checkout alojado, reservas, webhooks, reconciliación y reembolsos autorizados. Permanece deshabilitada por defecto; las pruebas usan dobles de proveedor, sin cobros reales. Consultar configuración, comandos de recuperación y criterios pendientes antes de habilitarla.
+
 ```powershell
 npm.cmd run db:validate
 npm.cmd run build

@@ -8,4 +8,6 @@ Acceso invitado: token HMAC opaco derivado con clave privada, solo hash en Actio
 
 Verificación: prueba PostgreSQL aislado de preparación concurrente/idempotente, importe manipulado y token ajeno rechazados, snapshots coherentes, conservación del carrito y ausencia de reserva/pago; build y diff check. Cotización por doble de proveedor; políticas/productos sintéticos solo en BD de pruebas.
 
-Pendiente para cerrar: recotización real inmediatamente antes del pago con aceptación de cambios, reserva conjunta de stock/cupón/puntos, canje y direcciones guardadas, Stripe/idempotencia de intento, confirmación total cero y retiro de solo cantidades compradas, confirmación/recuperación de fallo y consulta invitada de interfaz, datos reales y validación visual/compra completa. Un borrador no constituye venta ni asegura precio/stock futuro.
+Actualización #30: [pagos Stripe](stripe-payments.md) añade recotización antes de iniciar, reserva conjunta, idempotencia de intento, confirmación total cero/por proveedor, retiro selectivo del carrito y página de estado/recuperación (cuenta o credencial invitada). Integración deshabilitada por defecto y validada con dobles; no se realizó cobro real.
+
+Pendiente para cerrar: canje y direcciones guardadas en interfaz, publicación/configuración comercial y proveedores reales, validación visual/compra completa y recuperación de anomalías del proveedor. Un borrador no constituye venta ni asegura precio/stock futuro.
