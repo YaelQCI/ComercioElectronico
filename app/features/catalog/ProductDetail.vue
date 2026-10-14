@@ -1,4 +1,5 @@
 <script setup>
+import ProductReviews from '~/features/reviews/ProductReviews.vue'
 import { comparePresentations, variantPricing, formatMXN } from '~~/shared/features/pricing/prices.js'
 import { selectedVariant, productQuantity, nutritionRows } from '~~/shared/features/catalog/product-selection.js'
 import ProductGallery from './ProductGallery.vue'
@@ -71,6 +72,7 @@ useHead(() => ({ title: `${product.value?.name ?? 'Producto'} — The Fitness St
         <UiTable v-if="nutrition.length" caption="Información nutrimental de la presentación seleccionada" :columns="[{ key: 'nutrient', label: 'Nutrimento' }, { key: 'amount', label: 'Cantidad declarada', numeric: true }]" :rows="nutrition" />
       </section>
       <ConfiguredRecommendations :source-ids="[product.id]" kind="RELATED" />
+      <ProductReviews :key="product.id" :product-id="product.id" />
       <div v-if="variant && pricing" class="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface p-4 lg:hidden" aria-label="Resumen de compra móvil">
         <div><p class="font-mono text-body-s tabular-nums">{{ pricing.priceLabel }}</p><p class="text-body-s text-ink-2">{{ variant.presentationLabel }} · {{ variant.flavor }} · Cantidad {{ quantity }}</p></div><UiButton :disabled="cart.busy.value || !variant.availableQty || !!quantityError" @click="cart.add(variantId, quantity)">Agregar al carrito</UiButton>
       </div>
