@@ -35,6 +35,8 @@ Sin Docker: instalar PostgreSQL 17.7, crear una base y un usuario con permisos s
 
 ## Estructura
 
+La [arquitectura y contratos de #32](docs/architecture.md) describen responsabilidades por dominio, flujos, modelo relacional, configuración por entorno y capacidades pendientes.
+
 | Ruta | Uso |
 | --- | --- |
 | `app/pages`, `app/components` | Rutas Vue y componentes compartidos |
