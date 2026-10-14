@@ -9,7 +9,7 @@ const active = computed(() => applicable.value.find(i => i.id === activeId.value
 <template>
   <section aria-label="Galería del producto" class="min-w-0">
     <figure>
-      <div class="aspect-square rounded-sm border border-line bg-packshot p-6"><UiImage :src="active?.url" :alt="active?.alt ?? 'Producto seleccionado'" loading="eager" /></div>
+      <div class="aspect-square rounded-sm border border-line bg-packshot p-6"><Transition name="gallery" mode="out-in"><UiImage :key="active?.id ?? 'empty'" :src="active?.url" :alt="active?.alt ?? 'Producto seleccionado'" loading="eager" /></Transition></div>
       <figcaption v-if="active" class="mt-3 text-body-s text-ink-2" aria-live="polite">{{ active.alt }}</figcaption>
     </figure>
     <div v-if="applicable.length > 1" class="mt-4 flex flex-wrap gap-3" role="group" aria-label="Seleccionar imagen">
@@ -17,3 +17,9 @@ const active = computed(() => applicable.value.find(i => i.id === activeId.value
     </div>
   </section>
 </template>
+<style scoped>
+@media (prefers-reduced-motion:no-preference) {
+  .gallery-enter-active,.gallery-leave-active { transition:opacity 100ms ease; }
+  .gallery-enter-from,.gallery-leave-to { opacity:0; }
+}
+</style>
