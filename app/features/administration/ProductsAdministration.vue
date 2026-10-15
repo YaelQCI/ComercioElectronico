@@ -1,4 +1,5 @@
 <script setup>
+import { pesosToCents, centsToPesos } from './price-input.js'
 import { useAdministration } from './useAdministration.js'
 import { useDraftIdentifiers } from './useDraftIdentifiers.js'
 import ProductImages from './ProductImages.vue'
@@ -9,10 +10,10 @@ const { data, status, error, refresh } = await useFetch('/api/admin/catalog', { 
 const { busy, failure, message, save } = useAdministration(refresh)
 const { data: classification, error: classificationError, refresh: refreshCategories } = await useFetch('/api/admin/categories')
 const draftCategoryIds = ref([])
-const draft = reactive({ name: '', slug: '', description: '', reason: '', sku: '', flavor: '', presentationLabel: '', contentAmount: '', contentUnit: '', priceCents: '', weightGrams: '', lengthMm: '', widthMm: '', heightMm: '' })
+const draft = reactive({ name: '', slug: '', description: '', reason: '', sku: '', flavor: '', presentationLabel: '', contentAmount: '', contentUnit: '', pricePesos: '', weightGrams: '', lengthMm: '', widthMm: '', heightMm: '' })
 const creating = ref(false), creatingOpen = ref(false)
 const { pending: checkingIdentifiers, failure: identifierFailure, slugError, skuError, verify: verifyIdentifiers } = useDraftIdentifiers(draft)
-const fields = [{ key: 'sku', label: 'SKU' }, { key: 'flavor', label: 'Sabor' }, { key: 'presentationLabel', label: 'Presentación' }, { key: 'contentAmount', label: 'Contenido (cantidad)' }, { key: 'contentUnit', label: 'Unidad de contenido' }, { key: 'priceCents', label: 'Precio en centavos MXN', hint: 'Ejemplo: 15000 equivale a $150.00.' }, { key: 'weightGrams', label: 'Peso en gramos', numeric: true }, { key: 'lengthMm', label: 'Largo en milímetros', numeric: true }, { key: 'widthMm', label: 'Ancho en milímetros', numeric: true }, { key: 'heightMm', label: 'Alto en milímetros', numeric: true }]
+const fields = [{ key: 'sku', label: 'SKU' }, { key: 'flavor', label: 'Sabor' }, { key: 'presentationLabel', label: 'Presentación' }, { key: 'contentAmount', label: 'Contenido (cantidad)' }, { key: 'contentUnit', label: 'Unidad de contenido' }, { key: 'pricePesos', label: 'Precio en pesos (MXN)', hint: 'Ejemplo: 150.00. Hasta dos decimales, sin separadores de miles.', price: true }, { key: 'weightGrams', label: 'Peso en gramos', numeric: true }, { key: 'lengthMm', label: 'Largo en milímetros', numeric: true }, { key: 'widthMm', label: 'Ancho en milímetros', numeric: true }, { key: 'heightMm', label: 'Alto en milímetros', numeric: true }]
 const selected = ref(null), edit = reactive({ name: '', slug: '', description: '', reason: '', categoryIds: [] }), variantEdits = ref([]), editForm = ref(null)
 const publicationProblem = computed(() => {
   const product = selected.value
@@ -26,31 +27,35 @@ const publicationProblem = computed(() => {
 function select(product) {
   selected.value = product
   Object.assign(edit, { name: product.name, slug: product.slug, description: product.description, reason: '', categoryIds: product.categories.map(category => category.id) })
-  variantEdits.value = product.variants.map(variant => ({ ...variant }))
+  variantEdits.value = product.variants.map(variant => ({ ...variant, pricePesos: centsToPesos(variant.priceCents), compareAtPricePesos: centsToPesos(variant.compareAtPriceCents) }))
 }
 async function create() {
   if (creating.value || busy.value) return
   creating.value = true
   try {
     if (!await verifyIdentifiers(true)) return
-    const variant = Object.fromEntries(fields.map(f => [f.key, f.numeric ? Number(draft[f.key]) : draft[f.key]]))
+    const variant = Object.fromEntries(fields.map(f => [f.price ? 'priceCents' : f.key, f.price ? pesosToCents(draft[f.key]) : f.numeric ? Number(draft[f.key]) : draft[f.key]]))
     if (await save('/api/admin/catalog', { name: draft.name, slug: draft.slug, description: draft.description, reason: draft.reason, categoryIds: draftCategoryIds.value, variants: [variant] })) {
       for (const key of Object.keys(draft)) draft[key] = ''
       draftCategoryIds.value = []
       creatingOpen.value = false
     } else await verifyIdentifiers(true)
-  } finally { creating.value = false }
+  } catch (error) { failure.value = error.message } finally { creating.value = false }
 }
 async function update(extra = {}) {
   if (busy.value || !editForm.value?.reportValidity()) return
   const product = selected.value
-  const variants = variantEdits.value.filter(variant => !variant.deactivated).map(variant => {
-    const original = product.variants.find(item => item.id === variant.id)
-    const values = Object.fromEntries(fields.map(field => [field.key, field.numeric ? Number(variant[field.key]) : variant[field.key]]))
-    values.compareAtPriceCents = variant.compareAtPriceCents === '' ? null : variant.compareAtPriceCents
-    if (!Object.keys(values).some(key => values[key] !== original[key])) return null
-    return { id: variant.id, expectedPriceVersion: original.priceVersion, ...values }
-  }).filter(Boolean)
+  let variants
+  try {
+    variants = variantEdits.value.filter(variant => !variant.deactivated).map(variant => {
+      const original = product.variants.find(item => item.id === variant.id)
+      const values = Object.fromEntries(fields.map(field => [field.price ? 'priceCents' : field.key, field.price ? pesosToCents(variant[field.key]) : field.numeric ? Number(variant[field.key]) : variant[field.key]]))
+      values.compareAtPriceCents = variant.compareAtPricePesos.trim() === '' ? null : pesosToCents(variant.compareAtPricePesos)
+      if (values.compareAtPriceCents !== null && BigInt(values.compareAtPriceCents) <= BigInt(values.priceCents)) throw new RangeError('El precio anterior debe superar el precio vigente.')
+      if (!Object.keys(values).some(key => values[key] !== original[key])) return null
+      return { id: variant.id, expectedPriceVersion: original.priceVersion, ...values }
+    }).filter(Boolean)
+  } catch (error) { failure.value = error.message; return }
   if (await save(`/api/admin/catalog/${product.id}`, { ...edit, expectedUpdatedAt: product.updatedAt, ...(variants.length ? { variants } : {}), ...extra }, 'PATCH')) {
     const fresh = data.value?.products.find(item => item.id === product.id)
     if (fresh) select(fresh)
@@ -89,7 +94,7 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
         <UiField id="draft-slug" v-model="draft.slug" label="Identificador de URL" hint="Minúsculas, números y guiones. Se comprueba que no esté registrado." :error="slugError" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="150" @blur="verifyIdentifiers()" />
         <UiField id="draft-description" v-model="draft.description" label="Descripción" required maxlength="10000" />
         <CategorySelection id="draft-category" v-model="draftCategoryIds" :categories="classification?.categories" />
-        <UiField v-for="field in fields" :id="`draft-${field.key}`" :key="field.key" v-model="draft[field.key]" :label="field.label" :error="field.key === 'sku' ? skuError : undefined" :hint="field.key === 'presentationLabel' ? 'Sabor y presentación deben ser únicos dentro del mismo producto; pueden repetirse en otros productos.' : field.hint" :type="field.numeric ? 'number' : 'text'" :min="field.numeric ? 1 : undefined" :step="field.numeric ? 1 : undefined" :maxlength="field.numeric ? undefined : 120" required @blur="field.key === 'sku' && verifyIdentifiers()" />
+        <UiField v-for="field in fields" :id="`draft-${field.key}`" :key="field.key" v-model="draft[field.key]" :label="field.label" :error="field.key === 'sku' ? skuError : undefined" :hint="field.key === 'presentationLabel' ? 'Sabor y presentación deben ser únicos dentro del mismo producto; pueden repetirse en otros productos.' : field.hint" :type="field.numeric ? 'number' : 'text'" :min="field.numeric ? 1 : undefined" :step="field.numeric ? 1 : undefined" :maxlength="field.numeric ? undefined : field.price ? 24 : 120" :inputmode="field.price ? 'decimal' : undefined" :pattern="field.price ? '[0-9]+([.,][0-9]{1,2})?' : undefined" required @blur="field.key === 'sku' && verifyIdentifiers()" />
         <UiField id="draft-reason" v-model="draft.reason" label="Motivo del alta" required maxlength="500" />
         <p role="status" aria-live="polite" class="text-body-s text-ink-2 md:col-span-2">{{ checkingIdentifiers ? 'Comprobando identificadores…' : slugError || skuError }}</p>
         <p v-if="identifierFailure" role="alert" class="text-crit md:col-span-2">{{ identifierFailure }}</p>
@@ -125,8 +130,8 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
         <CategorySelection id="edit-category" v-model="edit.categoryIds" :categories="classification?.categories" :current-categories="selected.categories" />
         <fieldset v-for="variant in variantEdits" :key="variant.id" :disabled="variant.deactivated" class="grid min-w-0 gap-4 rounded-sm border border-border p-4 md:col-span-2 md:grid-cols-2">
           <legend class="px-2 font-semibold">Variante {{ selected.variants.find(item => item.id === variant.id)?.sku }}{{ variant.deactivated ? ' (desactivada)' : '' }}</legend>
-          <UiField v-for="field in fields" :id="`edit-${variant.id}-${field.key}`" :key="field.key" v-model="variant[field.key]" :label="field.label" :hint="field.hint" :type="field.numeric ? 'number' : 'text'" :min="field.numeric ? 1 : undefined" :step="field.numeric ? 1 : undefined" :maxlength="field.numeric ? undefined : 120" :pattern="field.key === 'sku' ? '[A-Z0-9][A-Z0-9._-]*' : undefined" required />
-          <UiField :id="`edit-${variant.id}-previous-price`" v-model="variant.compareAtPriceCents" label="Precio anterior en centavos MXN (opcional)" hint="Si lo indicas, debe ser mayor que el precio vigente." pattern="[0-9]+" />
+          <UiField v-for="field in fields" :id="`edit-${variant.id}-${field.key}`" :key="field.key" v-model="variant[field.key]" :label="field.label" :hint="field.hint" :type="field.numeric ? 'number' : 'text'" :min="field.numeric ? 1 : undefined" :step="field.numeric ? 1 : undefined" :maxlength="field.numeric ? undefined : field.price ? 24 : 120" :inputmode="field.price ? 'decimal' : undefined" :pattern="field.price ? '[0-9]+([.,][0-9]{1,2})?' : field.key === 'sku' ? '[A-Z0-9][A-Z0-9._-]*' : undefined" required />
+          <UiField :id="`edit-${variant.id}-previous-price`" v-model="variant.compareAtPricePesos" label="Precio anterior en pesos (MXN, opcional)" hint="Si lo indicas, debe ser mayor que el precio vigente. Ejemplo: 180.00." inputmode="decimal" maxlength="24" pattern="[0-9]+([.,][0-9]{1,2})?" />
         </fieldset>
         <UiField id="edit-reason" v-model="edit.reason" label="Motivo de los cambios" hint="Obligatorio para guardar o publicar los datos revisados. El motivo de la carga de imágenes es independiente." required maxlength="500" />
         <p v-if="publicationProblem" id="publication-requirements" role="status" class="text-body-s text-ink-2">{{ publicationProblem }}</p>

@@ -1,5 +1,10 @@
 # Guía para explicar y demostrar la plataforma
 
+## Precios en pesos en el administrador
+
+En **Productos → Crear producto en borrador** o **Gestionar**, escribe `150.00` en **Precio en pesos (MXN)**. Al guardar se envía `15000` centavos a la API. Al volver a editar aparece `150.00`; el precio anterior opcional sigue la misma conversión y debe superar el vigente. Se permiten punto o coma decimal y hasta dos decimales, sin separadores de miles. La conversión utiliza `BigInt` para evitar errores de precisión; los precios existentes permanecen intactos. Código: `app/features/administration/price-input.js` y `ProductsAdministration.vue`. Pruebas: `tests/catalog/price-input.test.mjs` cubre conversión, ida y vuelta, valores vacíos opcionales y formatos/rangos inválidos. La comprobación visual en navegador sigue pendiente.
+
+
 ## Confirmaciones mediante toast
 
 Las operaciones de administración, cuenta y apariencia, carrito/cupones, reseñas, avisos de reposición, solicitudes posventa y confirmación al iniciar pago muestran sus mensajes mediante un toast compartido. `app/composables/useToasts.js` mantiene la cola durante la navegación interna; `UiToasts.vue` la presenta en la página o dentro del diálogo abierto para que siga visible y accesible sobre un modal. `UiToast.vue` permite cerrar cada aviso y lo retira tras ocho segundos, pausando el tiempo al pasar el cursor o enfocar sus controles. Se muestran hasta cuatro avisos simultáneos y se anuncian mediante una región `aria-live="polite"`.
@@ -333,7 +338,7 @@ El importador local `npm.cmd run catalog:import -- ruta.json` valida un manifies
 
 1. Iniciar sesión como ADMIN y abrir http://localhost:3001/admin.
 2. Seleccionar **Productos** → **Crear producto en borrador**.
-3. Explicar los campos y mostrar que el precio usa centavos: `15000` representa $150.00 MXN; las medidas se ingresan en gramos y milímetros.
+3. Explicar los campos: el precio se captura en pesos, por ejemplo `150.00`; internamente se envía como `15000` centavos. Las medidas se ingresan en gramos y milímetros.
 4. En un entorno de prueba, completar el formulario con datos sintéticos identificados y un SKU/slug únicos; indicar un motivo y pulsar **Crear borrador**.
 5. Comprobar que aparece en el listado administrativo con estado **Borrador**.
 6. Abrir `/catalogo`: el borrador no aparece públicamente. No confundir esto con un fallo de creación.

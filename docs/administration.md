@@ -1,5 +1,8 @@
 # Panel de administración
 
+Los formularios de creación y edición reciben el precio en **pesos MXN**, por ejemplo `150.00`; el precio anterior opcional también utiliza pesos. Se aceptan hasta dos decimales con punto o coma, sin separadores de miles. `price-input.js` convierte mediante enteros exactos antes de enviar a la API y presenta los precios existentes con dos decimales. La base de datos y la API conservan centavos; no se migran ni reinterpretan los precios guardados.
+
+
 Todos los formularios se abren en modales mediante botones: crear/gestionar producto, crear categoría, agregar imagen, configurar/editar almacén, registrar/ajustar lote, desactivar usuario y consultar/actualizar pedido. Las listas y la información del almacén siguen visibles en la página.
 
 `app/components/UiModal.vue` utiliza un diálogo nativo con título accesible, foco contenido y restaurado al cerrar, Escape y botón Cerrar; bloquea el desplazamiento del fondo y el cierre durante el guardado. Los errores se muestran dentro del modal y conservan los datos para reintentar. La carga de imágenes tiene su propio modal desde la edición del producto.
@@ -10,7 +13,7 @@ La interfaz amplía las herramientas HTTP del issue #34. Para asignación restri
 
 ## Funciones implementadas
 
-- **Productos:** listado paginado y alta de borrador con una variante. Edición de todos los datos del alta: nombre, slug, descripción, SKU, sabor, presentación, cantidad/unidad de contenido, precio, peso y dimensiones. Clasificación principal y adicional por categorías; alta de tipos con datos del administrador. Guardar cambios mantiene la edición abierta y Guardar y publicar aplica los cambios y publica en la misma transacción. Los precios del formulario se introducen en centavos MXN; se conservan controles de versión y auditoría.
+- **Productos:** listado paginado y alta de borrador con una variante. Edición de todos los datos del alta: nombre, slug, descripción, SKU, sabor, presentación, cantidad/unidad de contenido, precio, peso y dimensiones. Clasificación principal y adicional por categorías; alta de tipos con datos del administrador. Guardar cambios mantiene la edición abierta y Guardar y publicar aplica los cambios y publica en la misma transacción. Los precios del formulario se introducen en pesos MXN; se conservan controles de versión y auditoría.
 - **Inventario:** listado paginado de lotes, existencias/reservas/no vendibles, alta del almacén inicial, ficha de información y edición de nombre, remitente, contacto, teléfono y dirección (incluidos interior y referencias opcionales). Edición con motivo, versión esperada, bloqueo de fila y auditoría. Alta de lotes por SKU y almacén y ajustes positivos/negativos con motivo. Los ajustes utilizan el ledger y una clave de idempotencia; no retiran piezas reservadas.
 - **Usuarios:** listado paginado con nombre, correo, rol y estado; confirmación de desactivación de clientes con revocación de sesiones. No se exponen hashes, tokens ni credenciales. Los administradores no se desactivan mediante este flujo.
 - **Pedidos:** listado paginado, detalle de cliente/dirección, líneas, importes e historial; avance confirmado → preparación → enviado → entregado con motivo, idempotencia y validación del estado y pago. No se cambia manualmente el estado financiero.
