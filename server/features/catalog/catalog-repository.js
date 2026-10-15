@@ -81,7 +81,9 @@ export function createCatalogRepository(db) {
     async browse(filters, pagination) {
       const all = await this.list()
       const queried = filters.q ? await this.list({ q: filters.q }) : all
-      return { ...paginateCatalog(filterProducts(queried, filters), { ...pagination, q: filters.q }), options: catalogFilterOptions(all), catalogTotal: all.length }
+      const categories = await db.category.findMany({ where: { isActive: true }, orderBy: [{ position: 'asc' }, { name: 'asc' }, { slug: 'asc' }], select: { slug: true, name: true } })
+      const options = { ...catalogFilterOptions(all), categoria: categories.map(category => ({ value: category.slug, label: category.name })) }
+      return { ...paginateCatalog(filterProducts(queried, filters), { ...pagination, q: filters.q }), options, catalogTotal: all.length }
     },
     async getById(id) {
       const product = await db.product.findFirst({ where: { ...published(), id }, include: includes })

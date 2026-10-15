@@ -1,5 +1,9 @@
 # Panel de administración
 
+El filtro público **Categorías** muestra todas las categorías activas registradas, incluidas las siete base y las adicionales, aunque no tengan productos publicados. Seleccionar una categoría vacía muestra cero resultados; no publica ni revela borradores. Las categorías inactivas se excluyen. Las opciones se consultan desde `Category` en `catalog-repository.js`, en lugar de derivarse únicamente de productos publicados.
+
+Verificación del filtro: build Docker, 71 pruebas unitarias y 83 PostgreSQL correctas; API y HTML SSR contienen las siete opciones, y una categoría vacía devuelve cero resultados. Esto no sustituye la revisión visual/interactiva en navegador.
+
 Los tipos base obligatorios son **Proteína, Creatina, Pre-entreno, Electrolitos, Vitaminas, Aminoácidos y Accesorios**, con slugs `proteina`, `creatina`, `pre-entreno`, `electrolitos`, `vitaminas`, `aminoacidos` y `accesorios`. La migración `20261016010000_required_supplement_categories` los inserta o activa conservando los IDs y vínculos existentes. Además, el plugin de inicio del servidor ejecuta `ensureSupplementCategories`: repone faltantes y restablece los nombres indicados y su estado activo en cada arranque. Conserva las demás categorías y permite agregar más. No crea productos ni asigna automáticamente categorías a productos existentes. Se muestran en el selector **Tipo de suplemento / categoría principal** de Productos.
 
 Verificación de las categorías base: migración aplicada sin reiniciar la base, build Docker correcto, 71 pruebas unitarias y 82 PostgreSQL aprobadas. Las siete categorías están activas en la base local y presentes en la respuesta HTTP del catálogo; la categoría existente conservó su ID. Revisión visual del selector pendiente.

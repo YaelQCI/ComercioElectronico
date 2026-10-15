@@ -1,5 +1,9 @@
 # Guía para explicar y demostrar la plataforma
 
+## Categorías sin productos en el filtro público
+
+En `/catalogo`, el filtro **Categorías** muestra todas las categorías activas del sistema, aunque todavía no tengan productos publicados. Así aparecen los siete tipos base desde el inicio. Al marcar un tipo vacío se muestra el estado sin resultados; los borradores y productos desactivados permanecen ocultos. `catalog-repository.js` consulta las opciones desde `Category`, mientras conserva el filtrado de los productos públicos. La prueba PostgreSQL de `catalog-search.test.mjs` verifica tipos base, categorías vacías, exclusión de inactivas y cero resultados al seleccionar una vacía.
+
 ## Tipos de suplemento obligatorios al desplegar
 
 La migración `20261016010000_required_supplement_categories` incorpora Proteína (`proteina`), Creatina (`creatina`), Pre-entreno (`pre-entreno`), Electrolitos (`electrolitos`), Vitaminas (`vitaminas`), Aminoácidos (`aminoacidos`) y Accesorios (`accesorios`). Usa el slug único para conservar la identidad y las asociaciones de las categorías existentes. Son datos base solicitados por el propietario; no son productos de prueba.
