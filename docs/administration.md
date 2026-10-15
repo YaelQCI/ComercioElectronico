@@ -1,5 +1,9 @@
 # Panel de administración
 
+Los tipos base obligatorios son **Proteína, Creatina, Pre-entreno, Electrolitos, Vitaminas, Aminoácidos y Accesorios**, con slugs `proteina`, `creatina`, `pre-entreno`, `electrolitos`, `vitaminas`, `aminoacidos` y `accesorios`. La migración `20261016010000_required_supplement_categories` los inserta o activa conservando los IDs y vínculos existentes. Además, el plugin de inicio del servidor ejecuta `ensureSupplementCategories`: repone faltantes y restablece los nombres indicados y su estado activo en cada arranque. Conserva las demás categorías y permite agregar más. No crea productos ni asigna automáticamente categorías a productos existentes. Se muestran en el selector **Tipo de suplemento / categoría principal** de Productos.
+
+Verificación de las categorías base: migración aplicada sin reiniciar la base, build Docker correcto, 71 pruebas unitarias y 82 PostgreSQL aprobadas. Las siete categorías están activas en la base local y presentes en la respuesta HTTP del catálogo; la categoría existente conservó su ID. Revisión visual del selector pendiente.
+
 El registro de lotes incluye **Cantidad inicial (piezas)**: entero entre 0 y 2147483647. `initialQuantity` se envía como número; al ser positivo, `createLot` utiliza `adjustInventory` para registrar la entrada en el ledger con el mismo motivo y administrador, dentro de la misma transacción que crea el lote y su auditoría. No se escribe directamente el saldo. Con 0 no genera movimiento. La API conserva el valor predeterminado 0 para clientes anteriores que omitan el campo. Un código de lote duplicado se rechaza sin sumar stock de nuevo.
 
 Verificación de cantidad inicial: build Docker, 71 pruebas unitarias y 81 PostgreSQL correctas; las pruebas administrativas validan la entrada inicial, su movimiento/auditoría, cantidades inválidas, duplicados y ajustes posteriores. Salud HTTP correcta. Revisión visual pendiente.

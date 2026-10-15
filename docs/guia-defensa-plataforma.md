@@ -1,5 +1,13 @@
 # Guía para explicar y demostrar la plataforma
 
+## Tipos de suplemento obligatorios al desplegar
+
+La migración `20261016010000_required_supplement_categories` incorpora Proteína (`proteina`), Creatina (`creatina`), Pre-entreno (`pre-entreno`), Electrolitos (`electrolitos`), Vitaminas (`vitaminas`), Aminoácidos (`aminoacidos`) y Accesorios (`accesorios`). Usa el slug único para conservar la identidad y las asociaciones de las categorías existentes. Son datos base solicitados por el propietario; no son productos de prueba.
+
+En un servidor nuevo, ejecutar `npm run db:deploy` antes de iniciar la aplicación. Docker ya ejecuta las migraciones antes de arrancar el servicio app. En cada inicio, `server/plugins/supplement-categories.js` delega a `ensureSupplementCategories`, que asegura las siete categorías en una transacción, recupera faltantes y activa las existentes. El catálogo compartido está en `shared/features/catalog/supplement-categories.js`. No se borran otras categorías ni se asignan productos automáticamente.
+
+Para verlo, abre **Administrador → Productos → Crear producto en borrador** o **Gestionar**, y revisa el selector **Tipo de suplemento / categoría principal**. Las categorías públicas usan esos mismos slugs; su contenido depende de los productos publicados que tengan asignados. Si alguien altera directamente la base mientras la aplicación está encendida, la comprobación de recuperación se ejecuta en el siguiente arranque. Las pruebas aisladas verifican presencia, reactivación, recuperación de faltantes, repetición sin duplicados y conservación de vínculos.
+
 ## Cantidad inicial de un lote
 
 En **Inventario → Registrar lote**, selecciona producto/SKU, almacén y código de lote; escribe la **Cantidad inicial (piezas)**, por ejemplo `20`, y completa caducidad si corresponde y motivo. Al guardar, el lote aparece con 20 existencias. Para registrar el lote sin stock se permite `0`. Las siguientes entradas o salidas se registran con **Ajustar lote**.
