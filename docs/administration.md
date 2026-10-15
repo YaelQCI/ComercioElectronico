@@ -1,18 +1,18 @@
 # Panel de administración
 
+El registro de lotes incluye **Cantidad inicial (piezas)**: entero entre 0 y 2147483647. `initialQuantity` se envía como número; al ser positivo, `createLot` utiliza `adjustInventory` para registrar la entrada en el ledger con el mismo motivo y administrador, dentro de la misma transacción que crea el lote y su auditoría. No se escribe directamente el saldo. Con 0 no genera movimiento. La API conserva el valor predeterminado 0 para clientes anteriores que omitan el campo. Un código de lote duplicado se rechaza sin sumar stock de nuevo.
+
+Verificación de cantidad inicial: build Docker, 71 pruebas unitarias y 81 PostgreSQL correctas; las pruebas administrativas validan la entrada inicial, su movimiento/auditoría, cantidades inválidas, duplicados y ajustes posteriores. Salud HTTP correcta. Revisión visual pendiente.
+
 En **Inventario → Registrar lote**, el campo **Producto / SKU de la variante** busca por nombre o SKU desde dos caracteres. Muestra nombre, SKU, sabor y presentación; al elegir queda únicamente el SKU. Al regresar al campo muestra el nombre y permite cambiar la selección. Admite flechas, Enter y Escape, búsqueda con espera de 300 ms, cancelación de consultas anteriores y reintento de errores. Es obligatorio seleccionar una variante del listado. `GET /api/admin/inventory/variants?q=...` exige administrador, busca sin distinguir mayúsculas ni acentos y devuelve hasta 20 variantes con indicador para afinar la búsqueda. Incluye borradores activos y excluye productos o variantes desactivados. El alta del lote sigue revalidando SKU y almacén en el servidor.
 
 Verificación del buscador: build Docker y plantillas Vue correctos; 71 pruebas unitarias y 81 PostgreSQL aprobadas. HTTP devuelve 401 sin sesión y 200 con administrador, con nombres y SKU en los resultados. Interacción visual en navegador pendiente.
 
-
 Los productos desactivados se pueden recuperar desde **Gestionar → Reactivar producto**. El modal pide motivo y confirmación; vuelven como borrador y se habilita su edición. **Guardar y publicar** vuelve a exigir imagen frontal y variante activa. `POST /api/admin/catalog/:id/reactivate` comprueba administrador, motivo y `expectedUpdatedAt`, bloquea el producto y registra `REACTIVATE_PRODUCT` en la misma transacción. Solo limpia la baja y la publicación; conserva variantes, imágenes, categorías, precios, inventario e historial. No reactiva variantes desactivadas por separado.
-
 
 **Guardar cambios** conserva la publicación actual. En productos publicados, **Retirar del catálogo** es una acción separada que abre una confirmación con motivo propio; no guarda los cambios pendientes del editor. En borradores, **Guardar y publicar** guarda los datos y publica. Esto evita confundir el guardado de precios con retirar la publicación.
 
-
 Los formularios de creación y edición reciben el precio en **pesos MXN**, por ejemplo `150.00`; el precio anterior opcional también utiliza pesos. Se aceptan hasta dos decimales con punto o coma, sin separadores de miles. `price-input.js` convierte mediante enteros exactos antes de enviar a la API y presenta los precios existentes con dos decimales. La base de datos y la API conservan centavos; no se migran ni reinterpretan los precios guardados.
-
 
 Todos los formularios se abren en modales mediante botones: crear/gestionar producto, crear categoría, agregar imagen, configurar/editar almacén, registrar/ajustar lote, desactivar usuario y consultar/actualizar pedido. Las listas y la información del almacén siguen visibles en la página.
 

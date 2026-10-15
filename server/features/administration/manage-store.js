@@ -128,6 +128,8 @@ export function createStoreAdministration(db) {
     },
     async createLot(adminId, input) {
       const sku = accountText(input?.sku, 'SKU', 120), warehouseId = id(input?.warehouseId), lotCode = accountText(input?.lotCode, 'Lote', 120), reason = accountText(input?.reason, 'Motivo', 500)
+      const initialQuantity = input.initialQuantity === undefined ? 0 : input.initialQuantity
+      if (!Number.isInteger(initialQuantity) || initialQuantity < 0 || initialQuantity > 2147483647) throw new AccountError(400, 'La cantidad inicial debe ser un número entero de piezas entre 0 y 2147483647.')
       const expiresOn = input.expiresOn ? new Date(`${input.expiresOn}T00:00:00.000Z`) : null
       if (expiresOn && (!/^\d{4}-\d{2}-\d{2}$/.test(input.expiresOn) || !Number.isFinite(expiresOn.getTime()) || expiresOn.toISOString().slice(0,10) !== input.expiresOn)) throw new AccountError(400, 'Caducidad inválida.')
       return withInventoryTransaction(db, async context => {
@@ -137,7 +139,8 @@ export function createStoreAdministration(db) {
         if (!variant || !await tx.warehouse.findUnique({ where: { id: warehouseId } })) throw new AccountError(400, 'Variante o almacén no disponible.')
         const variantId = variant.id
         const lot = await tx.inventoryLot.create({ data: { variantId, warehouseId, lotCode, expiresOn, expiryPrecision: expiresOn ? 'DAY' : null } })
-        await audit(tx, adminId, 'InventoryLot', lot.id, 'CREATE_LOT', reason, undefined, { lotCode, variantId, warehouseId })
+        if (initialQuantity > 0) await adjustInventory(context, { lotId: lot.id, delta: initialQuantity, reason, actorId: adminId, idempotencyKey: `lot-initial:${lot.id}` })
+        await audit(tx, adminId, 'InventoryLot', lot.id, 'CREATE_LOT', reason, undefined, { lotCode, variantId, warehouseId, initialQuantity })
         return { id: lot.id }
       })
     },

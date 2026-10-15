@@ -7,7 +7,7 @@ const page = ref(1)
 const { data, status, error, refresh } = await useFetch('/api/admin/inventory', { query: { page } })
 const { busy, failure, message, save } = useAdministration(refresh)
 const lotOpen = ref(false), warehouseOpen = ref(false)
-const lot = reactive({ sku: '', warehouseId: '', lotCode: '', expiresOn: '', reason: '' })
+const lot = reactive({ sku: '', warehouseId: '', lotCode: '', expiresOn: '', initialQuantity: '', reason: '' })
 const selected = ref(null), adjustment = reactive({ delta: '', reason: '' }), adjustmentKey = ref('')
 watch(adjustment, () => { adjustmentKey.value = '' })
 function select(item) { selected.value = item; adjustment.delta = ''; adjustment.reason = ''; adjustmentKey.value = '' }
@@ -16,7 +16,8 @@ async function adjust() {
   if (await save('/api/admin/inventory', { lotId: selected.value.id, delta: Number(adjustment.delta), reason: adjustment.reason, idempotencyKey: adjustmentKey.value })) selected.value = null
 }
 async function createLot() {
-  if (await save('/api/admin/lots', { ...lot })) { Object.assign(lot, { sku: '', warehouseId: '', lotCode: '', expiresOn: '', reason: '' }); lotOpen.value = false }
+  if (busy.value || !lot.sku || lot.initialQuantity === '') return
+  if (await save('/api/admin/lots', { ...lot, initialQuantity: Number(lot.initialQuantity) })) { Object.assign(lot, { sku: '', warehouseId: '', lotCode: '', expiresOn: '', initialQuantity: '', reason: '' }); lotOpen.value = false }
 }
 const warehouse = reactive(Object.fromEntries([...warehouseFields.map(field => [field.key, '']), ['reason', '']]))
 async function createWarehouse() {
@@ -49,10 +50,11 @@ async function warehouseSaved() {
         </form>
       </UiModal>
       <UiButton class="my-4" aria-haspopup="dialog" @click="lotOpen = true">Registrar lote</UiButton>
-      <UiModal :open="lotOpen" title="Registrar lote" :busy="busy" @close="lotOpen = false"><p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p><p class="my-3 text-ink-2">El lote comienza con cero piezas. Registra después una entrada con su motivo.</p><form class="grid gap-4 md:grid-cols-2" @submit.prevent="createLot">
+      <UiModal :open="lotOpen" title="Registrar lote" :busy="busy" @close="lotOpen = false"><p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p><p class="my-3 text-ink-2">Registra el lote y sus existencias iniciales. Para entradas o salidas posteriores utiliza Ajustar lote.</p><form class="grid gap-4 md:grid-cols-2" @submit.prevent="createLot">
         <LotVariantPicker v-model="lot.sku" :disabled="busy" />
         <UiField id="lot-warehouse" v-model="lot.warehouseId" label="Almacén" :options="[{ value: '', label: 'Selecciona un almacén' }, ...(data?.warehouses || []).map(w => ({ value: w.id, label: w.name }))]" required />
         <UiField id="lot-code" v-model="lot.lotCode" label="Código de lote" required maxlength="120" />
+        <UiField id="lot-quantity" v-model="lot.initialQuantity" label="Cantidad inicial (piezas)" type="number" min="0" max="2147483647" step="1" inputmode="numeric" hint="Número de piezas recibidas. Usa 0 si solo deseas registrar el lote sin existencias." required :disabled="busy" />
         <UiField id="lot-expiry" v-model="lot.expiresOn" label="Caducidad (opcional)" type="date" />
         <UiField id="lot-reason" v-model="lot.reason" label="Motivo del alta" required maxlength="500" />
         <UiButton type="submit" :disabled="busy || !lot.sku || !data?.warehouses.length">Registrar lote</UiButton>

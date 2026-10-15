@@ -118,6 +118,26 @@ test('consultas administrativas, creación de lotes y protección de informació
   assert.equal(lot.expiresOn.toISOString().slice(0,10), input.expiresOn)
   await admin.adjustStock(actor.id, { lotId: lot.id, delta: 5, reason: 'Entrada sintética', idempotencyKey: randomUUID() })
   assert.equal((await db.inventoryLot.findUnique({ where: { id: lot.id } })).onHandQty, 5)
+  for (const initialQuantity of [-1, 1.5, 2147483648, '12', null]) {
+    const lotCode = randomUUID()
+    await assert.rejects(admin.createLot(actor.id, { ...input, lotCode, initialQuantity }), e => e.status === 400)
+    assert.equal(await db.inventoryLot.count({ where: { lotCode } }), 0)
+  }
+  const stockedInput = { ...input, lotCode: randomUUID(), initialQuantity: 12 }
+  const stocked = await admin.createLot(actor.id, stockedInput)
+  assert.equal((await db.inventoryLot.findUnique({ where: { id: stocked.id } })).onHandQty, 12)
+  const movement = await db.inventoryMovement.findMany({ where: { lotId: stocked.id } })
+  assert.equal(movement.length, 1)
+  assert.equal(movement[0].onHandDelta, 12)
+  assert.equal(movement[0].reason, input.reason)
+  assert.equal(movement[0].actorId, actor.id)
+  const audit = await db.auditEvent.findFirst({ where: { entityId: stocked.id, action: 'CREATE_LOT' } })
+  assert.equal(audit.safeAfter.initialQuantity, 12)
+  await assert.rejects(admin.createLot(actor.id, stockedInput), e => e.code === 'P2002')
+  assert.equal((await db.inventoryLot.findUnique({ where: { id: stocked.id } })).onHandQty, 12)
+  assert.equal(await db.inventoryMovement.count({ where: { lotId: stocked.id } }), 1)
+  await admin.adjustStock(actor.id, { lotId: stocked.id, delta: 5, reason: 'Nueva entrada', idempotencyKey: randomUUID() })
+  assert.equal((await db.inventoryLot.findUnique({ where: { id: stocked.id } })).onHandQty, 17)
   const warehouseInput = { name: 'Fixture', recipientName: 'Fixture', phone: '0000000000', postalCode: '01000', state: 'CX', city: 'Fixture', district: 'Fixture', street: 'Fixture', exteriorNumber: '1', contactName: 'Fixture', reason: 'Fixture' }
   for (const state of ['ZZ', 'SLP', 'CDMX']) await assert.rejects(admin.configureWarehouse(actor.id, { ...warehouseInput, state }), e => e.status === 400)
   await assert.rejects(admin.configureWarehouse(customer.id, warehouseInput), e => e.status === 403)

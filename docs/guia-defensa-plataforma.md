@@ -1,11 +1,16 @@
 # Guía para explicar y demostrar la plataforma
 
+## Cantidad inicial de un lote
+
+En **Inventario → Registrar lote**, selecciona producto/SKU, almacén y código de lote; escribe la **Cantidad inicial (piezas)**, por ejemplo `20`, y completa caducidad si corresponde y motivo. Al guardar, el lote aparece con 20 existencias. Para registrar el lote sin stock se permite `0`. Las siguientes entradas o salidas se registran con **Ajustar lote**.
+
+`createLot` valida un entero no negativo y coordina el alta, el movimiento de entrada y la auditoría en una transacción. La entrada usa el ledger existente con clave propia del lote; el saldo se deriva de ese movimiento. Si hay un fallo se revierte todo. Repetir un alta con la misma variante, almacén y código no duplica existencias. Las pruebas PostgreSQL comprueban cantidades inválidas, entrada inicial, auditoría, rechazo de duplicados y ajustes posteriores. No se modifica el stock de lotes ya existentes. La revisión visual en navegador queda pendiente.
+
 ## Buscar un producto para registrar lotes
 
 En **Administrador → Inventario → Registrar lote**, pulsa el campo **Producto / SKU de la variante** y escribe al menos dos caracteres del nombre o SKU. Los resultados muestran nombre, SKU, sabor y presentación. Elige con el ratón o con flechas y Enter: el campo muestra solo el SKU. Cuando vuelves al campo aparece el nombre del producto; puedes confirmar o buscar otra variante. Si modificas el texto, debes seleccionar de nuevo un resultado antes de registrar. Escape cierra los resultados sin cerrar el modal en esa primera pulsación.
 
 La interfaz está en `LotVariantPicker.vue`; cancela búsquedas anteriores para evitar resultados obsoletos. El endpoint administrativo `GET /api/admin/inventory/variants` delega a `searchLotVariants`, usa consulta parametrizada y limita los resultados a 20. Busca sin distinguir acentos o mayúsculas, incluye borradores activos y excluye bajas de productos o variantes. `createLot` conserva la validación final de disponibilidad. Las pruebas PostgreSQL verifican permisos, búsqueda por nombre/SKU, acentos y exclusión de bajas. La revisión visual/interactiva sigue pendiente en esta sesión.
-
 
 ## Renovación automática de sesión
 
@@ -19,23 +24,19 @@ Verificación automatizada: `tests/accounts/session-renewal.test.mjs` cubre conc
 
 Resultado de esta implementación: build Docker correcto, 71 pruebas unitarias y 80 PostgreSQL aprobadas; recorrido HTTP aislado correcto (recuperación concurrente, cookie rotada, límite absoluto conservado, edición con acceso vencido y logout).
 
-
 ## Reactivar un producto desactivado
 
 En `/admin` abre **Productos → Gestionar** sobre un producto marcado **Desactivado**. Pulsa **Reactivar producto**, escribe el motivo y confirma. El producto vuelve a **Borrador**, conserva sus datos e inventario y permite editar de nuevo. Revisa sus campos, escribe el motivo de los cambios y utiliza **Guardar y publicar** cuando cumpla los requisitos. La reactivación por sí sola no lo muestra al cliente ni reactiva variantes dadas de baja independientemente.
 
 Implementación: `reactivateProduct` en `server/features/administration/manage-store.js`, endpoint `POST /api/admin/catalog/:id/reactivate` y modal en `ProductsAdministration.vue`. Exige rol administrador vigente, motivo y versión; la recuperación y su auditoría son atómicas. Las pruebas PostgreSQL verifican permisos, motivo, versión obsoleta, conservación de la variante, regreso a borrador y edición posterior. La revisión visual en navegador queda pendiente.
 
-
 ## Cambiar precios sin retirar la publicación
 
 En un producto publicado, modifica el precio y pulsa **Guardar cambios**: la petición omite `published` y conserva `publishedAt`. Para ocultarlo hay que pulsar **Retirar del catálogo**, indicar un motivo y confirmar en otro modal. El retiro envía únicamente la decisión de publicación, la versión esperada y el motivo; no guarda otros cambios pendientes. La auditoría registra ambas operaciones. `tests/database/administration.test.mjs` comprueba que una edición completa de variante y precio mantiene la fecha de publicación existente.
 
-
 ## Precios en pesos en el administrador
 
 En **Productos → Crear producto en borrador** o **Gestionar**, escribe `150.00` en **Precio en pesos (MXN)**. Al guardar se envía `15000` centavos a la API. Al volver a editar aparece `150.00`; el precio anterior opcional sigue la misma conversión y debe superar el vigente. Se permiten punto o coma decimal y hasta dos decimales, sin separadores de miles. La conversión utiliza `BigInt` para evitar errores de precisión; los precios existentes permanecen intactos. Código: `app/features/administration/price-input.js` y `ProductsAdministration.vue`. Pruebas: `tests/catalog/price-input.test.mjs` cubre conversión, ida y vuelta, valores vacíos opcionales y formatos/rangos inválidos. La comprobación visual en navegador sigue pendiente.
-
 
 ## Confirmaciones mediante toast
 
@@ -44,7 +45,6 @@ Las operaciones de administración, cuenta y apariencia, carrito/cupones, reseñ
 Para demostrarlo, guarda un producto o una categoría desde `/admin`, cambia la apariencia en `/cuenta` o agrega un producto al carrito. La confirmación aparece flotando en la esquina inferior derecha; puedes cerrarla manualmente. Los errores y las validaciones permanecen junto a sus formularios para permitir corregirlos. Los estados permanentes, como existencias y estado del pedido, siguen en sus vistas.
 
 Verificación: comprobación de la cola y los mensajes repetidos, compilación de plantillas Vue y build Docker. Revisión visual y de interacción en navegador pendiente en esta sesión.
-
 
 ## Formularios administrativos en modales
 
@@ -486,7 +486,7 @@ El inventario se organiza por **variante/SKU, almacén y lote**. `InventoryLot` 
 En `/admin` → **Inventario** se puede:
 
 - Configurar el almacén inicial con datos documentados si no existe.
-- Registrar un lote por SKU, almacén, código, caducidad opcional y motivo. Comienza con cero piezas.
+- Registrar un lote por SKU, almacén, código, caducidad opcional y motivo. Incluye la cantidad inicial en piezas; admite 0 si no hay existencias.
 - Consultar existencias, reservadas y no vendibles, así como caducidad y bloqueo.
 - Ajustar un lote con cantidad positiva para entradas o negativa para salidas y un motivo obligatorio.
 
@@ -500,7 +500,7 @@ Para la disponibilidad pública se excluyen lotes bloqueados o vencidos y se sum
 
 1. Abrir `/admin` → **Inventario** con una cuenta ADMIN.
 2. Si falta el almacén, mostrar su formulario; no inventar una dirección comercial para completar la exposición.
-3. Con un SKU y almacén de prueba existentes, usar **Registrar lote** y comprobar su saldo inicial cero.
+3. Con un SKU y almacén de prueba existentes, usar **Registrar lote** y indicar la cantidad inicial y comprobar que aparece como existencias.
 4. Pulsar **Ajustar lote**, ingresar una entrada, por ejemplo `5`, con motivo identificado como prueba y guardar.
 5. Comprobar que las existencias aumentan. Una salida `-2` reduce el saldo en dos piezas.
 6. Intentar retirar más piezas de las disponibles para mostrar que la operación se rechaza; no fuerza un stock negativo.
@@ -511,7 +511,7 @@ Las reservas y la concurrencia se explican mediante las pruebas aisladas: el lis
 #### Preguntas y respuestas
 
 - **¿Por qué lotes en vez de un único número por producto?** Para distinguir caducidades, almacén y trazabilidad de las existencias de cada SKU.
-- **¿Para qué sirve Registrar lote?** Para identificar un grupo concreto de unidades de una variante/SKU en un almacén. Dos grupos del mismo SKU pueden tener códigos y caducidades distintos y deben conservar sus saldos por separado. En esta plataforma registrar el lote solo crea su ficha con cero piezas; después se usa Ajustar lote para registrar la entrada de existencias con su motivo. No se crea otro producto ni se duplica su SKU. La combinación variante + almacén + código de lote es única. El código debe corresponder al grupo físico documentado, no inventarse como información comercial.
+- **¿Para qué sirve Registrar lote?** Para identificar un grupo concreto de unidades de una variante/SKU en un almacén. Dos grupos del mismo SKU pueden tener códigos y caducidades distintos y deben conservar sus saldos por separado. En esta plataforma registrar el lote permite capturar las existencias iniciales; después se usa Ajustar lote para las siguientes entradas o salidas con su motivo. No se crea otro producto ni se duplica su SKU. La combinación variante + almacén + código de lote es única. El código debe corresponder al grupo físico documentado, no inventarse como información comercial.
 - **¿Cómo explico los lotes con un ejemplo?** Ejemplo exclusivamente ilustrativo: una variante tiene un lote A con 10 piezas que caducan en junio y otro lote B con 20 piezas que caducan en septiembre. Ambos pertenecen al mismo SKU, pero sus existencias y caducidades se administran por separado. Su disponibilidad sería 30 piezas únicamente si todos esos lotes siguen vigentes, están desbloqueados y no tienen reservas. FEFO prioriza las piezas del lote con caducidad más próxima al asignar inventario a una reserva, no al pulsar Registrar lote.
 - **¿Cómo se elige el estado del almacén?** El formulario muestra un selector **Estado** con las 32 entidades federativas. El administrador elige el nombre y se guarda el código de dos letras que utiliza Envia.com en `Warehouse.state`; por ejemplo, San Luis Potosí → `SL`, Ciudad de México → `CX`. No es un estado operativo como activo/inactivo. El servidor valida que el código pertenezca al mismo catálogo: no basta con introducir dos letras cualesquiera. Ya no se captura manualmente un código de hasta tres caracteres.
 - **¿Dónde se consultan y editan los datos del almacén?** En `/admin` → Inventario → **Información del almacén**. La ficha muestra nombre, remitente, contacto, teléfono, dirección, referencias y zona horaria. **Editar almacén** abre un formulario precargado con los datos guardados; permite corregir nombre, contacto y dirección, con estado mediante selector e interior/referencias opcionales. Exige motivo de los cambios. País y zona horaria son informativos y no se editan aquí.
