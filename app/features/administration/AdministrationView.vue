@@ -3,7 +3,7 @@ import ProductsAdministration from './ProductsAdministration.vue'
 import InventoryAdministration from './InventoryAdministration.vue'
 import UsersAdministration from './UsersAdministration.vue'
 import OrdersAdministration from './OrdersAdministration.vue'
-const { data, status, error, refresh } = await useFetch('/api/account/session')
+const { data, status, error, refresh } = await useFetch('/api/account/session', { key: 'account-session' })
 const section = ref('products')
 const sections = [{ value: 'products', label: 'Productos' }, { value: 'inventory', label: 'Inventario' }, { value: 'users', label: 'Usuarios' }, { value: 'orders', label: 'Pedidos' }]
 useHead({ title: 'Administración · The Fitness Stuff', meta: [{ name: 'robots', content: 'noindex, nofollow' }] })

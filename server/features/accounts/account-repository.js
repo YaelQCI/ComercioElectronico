@@ -40,7 +40,7 @@ export function createAccounts(db, secret) {
       if (!claims) return null
       const found = await db.authSession.findUnique({ where: { id: claims.sid }, include: { user: true } })
       if (!found || found.userId !== claims.sub || found.revokedAt || found.absoluteExpiresAt <= new Date() || found.user.deletedAt || found.user.authVersion !== claims.ver) return null
-      return { user: found.user, sessionId: found.id }
+      return { user: found.user, sessionId: found.id, accessExpiresAt: new Date(claims.exp * 1000).toISOString() }
     },
     async refresh(token) {
       if (!/^[a-f0-9]{64}$/.test(token ?? '')) throw new AccountError(401, 'Sesión vencida. Inicia sesión de nuevo.')

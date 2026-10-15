@@ -57,6 +57,7 @@ test('registro cliente, duplicado normalizado, login inválido, perfil y aislami
 })
 test('renovación rota; reutilización revoca familia, logout y cambio de contraseña revocan acceso', async () => {
   const input = fixture(), original = await accounts.register(input), rotated = await accounts.refresh(original.refresh)
+  assert.equal(rotated.expiresAt.toISOString(), original.expiresAt.toISOString())
   assert.notEqual(rotated.refresh, original.refresh); assert.ok(await accounts.authenticate(rotated.access))
   await assert.rejects(accounts.refresh(original.refresh), /vencida/)
   assert.equal(await accounts.authenticate(rotated.access), null)

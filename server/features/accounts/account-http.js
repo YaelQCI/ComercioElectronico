@@ -20,7 +20,7 @@ export async function accountRequest(event, action) {
       // Ignore X-Forwarded-For: trusting arbitrary proxy headers lets callers evade limits.
       await limitRequest(getDatabase(), `account:${action}:${getRequestIP(event, { xForwardedFor: false }) ?? 'unknown'}`, action === 'refresh' ? 60 : 10)
     }
-    if (action === 'session') { const identity = await accountIdentity(event, false); return { user: identity ? publicAccount(identity.user) : null } }
+    if (action === 'session') { const identity = await accountIdentity(event, false); return { user: identity ? publicAccount(identity.user) : null, accessExpiresAt: identity?.accessExpiresAt ?? null, refreshAvailable: /^[a-f0-9]{64}$/.test(getCookie(event, refreshCookie) ?? '') } }
     const input = ['profile', 'refresh', 'logout'].includes(action) ? {} : await readBody(event)
     if (['register', 'login', 'refresh'].includes(action)) {
       const result = action === 'refresh' ? await service.refresh(getCookie(event, refreshCookie)) : await service[action](input)

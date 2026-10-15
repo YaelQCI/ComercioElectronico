@@ -1,5 +1,18 @@
 # Guía para explicar y demostrar la plataforma
 
+## Renovación automática de sesión
+
+El JWT conserva su vigencia máxima de 15 minutos y la sesión el máximo absoluto de siete días. El navegador consulta el estado al iniciar, regresar a una pestaña visible y antes de enviar peticiones a la API cuando corresponde comprobar el vencimiento. Si falta el acceso pero existe una credencial de renovación, llama a `POST /api/account/refresh`, recibe nuevas cookies HttpOnly y continúa. Si el acceso vence entre la comprobación y una petición que responde 401, solo reintenta una vez y únicamente tras una renovación real. No guarda tokens en localStorage ni los expone a JavaScript.
+
+`app/features/accounts/session-renewal.js` coordina peticiones simultáneas. El plugin `app/plugins/account-session.client.js` integra el transporte del navegador, comparte la identidad entre cuenta y administrador y recupera consultas tras una carga SSR con acceso vencido. La renovación ocurre después de hidratar la página: puede verse brevemente el estado sin sesión en una recarga con JWT vencido. El perfil se recarga cuando se recupera la identidad.
+
+El bloqueo [Web Locks](https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API) impide renovar simultáneamente desde varias pestañas del mismo origen. Cada pestaña vuelve a consultar la sesión dentro del bloqueo, usando las cookies actualizadas por las anteriores. La renovación manual utiliza el mismo bloqueo. Si el navegador no dispone de Web Locks (requiere un contexto seguro, como HTTPS o localhost), la renovación automática queda deshabilitada y se conserva la manual para evitar consumir dos veces una credencial. Los errores temporales permiten reintentar; una sesión revocada o vencida requiere iniciar sesión de nuevo. No hay renovación periódica con la aplicación cerrada.
+
+Verificación automatizada: `tests/accounts/session-renewal.test.mjs` cubre concurrencia, pestañas simuladas, renovación manual simultánea, 401, errores de red/servicio, visitantes y límites de reintento. `scripts/check-session-renewal-http.mjs` permite comprobar cookies, rotación, permisos, edición tras vencer acceso y logout en HTTP con una base aislada. Las pruebas de cuentas conservan la detección de reutilización y verifican que renovar no extiende el vencimiento absoluto. La interacción real en navegador sigue pendiente de validación.
+
+Resultado de esta implementación: build Docker correcto, 71 pruebas unitarias y 80 PostgreSQL aprobadas; recorrido HTTP aislado correcto (recuperación concurrente, cookie rotada, límite absoluto conservado, edición con acceso vencido y logout).
+
+
 ## Reactivar un producto desactivado
 
 En `/admin` abre **Productos → Gestionar** sobre un producto marcado **Desactivado**. Pulsa **Reactivar producto**, escribe el motivo y confirma. El producto vuelve a **Borrador**, conserva sus datos e inventario y permite editar de nuevo. Revisa sus campos, escribe el motivo de los cambios y utiliza **Guardar y publicar** cuando cumpla los requisitos. La reactivación por sí sola no lo muestra al cliente ni reactiva variantes dadas de baja independientemente.
@@ -151,9 +164,9 @@ Las cookies usan `HttpOnly` y `SameSite=Strict`; `Secure` se activa fuera del mo
 3. En **Red/Network**, revisar `GET /api/account/session`: devuelve el usuario público autenticado. Sin sesión devuelve `{ "user": null }`; esto es una consulta de estado, no un error.
 4. Abrir `/api/account/profile` en una pestaña del mismo navegador: con sesión válida responde el perfil; sin sesión devuelve 401.
 5. Cerrar sesión y volver a consultar el perfil para demostrar que ya no se autoriza el acceso.
-6. Para demostrar renovación manual, esperar a que venza el acceso y recargar `/cuenta`: el formulario sin identidad muestra **Renovar mi sesión**. Si la credencial de renovación sigue vigente, el botón recupera el acceso. No es necesario esperar durante la exposición: el código y las pruebas permiten explicar el plazo.
+6. Para demostrar la renovación automática, deja vencer el acceso (15 minutos) y realiza una consulta o guarda un cambio. El navegador renueva sin pedir contraseña mientras la sesión de siete días siga vigente. También comprueba al cargar la aplicación y volver a una pestaña visible.
 
-**Aclaración sobre la interfaz:** el botón de renovación está en el bloque sin usuario autenticado, no dentro del perfil activo. No existe renovación automática ni un temporizador que actualice la pantalla al vencer el token; la identidad se vuelve a comprobar al consultar al servidor.
+**Aclaración sobre la interfaz:** existe renovación automática por actividad, sin mantener temporizadores de renovación en segundo plano. El botón **Renovar mi sesión** se conserva como alternativa manual.
 
 ### Autenticación frente a autorización
 
@@ -586,7 +599,7 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 ## Alcance pendiente de cuentas que conviene reconocer
 
 - Verificación de propiedad del correo y recuperación de contraseña por correo.
-- Renovación automática de acceso en la interfaz.
+- Revisión visual de la renovación automática en navegador.
 - Inicio de sesión con proveedores externos y doble factor.
 - Validación de formato telefónico, verificación por SMS y comprobación física de direcciones.
 - Política de contraseña más allá de los límites actuales de longitud y confirmación.

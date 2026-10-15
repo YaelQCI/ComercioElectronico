@@ -48,6 +48,7 @@ async function loadProfile() {
   catch (e) { failure.value = e.data?.statusMessage ?? 'Perfil no disponible.' }
 }
 onMounted(loadProfile)
+watch(() => data.value?.user?.id, (id, previous) => { if (id !== previous) loadProfile() })
 </script>
 <template>
   <section class="mx-auto max-w-store px-4 py-12 md:px-8">
