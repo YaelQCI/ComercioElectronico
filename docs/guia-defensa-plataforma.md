@@ -1,5 +1,10 @@
 # Guía para explicar y demostrar la plataforma
 
+## Cambiar precios sin retirar la publicación
+
+En un producto publicado, modifica el precio y pulsa **Guardar cambios**: la petición omite `published` y conserva `publishedAt`. Para ocultarlo hay que pulsar **Retirar del catálogo**, indicar un motivo y confirmar en otro modal. El retiro envía únicamente la decisión de publicación, la versión esperada y el motivo; no guarda otros cambios pendientes. La auditoría registra ambas operaciones. `tests/database/administration.test.mjs` comprueba que una edición completa de variante y precio mantiene la fecha de publicación existente.
+
+
 ## Precios en pesos en el administrador
 
 En **Productos → Crear producto en borrador** o **Gestionar**, escribe `150.00` en **Precio en pesos (MXN)**. Al guardar se envía `15000` centavos a la API. Al volver a editar aparece `150.00`; el precio anterior opcional sigue la misma conversión y debe superar el vigente. Se permiten punto o coma decimal y hasta dos decimales, sin separadores de miles. La conversión utiliza `BigInt` para evitar errores de precisión; los precios existentes permanecen intactos. Código: `app/features/administration/price-input.js` y `ProductsAdministration.vue`. Pruebas: `tests/catalog/price-input.test.mjs` cubre conversión, ida y vuelta, valores vacíos opcionales y formatos/rangos inválidos. La comprobación visual en navegador sigue pendiente.

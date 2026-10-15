@@ -125,6 +125,8 @@ test('clasificación y edición completa del borrador conservan unicidad, propie
   const input = { name: 'Producto sintético editable', description: 'Solo pruebas', slug: code, reason: 'Alta sintética', categoryIds: [category.id], variants: [{ sku: code.toUpperCase(), flavor: 'Inicial', presentationLabel: 'Inicial', contentAmount: '100', contentUnit: 'g', priceCents: '1000', weightGrams: 100, lengthMm: 100, widthMm: 100, heightMm: 100 }] }
   const product = await admin.createDraft(actor.id, input)
   const variant = await db.productVariant.findFirst({ where: { productId: product.id } })
+  const publishedAt = new Date('2026-01-01T00:00:00.000Z')
+  await db.product.update({ where: { id: product.id }, data: { publishedAt } })
   let detail = (await admin.overview(actor.id, 'products')).products.find(item => item.id === product.id)
   assert.equal(detail.categories[0].id, category.id); assert.equal(detail.categories[0].isPrimary, true)
   assert.equal(detail.creationReason, input.reason)
@@ -133,6 +135,7 @@ test('clasificación y edición completa del borrador conservan unicidad, propie
   const update = { name: 'Nombre editado', description: 'Descripción editada', slug: `editado-${code}`, categoryIds: [replacementCategory.id], reason: 'Edición sintética', expectedUpdatedAt: detail.updatedAt, variants: [{ id: variant.id, expectedPriceVersion: variant.priceVersion, sku: `EDITADO-${code.toUpperCase()}`, flavor: 'Nuevo sabor', presentationLabel: 'Nueva presentación', contentAmount: '250.5', contentUnit: 'ml', priceCents: '2500', weightGrams: 350, lengthMm: 120, widthMm: 130, heightMm: 140 }] }
   await assert.rejects(admin.updateProduct(customer.id, product.id, update), e => e.status === 403)
   await admin.updateProduct(actor.id, product.id, update)
+  assert.equal((await db.product.findUnique({ where: { id: product.id } })).publishedAt.toISOString(), publishedAt.toISOString())
   detail = (await admin.overview(actor.id, 'products')).products.find(item => item.id === product.id)
   assert.equal(detail.slug, update.slug); assert.equal(detail.name, update.name)
   assert.equal(detail.categories[0].id, replacementCategory.id)

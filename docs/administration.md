@@ -1,5 +1,8 @@
 # Panel de administración
 
+**Guardar cambios** conserva la publicación actual. En productos publicados, **Retirar del catálogo** es una acción separada que abre una confirmación con motivo propio; no guarda los cambios pendientes del editor. En borradores, **Guardar y publicar** guarda los datos y publica. Esto evita confundir el guardado de precios con retirar la publicación.
+
+
 Los formularios de creación y edición reciben el precio en **pesos MXN**, por ejemplo `150.00`; el precio anterior opcional también utiliza pesos. Se aceptan hasta dos decimales con punto o coma, sin separadores de miles. `price-input.js` convierte mediante enteros exactos antes de enviar a la API y presenta los precios existentes con dos decimales. La base de datos y la API conservan centavos; no se migran ni reinterpretan los precios guardados.
 
 

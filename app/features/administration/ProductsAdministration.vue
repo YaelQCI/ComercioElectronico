@@ -15,11 +15,20 @@ const creating = ref(false), creatingOpen = ref(false)
 const { pending: checkingIdentifiers, failure: identifierFailure, slugError, skuError, verify: verifyIdentifiers } = useDraftIdentifiers(draft)
 const fields = [{ key: 'sku', label: 'SKU' }, { key: 'flavor', label: 'Sabor' }, { key: 'presentationLabel', label: 'Presentación' }, { key: 'contentAmount', label: 'Contenido (cantidad)' }, { key: 'contentUnit', label: 'Unidad de contenido' }, { key: 'pricePesos', label: 'Precio en pesos (MXN)', hint: 'Ejemplo: 150.00. Hasta dos decimales, sin separadores de miles.', price: true }, { key: 'weightGrams', label: 'Peso en gramos', numeric: true }, { key: 'lengthMm', label: 'Largo en milímetros', numeric: true }, { key: 'widthMm', label: 'Ancho en milímetros', numeric: true }, { key: 'heightMm', label: 'Alto en milímetros', numeric: true }]
 const selected = ref(null), edit = reactive({ name: '', slug: '', description: '', reason: '', categoryIds: [] }), variantEdits = ref([]), editForm = ref(null)
+const withdrawing = ref(false), withdrawalReason = ref('')
+async function withdraw() {
+  const product = selected.value
+  if (await save(`/api/admin/catalog/${product.id}`, { published: false, expectedUpdatedAt: product.updatedAt, reason: withdrawalReason.value }, 'PATCH')) {
+    withdrawing.value = false
+    const fresh = data.value?.products.find(item => item.id === product.id)
+    if (fresh) select(fresh)
+  }
+}
 const publicationProblem = computed(() => {
   const product = selected.value
   if (!product) return ''
   if (product.deactivated) return 'Este producto está desactivado y no se puede publicar.'
-  if (!edit.reason.trim()) return `Escribe el Motivo de los cambios de este formulario para habilitar ${product.published ? 'Retirar publicación' : 'Publicar'}. El motivo de la carga de imágenes es independiente.`
+  if (!product.published && !edit.reason.trim()) return 'Escribe el motivo de los cambios para habilitar Publicar. El motivo de las imágenes es independiente.'
   if (!product.published && !product.images?.some(image => image.kind === 'FRONT')) return 'Agrega y guarda una imagen de tipo Imagen frontal en la sección Imágenes para publicar.'
   if (!product.published && !product.variants.some(variant => !variant.deactivated)) return 'El producto necesita al menos una variante activa para publicarse.'
   return ''
@@ -135,12 +144,19 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
         </fieldset>
         <UiField id="edit-reason" v-model="edit.reason" label="Motivo de los cambios" hint="Obligatorio para guardar o publicar los datos revisados. El motivo de la carga de imágenes es independiente." required maxlength="500" />
         <p v-if="publicationProblem" id="publication-requirements" role="status" class="text-body-s text-ink-2">{{ publicationProblem }}</p>
-        <div class="flex flex-wrap gap-3 md:col-span-2"><UiButton type="submit" :disabled="busy || selected.deactivated">Guardar cambios</UiButton><UiButton variant="secondary" :disabled="busy || !!publicationProblem" :aria-describedby="publicationProblem ? 'publication-requirements' : undefined" @click="update({ published: !selected.published })">{{ selected.published ? 'Guardar y retirar publicación' : 'Guardar y publicar' }}</UiButton><UiButton variant="secondary" :disabled="busy || !edit.reason.trim() || selected.deactivated" @click="update({ deactivate: true, published: false })">Desactivar producto</UiButton></div>
+        <div class="flex flex-wrap gap-3 md:col-span-2"><UiButton type="submit" :disabled="busy || selected.deactivated">Guardar cambios</UiButton><UiButton v-if="!selected.published" variant="secondary" :disabled="busy || !!publicationProblem" :aria-describedby="publicationProblem ? 'publication-requirements' : undefined" @click="update({ published: true })">Guardar y publicar</UiButton><UiButton variant="secondary" :disabled="busy || !edit.reason.trim() || selected.deactivated" @click="update({ deactivate: true, published: false })">Desactivar producto</UiButton></div>
         </fieldset>
       </form>
       <UiButton variant="secondary" class="mt-4" :disabled="busy" @click="select(selected)">Descartar cambios del formulario</UiButton>
       <UiButton variant="secondary" class="mt-4 ml-3" :disabled="busy" @click="selected = null">Cerrar edición</UiButton>
       <UiButton v-if="failure" variant="secondary" class="mt-4 ml-3" :disabled="busy" @click="reloadSelected">Actualizar producto y descartar cambios</UiButton>
+      <p v-if="selected.published" class="mt-4 text-body-s text-ink-2">Este producto está publicado. Guardar cambios conserva su publicación.</p>
+      <UiButton v-if="selected.published" variant="secondary" class="mt-4" :disabled="busy" @click="withdrawalReason = ''; withdrawing = true">Retirar del catálogo</UiButton>
+      <UiModal :open="withdrawing" title="Confirmar retiro del catálogo" :busy="busy" @close="withdrawing = false">
+        <p class="mb-4">{{ selected.name }} dejará de ser visible para los clientes. Esta acción no guarda los cambios pendientes del formulario.</p>
+        <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
+        <form class="grid gap-4" @submit.prevent="withdraw"><UiField id="withdrawal-reason" v-model="withdrawalReason" label="Motivo del retiro" required maxlength="500" :disabled="busy" /><div class="flex flex-wrap gap-3"><UiButton type="submit" :disabled="busy">Confirmar retiro</UiButton><UiButton variant="secondary" :disabled="busy" @click="withdrawing = false">Cancelar</UiButton></div></form>
+      </UiModal>
       <ProductImages :key="selected.id" :product="selected" @updated="imagesUpdated" />
     </UiModal>
   </div>
