@@ -62,6 +62,27 @@ test('reactivación administrativa conserva variantes e inventario, exige versi�
   assert.equal((await db.product.findUnique({ where: { id: product.id } })).name, 'Reactivado editable')
 })
 
+test('buscador de variantes para lotes exige administrador, busca nombre/SKU e ignora bajas', async () => {
+  const actor = await user('ADMIN'), customer = await user(), code = randomUUID()
+  const input = { name: `Proteína sintética ${code}`, description: 'Solo pruebas', slug: code, reason: 'Fixture', variants: [{ sku: `LOTE-${code.toUpperCase()}`, flavor: 'Chocolate', presentationLabel: 'Bote', contentAmount: '100', contentUnit: 'g', priceCents: '1000', weightGrams: 100, lengthMm: 100, widthMm: 100, heightMm: 100 }] }
+  const product = await admin.createDraft(actor.id, input)
+  await assert.rejects(admin.searchLotVariants(customer.id, code), e => e.status === 403)
+  await assert.rejects(admin.searchLotVariants(actor.id, ['inválido']), e => e.status === 400)
+  assert.deepEqual(await admin.searchLotVariants(actor.id, ''), { variants: [], hasMore: false })
+  const result = await admin.searchLotVariants(actor.id, `proteina sintetica ${code}`)
+  assert.equal(result.variants.length, 1)
+  assert.equal(result.variants[0].productName, input.name)
+  assert.equal(result.variants[0].sku, input.variants[0].sku)
+  assert.equal(result.variants[0].flavor, 'Chocolate')
+  assert.equal((await admin.searchLotVariants(actor.id, input.variants[0].sku.toLowerCase())).variants.length, 1)
+  assert.equal((await admin.searchLotVariants(actor.id, `%${code}`)).variants.length, 0)
+  await db.productVariant.updateMany({ where: { productId: product.id }, data: { deletedAt: new Date() } })
+  assert.equal((await admin.searchLotVariants(actor.id, code)).variants.length, 0)
+  await db.productVariant.updateMany({ where: { productId: product.id }, data: { deletedAt: null } })
+  await admin.updateProduct(actor.id, product.id, { deactivate: true, reason: 'Fixture' })
+  assert.equal((await admin.searchLotVariants(actor.id, code)).variants.length, 0)
+})
+
 test('ajuste por ledger idempotente y desactivación de cuenta revoca sesiones', async () => {
   const actor = await user('ADMIN'), buyer = await user(), f = await deliveredFixture(db, buyer.id), key = randomUUID()
   const input = { lotId: f.lot.id, delta: 3, reason: 'Fixture', idempotencyKey: key }

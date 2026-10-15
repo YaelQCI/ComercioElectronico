@@ -2,6 +2,7 @@
 import { useAdministration } from './useAdministration.js'
 import { warehouseFields } from './warehouse-fields.js'
 import WarehouseInformation from './WarehouseInformation.vue'
+import LotVariantPicker from './LotVariantPicker.vue'
 const page = ref(1)
 const { data, status, error, refresh } = await useFetch('/api/admin/inventory', { query: { page } })
 const { busy, failure, message, save } = useAdministration(refresh)
@@ -49,12 +50,12 @@ async function warehouseSaved() {
       </UiModal>
       <UiButton class="my-4" aria-haspopup="dialog" @click="lotOpen = true">Registrar lote</UiButton>
       <UiModal :open="lotOpen" title="Registrar lote" :busy="busy" @close="lotOpen = false"><p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p><p class="my-3 text-ink-2">El lote comienza con cero piezas. Registra después una entrada con su motivo.</p><form class="grid gap-4 md:grid-cols-2" @submit.prevent="createLot">
-        <UiField id="lot-sku" v-model="lot.sku" label="SKU de la variante" required />
+        <LotVariantPicker v-model="lot.sku" :disabled="busy" />
         <UiField id="lot-warehouse" v-model="lot.warehouseId" label="Almacén" :options="[{ value: '', label: 'Selecciona un almacén' }, ...(data?.warehouses || []).map(w => ({ value: w.id, label: w.name }))]" required />
         <UiField id="lot-code" v-model="lot.lotCode" label="Código de lote" required maxlength="120" />
         <UiField id="lot-expiry" v-model="lot.expiresOn" label="Caducidad (opcional)" type="date" />
         <UiField id="lot-reason" v-model="lot.reason" label="Motivo del alta" required maxlength="500" />
-        <UiButton type="submit" :disabled="busy || !data?.warehouses.length">Registrar lote</UiButton>
+        <UiButton type="submit" :disabled="busy || !lot.sku || !data?.warehouses.length">Registrar lote</UiButton>
       </form></UiModal>
       <p v-if="!data?.lots.length" class="my-6">No hay lotes registrados.</p>
       <ul class="grid gap-4"><li v-for="item in data?.lots" :key="item.id" class="rounded-sm border border-border bg-surface p-4"><h3 class="font-semibold">{{ item.sku }} · {{ item.lotCode }}</h3><p>{{ item.warehouse }} · Caducidad: {{ item.expiresOn || 'Sin registrar' }}{{ item.isBlocked ? ' · Bloqueado' : '' }}</p><dl class="my-3 flex flex-wrap gap-6"><div><dt class="text-body-s text-ink-2">Existencias</dt><dd>{{ item.onHandQty }}</dd></div><div><dt class="text-body-s text-ink-2">Reservadas</dt><dd>{{ item.reservedQty }}</dd></div><div><dt class="text-body-s text-ink-2">No vendibles</dt><dd>{{ item.nonSellableQty }}</dd></div></dl><UiButton variant="secondary" :disabled="busy" @click="select(item)">Ajustar lote {{ item.lotCode }}</UiButton></li></ul>

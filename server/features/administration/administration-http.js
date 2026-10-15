@@ -6,12 +6,13 @@ import { InventoryError } from '../../../shared/features/inventory/fefo.js'
 import { requireCartOrigin } from '../cart/cart-http.js'
 export async function administrationRequest(event, action) {
   setHeader(event, 'Cache-Control', 'no-store')
-  const reading = ['users', 'products', 'inventory', 'categories'].includes(action)
+  const reading = ['users', 'products', 'inventory', 'categories', 'lotVariants'].includes(action)
   if (!reading) requireCartOrigin(event)
   try {
     const identity = await accountIdentity(event), service = createStoreAdministration(getDatabase()), input = reading ? null : await readBody(event), target = getRouterParam(event, 'id')
     if (action === 'products' || action === 'inventory') return await service.overview(identity.user.id, action, Number(getQuery(event).page ?? 1))
     if (action === 'lot') return await service.createLot(identity.user.id, input)
+    if (action === 'lotVariants') return await service.searchLotVariants(identity.user.id, getQuery(event).q)
     if (action === 'warehouse') return await service.configureWarehouse(identity.user.id, input)
     if (action === 'updateWarehouse') return await service.updateWarehouse(identity.user.id, input)
     if (action === 'users') return { users: await service.users(identity.user.id, Number(getQuery(event).page ?? 1)) }

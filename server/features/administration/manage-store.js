@@ -5,6 +5,7 @@ import { withInventoryTransaction } from '../inventory/inventory-transaction.js'
 import { adjustInventory } from '../inventory/adjust-inventory.js'
 import { isMexicanStateCode } from '../../../shared/features/shipping/mexican-states.js'
 import { publicImage } from '../catalog/catalog-repository.js'
+import { searchQuery, searchPattern } from '../../../shared/features/catalog/search.js'
 const id = value => { if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value ?? '')) throw new AccountError(400, 'Identificador inválido.'); return value }
 const cents = value => { if (typeof value !== 'string' || !/^(0|[1-9]\d{0,14})$/.test(value)) throw new AccountError(400, 'Precio inválido; utiliza centavos como texto.'); return BigInt(value) }
 function warehouseData(input) {
@@ -59,6 +60,25 @@ async function assignCategories(tx, productId, categoryIds) {
 }
 export function createStoreAdministration(db) {
   return {
+    async searchLotVariants(adminId, query) {
+      let q
+      try { q = searchQuery(query) } catch { throw new AccountError(400, 'Busca con un máximo de 120 caracteres.') }
+      return db.$transaction(async tx => {
+        await requireAdministrator(tx, adminId)
+        if (q.length < 2) return { variants: [], hasMore: false }
+        const pattern = searchPattern(q), escape = '\\'
+        const marks = Array.from({ length: 112 }, (_, i) => String.fromCharCode(0x300 + i)).join('')
+        const variants = await tx.$queryRaw`
+          SELECT v.id, v.sku, v.flavor, v."presentationLabel", p.name AS "productName"
+          FROM "ProductVariant" v JOIN "Product" p ON p.id = v."productId"
+          WHERE v."deletedAt" IS NULL AND p."deletedAt" IS NULL
+            AND (translate(lower(normalize(p.name, NFKD)), ${marks}, '') LIKE ${pattern} ESCAPE ${escape}
+              OR translate(lower(normalize(v.sku, NFKD)), ${marks}, '') LIKE ${pattern} ESCAPE ${escape})
+          ORDER BY p.name, v.sku, v.id LIMIT 21
+        `
+        return { variants: variants.slice(0, 20), hasMore: variants.length > 20 }
+      })
+    },
     async categories(adminId) {
       return db.$transaction(async tx => {
         await requireAdministrator(tx, adminId)

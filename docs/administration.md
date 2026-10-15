@@ -1,5 +1,10 @@
 # Panel de administración
 
+En **Inventario → Registrar lote**, el campo **Producto / SKU de la variante** busca por nombre o SKU desde dos caracteres. Muestra nombre, SKU, sabor y presentación; al elegir queda únicamente el SKU. Al regresar al campo muestra el nombre y permite cambiar la selección. Admite flechas, Enter y Escape, búsqueda con espera de 300 ms, cancelación de consultas anteriores y reintento de errores. Es obligatorio seleccionar una variante del listado. `GET /api/admin/inventory/variants?q=...` exige administrador, busca sin distinguir mayúsculas ni acentos y devuelve hasta 20 variantes con indicador para afinar la búsqueda. Incluye borradores activos y excluye productos o variantes desactivados. El alta del lote sigue revalidando SKU y almacén en el servidor.
+
+Verificación del buscador: build Docker y plantillas Vue correctos; 71 pruebas unitarias y 81 PostgreSQL aprobadas. HTTP devuelve 401 sin sesión y 200 con administrador, con nombres y SKU en los resultados. Interacción visual en navegador pendiente.
+
+
 Los productos desactivados se pueden recuperar desde **Gestionar → Reactivar producto**. El modal pide motivo y confirmación; vuelven como borrador y se habilita su edición. **Guardar y publicar** vuelve a exigir imagen frontal y variante activa. `POST /api/admin/catalog/:id/reactivate` comprueba administrador, motivo y `expectedUpdatedAt`, bloquea el producto y registra `REACTIVATE_PRODUCT` en la misma transacción. Solo limpia la baja y la publicación; conserva variantes, imágenes, categorías, precios, inventario e historial. No reactiva variantes desactivadas por separado.
 
 

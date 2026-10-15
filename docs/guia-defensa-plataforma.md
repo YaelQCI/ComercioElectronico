@@ -1,5 +1,12 @@
 # Guía para explicar y demostrar la plataforma
 
+## Buscar un producto para registrar lotes
+
+En **Administrador → Inventario → Registrar lote**, pulsa el campo **Producto / SKU de la variante** y escribe al menos dos caracteres del nombre o SKU. Los resultados muestran nombre, SKU, sabor y presentación. Elige con el ratón o con flechas y Enter: el campo muestra solo el SKU. Cuando vuelves al campo aparece el nombre del producto; puedes confirmar o buscar otra variante. Si modificas el texto, debes seleccionar de nuevo un resultado antes de registrar. Escape cierra los resultados sin cerrar el modal en esa primera pulsación.
+
+La interfaz está en `LotVariantPicker.vue`; cancela búsquedas anteriores para evitar resultados obsoletos. El endpoint administrativo `GET /api/admin/inventory/variants` delega a `searchLotVariants`, usa consulta parametrizada y limita los resultados a 20. Busca sin distinguir acentos o mayúsculas, incluye borradores activos y excluye bajas de productos o variantes. `createLot` conserva la validación final de disponibilidad. Las pruebas PostgreSQL verifican permisos, búsqueda por nombre/SKU, acentos y exclusión de bajas. La revisión visual/interactiva sigue pendiente en esta sesión.
+
+
 ## Renovación automática de sesión
 
 El JWT conserva su vigencia máxima de 15 minutos y la sesión el máximo absoluto de siete días. El navegador consulta el estado al iniciar, regresar a una pestaña visible y antes de enviar peticiones a la API cuando corresponde comprobar el vencimiento. Si falta el acceso pero existe una credencial de renovación, llama a `POST /api/account/refresh`, recibe nuevas cookies HttpOnly y continúa. Si el acceso vence entre la comprobación y una petición que responde 401, solo reintenta una vez y únicamente tras una renovación real. No guarda tokens en localStorage ni los expone a JavaScript.
