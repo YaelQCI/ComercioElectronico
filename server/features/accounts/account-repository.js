@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { passwordConfirmationError } from '../../../shared/features/accounts/registration.js'
+import { validThemePreference } from '../../../shared/features/accounts/theme-preference.js'
 import { AccountError, emailAddress, accountText, hashPassword, verifyPassword, opaqueToken, secretHash, issueAccess, verifyAccess } from './credentials.js'
 
-export const publicAccount = u => ({ id: u.id, email: u.email, displayName: u.displayName, phone: u.phone, role: u.role, emailVerified: !!u.emailVerifiedAt })
+export const publicAccount = u => ({ id: u.id, email: u.email, displayName: u.displayName, phone: u.phone, role: u.role, themePreference: u.themePreference, emailVerified: !!u.emailVerifiedAt })
 export function createAccounts(db, secret) {
   async function lockedUser(tx, id) {
     await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${id}::uuid FOR UPDATE`
@@ -76,6 +77,13 @@ export function createAccounts(db, secret) {
     async updateProfile(userId, input) {
       const displayName = accountText(input?.displayName, 'Nombre'), phone = input?.phone ? accountText(input.phone, 'Teléfono', 25) : null
       return db.$transaction(async tx => { await lockedUser(tx, userId); return publicAccount(await tx.user.update({ where: { id: userId }, data: { displayName, phone } })) })
+    },
+    async updateTheme(userId, input) {
+      if (!validThemePreference(input?.themePreference)) throw new AccountError(400, 'Selecciona un tema claro, oscuro o del sistema.')
+      return db.$transaction(async tx => {
+        await lockedUser(tx, userId)
+        return publicAccount(await tx.user.update({ where: { id: userId }, data: { themePreference: input.themePreference } }))
+      })
     },
     async password(userId, input, deactivate = false) {
       const candidate = await db.user.findUnique({ where: { id: userId } })

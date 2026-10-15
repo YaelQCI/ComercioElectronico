@@ -252,6 +252,7 @@ model User {
   emailNormalized                   String                @unique
   passwordHash                      String
   displayName                       String
+  themePreference                   String                @default("system")
   phone                             String?
   role                              UserRole              @default(CUSTOMER)
   emailVerifiedAt                   DateTime?             @db.Timestamptz(3)

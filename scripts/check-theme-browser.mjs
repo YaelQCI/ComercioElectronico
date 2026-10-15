@@ -49,34 +49,26 @@ try {
     if (result.exceptionDetails) throw Error(result.exceptionDetails.text)
     return result.result.value
   }
-  async function loaded() { await until(() => evaluate(`!!Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Usar tema'))`)) }
+  async function loaded() { await until(() => evaluate(`!!document.querySelector('main') && document.documentElement.dataset.theme === 'system'`)) }
   const click = label => evaluate(`Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === ${JSON.stringify(label)}).click()`)
   await command('Page.enable')
   await command('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] })
   let previousLoad = loadEvents
   await command('Page.navigate', { url: `${base}/sistema-visual` })
   await until(async () => loadEvents > previousLoad); await loaded()
-  assert.equal(await evaluate('document.documentElement.dataset.theme'), 'dark')
-  await click('Usar tema claro')
-  await until(() => evaluate(`document.documentElement.dataset.theme === 'light'`))
-  assert.equal(await evaluate(`localStorage.getItem('fitness_theme')`), 'light')
+  assert.equal(await evaluate('document.documentElement.dataset.theme'), 'system')
+  assert.equal(await evaluate(`document.querySelector('#account-theme') === null`), true)
+  const darkBackground = await evaluate('getComputedStyle(document.body).backgroundColor')
+  await command('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] })
+  await until(async () => await evaluate('getComputedStyle(document.body).backgroundColor') !== darkBackground)
   previousLoad = loadEvents
   await command('Page.reload')
   await until(async () => loadEvents > previousLoad); await loaded()
-  assert.equal(await evaluate('document.documentElement.dataset.theme'), 'light')
-  // Navegación Nuxt desde la muestra hasta inicio preserva preferencia.
+  assert.equal(await evaluate('document.documentElement.dataset.theme'), 'system')
   await evaluate(`document.querySelector('a[href="/"]').click()`)
   await until(() => evaluate(`location.pathname === '/'`)); await loaded()
-  assert.equal(await evaluate('document.documentElement.dataset.theme'), 'light')
-  await click('Usar tema del sistema')
-  await until(() => evaluate(`document.documentElement.dataset.theme === 'dark'`))
-  assert.equal(await evaluate(`localStorage.getItem('fitness_theme')`), null)
-  await command('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] })
-  await until(() => evaluate(`document.documentElement.dataset.theme === 'light'`))
-  // Comprobar controles en móvil; el selector no desborda la página.
+  assert.equal(await evaluate('document.documentElement.dataset.theme'), 'system')
   await command('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
-  await click('Usar tema oscuro')
-  await until(() => evaluate(`document.documentElement.dataset.theme === 'dark'`))
   assert.equal(await evaluate('document.documentElement.scrollWidth <= window.innerWidth'), true)
   if (process.env.TEST_SCREENSHOT_PATH) {
     const shot = await command('Page.captureScreenshot', { format: 'png' })
@@ -90,8 +82,8 @@ try {
       const load=loadEvents
       await command('Page.navigate',{url:base+route})
       await until(()=>loadEvents>load);await loaded()
-      if(await evaluate('document.documentElement.dataset.theme')!==theme)await click(`Usar tema ${theme==='light'?'claro':'oscuro'}`)
-      await until(()=>evaluate(`document.documentElement.dataset.theme === '${theme}'`))
+      await command('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: theme }] })
+      assert.equal(await evaluate('document.documentElement.dataset.theme'), 'system')
       const result=await evaluate(`(()=>{
         const visible=e=>e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden';
         const controls=[...document.querySelectorAll('button,input:not([type=hidden]),select,textarea')].filter(visible).map(e=>e.matches('input[type=checkbox],input[type=radio]')&&e.labels?.length?e.labels[0]:e);

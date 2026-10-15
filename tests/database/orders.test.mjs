@@ -13,6 +13,9 @@ async function user(role = 'CUSTOMER') { const email = `${randomUUID()}@example.
 test('consulta propia y snapshots, acceso ajeno rechazado, avance idempotente auditado', async () => {
   const buyer = await user(), other = await user(), admin = await user('ADMIN'), f = await deliveredFixture(db, buyer.id, { confirmedOnly: true })
   assert.equal((await orders.list(buyer.id)).total, 1)
+  assert.ok(!('buyerEmail' in (await orders.list(buyer.id)).orders[0]))
+  assert.equal((await orders.read(admin.id, f.order.id, true)).buyerEmail, buyer.email)
+  assert.equal((await orders.list(admin.id, 1, true)).orders.find(o => o.id === f.order.id).buyerName, buyer.displayName)
   await assert.rejects(orders.read(other.id, f.order.id), e => e.status === 404)
   await assert.rejects(orders.list(other.id, 1, true), e => e.status === 403)
   const input = { status: 'PREPARING', expectedStatus: 'CONFIRMED', reason: 'Fixture', idempotencyKey: randomUUID() }

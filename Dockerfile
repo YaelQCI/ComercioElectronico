@@ -13,6 +13,7 @@ FROM node:24.12.0-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production NITRO_HOST=0.0.0.0 NITRO_PORT=3000
 COPY --from=build --chown=node:node /app/.output ./.output
+RUN mkdir -p /app/catalog-uploads && chown node:node /app/catalog-uploads
 USER node
 EXPOSE 3000
 CMD ["node", ".output/server/index.mjs"]

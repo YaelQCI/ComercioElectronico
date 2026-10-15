@@ -15,7 +15,7 @@ export function createOrders(db) {
         if (administrative) await requireAdministrator(tx, userId)
         const where = administrative ? {} : { userId }
         const total = await tx.order.count({ where }), rows = await tx.order.findMany({ where, skip: (page-1)*10, take: 10, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], include })
-        return { page, pages: Math.ceil(total/10), total, orders: rows.map(publicOrder) }
+        return { page, pages: Math.ceil(total/10), total, orders: rows.map(order => ({ ...publicOrder(order), ...(administrative ? { buyerName: order.buyerName, buyerEmail: order.buyerEmail } : {}) })) }
       }, { isolationLevel: 'RepeatableRead' })
     },
     async read(userId, orderId, administrative = false) {
@@ -25,7 +25,7 @@ export function createOrders(db) {
         const order = await tx.order.findFirst({ where: { id: orderId, ...(administrative ? {} : { userId }) }, include: { ...include, orderAddress_order: true } })
         if (!order) throw new AccountError(404, 'Pedido no disponible.')
         const a = order.orderAddress_order
-        return { ...publicOrder(order), address: a ? { recipientName: a.recipientName, street: a.street, exteriorNumber: a.exteriorNumber, interiorNumber: a.interiorNumber, district: a.district, city: a.city, state: a.state, postalCode: a.postalCode } : null }
+        return { ...publicOrder(order), ...(administrative ? { buyerName: order.buyerName, buyerEmail: order.buyerEmail } : {}), address: a ? { recipientName: a.recipientName, street: a.street, exteriorNumber: a.exteriorNumber, interiorNumber: a.interiorNumber, district: a.district, city: a.city, state: a.state, postalCode: a.postalCode } : null }
       })
     },
     async advance(adminId, orderId, input) {

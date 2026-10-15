@@ -9,6 +9,7 @@ node_modules
 .output
 generated
 .local-db
+.catalog-uploads
 .npm-cache
 *.log
 docs

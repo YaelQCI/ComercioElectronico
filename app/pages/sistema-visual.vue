@@ -1,5 +1,4 @@
 <script setup>
-import ThemeControl from '~/features/appearance/ThemeControl.vue'
 const sampleQuery = ref('')
 definePageMeta({ layout: false })
 const surfaces = [
@@ -16,7 +15,7 @@ const surfaces = [
         <NuxtLink to="/" class="text-accent-text underline">The Fitness Stuff</NuxtLink>
         <h1 class="mt-2 text-display-l font-bold">Sistema visual</h1>
       </div>
-      <ThemeControl />
+      <NuxtLink to="/cuenta" class="inline-flex min-h-11 items-center text-accent-text underline">Configurar apariencia en Mi cuenta</NuxtLink>
     </header>
     <section class="mt-8" aria-labelledby="palette">
       <h2 id="palette" class="text-display-m font-bold">Superficies y colores</h2>

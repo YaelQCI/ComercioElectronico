@@ -1,16 +1,31 @@
-# Preferencia de apariencia (#22)
+﻿# Preferencia de apariencia de la cuenta (#22)
 
-El selector de la cabecera y `/sistema-visual` cambia el tema global y anuncia el estado. Permite volver al tema del sistema. La elección se guarda en `localStorage` (`fitness_theme`), se sincroniza entre pestañas y se conserva durante navegación y recarga. Sin elección válida, sigue `prefers-color-scheme`, incluidos cambios del sistema. Si el navegador bloquea almacenamiento, funciona durante la visita.
+La configuración está en **Mi cuenta → Apariencia**, disponible después de iniciar sesión. Permite elegir **Claro**, **Oscuro** o **Del sistema**, y guardar explícitamente la elección. Se retiró el selector de la cabecera y de `/sistema-visual`; esta última enlaza a Mi cuenta.
 
-`app/features/appearance/theme.js` se incorpora como script síncrono en el head SSR para resolver `data-theme` antes de pintar. El control espera montaje para mostrar la acción calculada sin discrepancias de hidratación. `/sistema-visual` usa el mismo control y no sobrescribe la preferencia al navegar.
+## Persistencia y aplicación
 
-Todos los componentes usan los tokens de `tokens.css`; `light-dark()` aplica el esquema a campos, foco, tablas y barras, manteniendo packshots blancos. No se anima el cambio de colores.
+- `User.themePreference` almacena `light`, `dark` o `system` en PostgreSQL. Su valor inicial es `system`, también para las cuentas existentes.
+- La migración `20261015190000_account_theme_preference` agrega la columna y una restricción CHECK. No modifica migraciones previas ni borra datos.
+- `PATCH /api/account/theme` requiere sesión y Origin propio. El ID de la cuenta se obtiene de la sesión; el cliente únicamente envía `themePreference`. La validación permite exclusivamente los tres valores.
+- La respuesta pública de cuenta incluye la preferencia. `app/app.vue` consulta la sesión con la clave compartida `account-session` y aplica `data-theme` mediante `useHead` desde SSR. El perfil refresca esa misma sesión al iniciar/cerrar sesión o guardar la apariencia.
+- Los tokens CSS existentes aplican los colores. `system` usa `color-scheme: light dark`, por lo que los cambios del sistema se siguen mediante CSS, sin controlador JavaScript.
+- No se lee ni escribe `localStorage` ni una cookie de tema. Una entrada antigua `fitness_theme`, si existe en un navegador anterior, se ignora. No se importa automáticamente a la cuenta porque podría pertenecer a otra persona que utilizó ese navegador.
+- Sin sesión se utiliza el tema del sistema. Al cerrar sesión se vuelve a ese modo y al iniciar sesión con otra cuenta se aplica su preferencia.
+- Otra sesión/dispositivo recupera la preferencia al consultar nuevamente la cuenta o recargar. No hay notificaciones en tiempo real entre pestañas ni dispositivos ya abiertos.
 
-Validación realizada el 13 de octubre de 2026:
+## Demostración
 
-- Cuatro pruebas del controlador: sistema dinámico, restauración, selección manual, vuelta al sistema, almacenamiento bloqueado, valores inválidos y sincronización.
-- `npm run check:contrast`: 88 parejas aprobadas entre ambos temas.
-- Instalación `npm ci` y build Nuxt con Node 24.12.0: correctos. Se regeneró el lockfile para resolver dependencias opcionales/peer incompletas sin cambiar versiones directas.
-- Chrome headless sobre el build: selección, recarga, navegación Nuxt, modo automático, cambios del sistema y ancho móvil 390 px sin desbordamiento. Captura móvil oscura inspeccionada.
+1. Iniciar sesión en http://localhost:3001/cuenta.
+2. En Apariencia, elegir Oscuro y pulsar Guardar apariencia.
+3. Navegar al catálogo y recargar: se conserva la apariencia de la cuenta.
+4. Iniciar sesión con la misma cuenta en otro navegador o ventana privada y comprobar que recupera Oscuro.
+5. Elegir Del sistema y guardar; cambiar la apariencia del sistema operativo para observar el seguimiento automático.
+6. Cerrar sesión: la tienda vuelve a la apariencia del sistema. Una cuenta diferente conserva su propia elección.
 
-Para repetir con el servidor local iniciado, configurar `TEST_HTTP_URL` y `TEST_BROWSER_PATH`, y ejecutar `node scripts/check-theme-browser.mjs`. `TEST_SCREENSHOT_PATH` permite guardar una captura fuera de Git. No necesita instalar Playwright. Las pruebas no cuantifican el destello perceptible ni sustituyen un recorrido completo de accesibilidad de #29.
+## Verificación del 15 de octubre de 2026
+
+Build Docker y migración aplicados correctamente. 54 pruebas unitarias y 76 pruebas PostgreSQL aisladas correctas, incluyendo persistencia, valor inicial, recuperación por login, aislamiento de cuentas, rechazo de valores inválidos, restricción SQL y cuenta desactivada.
+
+HTTP/SSR: tres opciones, acceso sin sesión rechazado, valor inválido rechazado, sesión independiente con preferencia recuperada y tema global en HTML de cuenta/catálogo. La preferencia temporal utilizada para esta comprobación se restauró y sus sesiones se cerraron.
+
+La revisión visual e interacción con el selector en navegador no se ejecutó en esta sesión. El script `scripts/check-theme-browser.mjs` se adaptó a invitados que siguen el sistema; su comprobación de sintaxis pasó, pero no se ejecutó con navegador. Las verificaciones históricas del selector basado en localStorage ya no describen este comportamiento.

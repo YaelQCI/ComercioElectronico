@@ -33,6 +33,7 @@ export async function accountRequest(event, action) {
     const identity = await accountIdentity(event)
     if (action === 'profile') return await service.profile(identity.user.id)
     if (action === 'update') return { user: await service.updateProfile(identity.user.id, input) }
+    if (action === 'theme') return { user: await service.updateTheme(identity.user.id, input) }
     if (action === 'address') return { address: await service.saveAddress(identity.user.id, input) }
     if (action === 'password' || action === 'deactivate') { const result = await service.password(identity.user.id, input, action === 'deactivate'); clearAccountCookies(event); return result }
     throw new AccountError(400, 'Operación inválida.')

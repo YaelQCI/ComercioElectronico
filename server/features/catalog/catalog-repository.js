@@ -13,10 +13,11 @@ const includes = {
   productVariant_product: { where: { deletedAt: null }, include: { inventoryLot_variant: { include: { warehouse: { select: { timezone: true } }, certificateAsset: true } } }, orderBy: [{ priceCents: 'asc' }, { id: 'asc' }] },
   productMedia_product: { include: { asset: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }] },
 }
-function publicImage(media) {
+export function publicImage(media) {
   // Local reviewed assets supported by the importer. Never expose storage internals.
-  if (!/^\/images\/catalog\/[a-zA-Z0-9/_-]+\.(?:webp|png|jpg|jpeg)$/.test(media.asset.storageKey)) return null
-  return { id: media.id, url: media.asset.storageKey, alt: media.altText, kind: media.kind, variantId: media.variantId }
+  const uploaded = /^uploads\/[0-9a-f-]{36}\.webp$/.test(media.asset.storageKey)
+  if (!uploaded && !/^\/images\/catalog\/[a-zA-Z0-9/_-]+\.(?:webp|png|jpg|jpeg)$/.test(media.asset.storageKey)) return null
+  return { id: media.id, url: uploaded ? `/api/catalog/images/${media.asset.id}` : media.asset.storageKey, alt: media.altText, kind: media.kind, variantId: media.variantId }
 }
 function publicLots(variant) {
   return sellableLots(variant.inventoryLot_variant).map(lot => ({ id: lot.id, lotCode: lot.lotCode, expiresOn: lot.expiresOn?.toISOString().slice(0, 10) ?? null, expiryPrecision: lot.expiryPrecision, importedOn: lot.importedOn?.toISOString().slice(0, 10) ?? null, customsEntry: lot.customsEntry, origin: lot.origin, availableQty: lot.onHandQty - lot.reservedQty, certificateUrl: lot.certificateAsset?.mimeType === 'application/pdf' ? `/api/catalog/lots/${lot.id}/certificate` : null }))
@@ -35,6 +36,9 @@ export function catalogProductDTO(product) {
 }
 export function createCatalogRepository(db) {
   return {
+    async imageAsset(id) {
+      return db.mediaAsset.findFirst({ where: { id, productMedia_asset: { some: { product: published() } } } })
+    },
     async bundles() {
       const bundles = await db.bundle.findMany({ where: { deletedAt: null }, include: bundleIncludes, orderBy: [{ featuredPosition: { sort: 'asc', nulls: 'last' } }, { id: 'asc' }], take: 1001 })
       if (bundles.length > 1000) throw new Error('Límite de lectura de combos excedido.')

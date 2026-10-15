@@ -32,6 +32,9 @@ services:
       NUXT_AUTH_SECRET: ${DOCKER_AUTH_SECRET:?Ejecuta node scripts/prepare-docker-env.mjs}
       NUXT_STRIPE_ENABLED: 'false'
       NUXT_STRIPE_ENVIRONMENT: test
+      NUXT_CATALOG_UPLOAD_DIRECTORY: /app/catalog-uploads
+    volumes:
+      - catalog_images:/app/catalog-uploads
     ports:
       - '127.0.0.1:${DOCKER_APP_PORT:-3001}:3000'
     healthcheck:
@@ -70,3 +73,4 @@ services:
         condition: service_healthy
 volumes:
   docker_postgres_data:
+  catalog_images:

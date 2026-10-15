@@ -12,6 +12,23 @@ test.after(() => db.$disconnect())
 const accounts = createAccounts(db, randomBytes(32).toString('base64'))
 const fixture = () => ({ email: `${randomUUID()}@example.invalid`, displayName: 'Cuenta sintética', password: 'Contraseña sintética 123', passwordConfirmation: 'Contraseña sintética 123' })
 
+test('apariencia persiste en la cuenta y se recupera al iniciar sesión sin afectar otras cuentas', async () => {
+  const input = fixture(), first = await accounts.register(input), other = await accounts.register(fixture())
+  assert.equal(first.user.themePreference, 'system')
+  for (const themePreference of ['dark', 'light', 'system', 'dark']) {
+    const saved = await accounts.updateTheme(first.user.id, { themePreference, userId: other.user.id, role: 'ADMIN' })
+    assert.equal(saved.themePreference, themePreference)
+    assert.equal(saved.role, 'CUSTOMER')
+    assert.equal((await accounts.profile(first.user.id)).user.themePreference, themePreference)
+  }
+  assert.equal((await accounts.profile(other.user.id)).user.themePreference, 'system')
+  assert.equal((await accounts.login(input)).user.themePreference, 'dark')
+  for (const themePreference of [null, 'invalid', '', ['light']]) await assert.rejects(accounts.updateTheme(first.user.id, { themePreference }), e => e.status === 400)
+  await assert.rejects(db.user.update({ where: { id: first.user.id }, data: { themePreference: 'invalid' } }))
+  await accounts.password(first.user.id, { currentPassword: input.password }, true)
+  await assert.rejects(accounts.updateTheme(first.user.id, { themePreference: 'light' }), e => e.status === 401)
+})
+
 test('registro rechaza confirmación ausente o distinta sin crear usuario', async () => {
   const input = fixture()
   for (const passwordConfirmation of [undefined, '', 'Otra contraseña', `${input.password} `]) {
