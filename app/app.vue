@@ -6,4 +6,5 @@ useHead(() => ({ htmlAttrs: { 'data-theme': session.value?.user?.themePreference
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>
+  <UiToasts />
 </template>

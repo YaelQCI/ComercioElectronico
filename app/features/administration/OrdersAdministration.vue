@@ -24,7 +24,7 @@ const money = (cents, currency = 'MXN') => new Intl.NumberFormat('es-MX', { styl
 <template>
   <div>
     <h2 class="text-display-m font-bold">Pedidos</h2><p class="mt-3 text-ink-2">Consulta el detalle y registra la preparación, el envío y la entrega de pedidos confirmados.</p>
-    <p v-if="failure" role="alert" class="my-4 text-crit">{{ failure }}</p><p v-if="message" role="status" class="my-4 text-ok">{{ message }}</p>
+    <p v-if="failure" role="alert" class="my-4 text-crit">{{ failure }}</p>
     <UiLoading v-if="status === 'pending'" label="Cargando pedidos" />
     <div v-else-if="error" role="alert"><p>No se pudieron cargar los pedidos.</p><UiButton @click="refresh">Reintentar</UiButton></div>
     <template v-else>

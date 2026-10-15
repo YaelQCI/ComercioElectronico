@@ -1,5 +1,14 @@
 # Guía para explicar y demostrar la plataforma
 
+## Confirmaciones mediante toast
+
+Las operaciones de administración, cuenta y apariencia, carrito/cupones, reseñas, avisos de reposición, solicitudes posventa y confirmación al iniciar pago muestran sus mensajes mediante un toast compartido. `app/composables/useToasts.js` mantiene la cola durante la navegación interna; `UiToasts.vue` la presenta en la página o dentro del diálogo abierto para que siga visible y accesible sobre un modal. `UiToast.vue` permite cerrar cada aviso y lo retira tras ocho segundos, pausando el tiempo al pasar el cursor o enfocar sus controles. Se muestran hasta cuatro avisos simultáneos y se anuncian mediante una región `aria-live="polite"`.
+
+Para demostrarlo, guarda un producto o una categoría desde `/admin`, cambia la apariencia en `/cuenta` o agrega un producto al carrito. La confirmación aparece flotando en la esquina inferior derecha; puedes cerrarla manualmente. Los errores y las validaciones permanecen junto a sus formularios para permitir corregirlos. Los estados permanentes, como existencias y estado del pedido, siguen en sus vistas.
+
+Verificación: comprobación de la cola y los mensajes repetidos, compilación de plantillas Vue y build Docker. Revisión visual y de interacción en navegador pendiente en esta sesión.
+
+
 ## Formularios administrativos en modales
 
 En `/admin`, pulsa **Crear producto en borrador**, **Gestionar**, **Crear tipo de suplemento o categoría**, **Agregar imagen**, **Configurar almacén inicial**, **Editar almacén**, **Registrar lote**, **Ajustar lote**, **Desactivar usuario** o **Ver pedido** según la sección. Cada formulario aparece en un diálogo modal mediante `UiModal.vue`; las operaciones y validaciones del servidor se conservan. Cerrar o Escape devuelve el foco al control de apertura; durante una petición se bloquea el cierre. Los fallos se muestran dentro del modal para corregir y reintentar.

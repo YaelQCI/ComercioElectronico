@@ -75,7 +75,7 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
 <template>
   <div>
     <h2 class="text-display-m font-bold">Productos</h2>
-    <p v-if="failure" role="alert" class="my-4 text-crit">{{ failure }}</p><p v-if="message" role="status" class="my-4 text-ok">{{ message }}</p>
+    <p v-if="failure" role="alert" class="my-4 text-crit">{{ failure }}</p>
     <CategoryManager @created="refreshCategories" />
     <div v-if="classificationError" role="alert" class="my-4"><p>No se pudieron cargar los tipos de suplemento y categorías.</p><UiButton variant="secondary" @click="refreshCategories">Reintentar categorías</UiButton></div>
     <UiButton class="my-4" aria-haspopup="dialog" @click="creatingOpen = true">Crear producto en borrador</UiButton>
@@ -112,7 +112,7 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
     </template>
     <UiModal :open="!!selected" :title="`Editar ${selected?.name || 'producto'}`" :busy="busy" @close="selected = null">
       <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
-      <p v-if="message" role="status" class="mb-4 text-ok">{{ message }}</p>
+
       <h3 class="text-display-s font-bold">Editar {{ selected.name }}</h3>
       <p v-if="selected.creationReason" class="mt-3 text-body-s text-ink-2">Motivo del alta (histórico): {{ selected.creationReason }}</p>
       <p class="mt-3 text-body-s text-ink-2">Revisa y modifica los datos del producto y sus variantes. Guardar y publicar aplica todos los cambios del formulario en una sola operación.</p>

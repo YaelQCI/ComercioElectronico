@@ -16,7 +16,6 @@ useHead({ title: 'The Fitness Stuff — Suplementos y accesorios' })
       </div>
     </section>
     <div class="mx-auto max-w-store px-4 py-12 md:px-8" :aria-busy="status === 'pending'">
-      <div class="mb-4" aria-live="polite" aria-atomic="true"><Transition name="feedback"><p v-if="cart.message.value" :key="cart.message.value" class="rounded-sm border border-border bg-ok-soft p-4 text-ok">{{ cart.message.value }} <NuxtLink to="/carrito" class="inline-flex min-h-11 items-center underline">Ver carrito</NuxtLink></p></Transition></div>
       <p v-if="cart.failure.value" role="alert" class="mb-4 rounded-sm border border-border bg-crit-soft p-4 text-crit">{{ cart.failure.value }}</p>
       <UiLoading v-if="status === 'pending'" label="Cargando selección y categorías…" :cards="4" />
       <div v-else-if="error" role="alert" class="rounded-sm border border-border bg-crit-soft p-6 text-crit"><p>No pudimos cargar la selección de la tienda.</p><UiButton class="mt-4" variant="secondary" @click="refresh()">Reintentar</UiButton></div>

@@ -1,6 +1,6 @@
 ﻿<script setup>
 const props = defineProps({ preference: { type: String, default: 'system' }, refreshSession: { type: Function, required: true } })
-const selected = ref(props.preference), busy = ref(false), failure = ref(''), message = ref('')
+const selected = ref(props.preference), busy = ref(false), failure = ref(''), message = useConfirmationMessage()
 watch(() => props.preference, value => { selected.value = value })
 async function save() {
   if (busy.value) return
@@ -22,6 +22,6 @@ async function save() {
       <UiButton type="submit" :disabled="busy || selected === preference">{{ busy ? 'Guardando…' : 'Guardar apariencia' }}</UiButton>
     </form>
     <p v-if="failure" role="alert" class="mt-3 text-crit">{{ failure }}</p>
-    <p v-if="message" role="status" class="mt-3 text-ok">{{ message }}</p>
+
   </section>
 </template>

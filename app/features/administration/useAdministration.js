@@ -1,5 +1,5 @@
 export function useAdministration(refresh) {
-  const busy = ref(false), failure = ref(''), message = ref('')
+  const busy = ref(false), failure = ref(''), message = useConfirmationMessage()
   async function save(path, body, method = 'POST') {
     if (busy.value) return false
     busy.value = true; failure.value = ''; message.value = ''

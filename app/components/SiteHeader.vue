@@ -58,7 +58,6 @@ function search() {
         </ul>
       </nav>
     </div>
-    <p v-if="cart.message.value" role="status" class="mx-auto max-w-store px-4 py-2 text-body-s text-ok">{{ cart.message.value }}</p>
     <p v-if="cart.failure.value" role="alert" class="mx-auto max-w-store px-4 py-2 text-body-s text-crit">{{ cart.failure.value }}</p>
   </header>
 </template>

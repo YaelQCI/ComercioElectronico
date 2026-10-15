@@ -1,6 +1,6 @@
 <script setup>
 const props = defineProps({ productId: { type: String, required: true } })
-const page = ref(1), busy = ref(false), failure = ref(''), message = ref(''), rating = ref('5'), title = ref(''), body = ref('')
+const page = ref(1), busy = ref(false), failure = ref(''), message = useConfirmationMessage(), rating = ref('5'), title = ref(''), body = ref('')
 const { data, error, status, refresh } = await useFetch(() => `/api/reviews/products/${props.productId}`, { query: { page } })
 async function editMine() {
   failure.value = ''
@@ -25,6 +25,6 @@ async function publish() {
     </template>
     <details class="mt-6"><summary class="min-h-11 cursor-pointer">Publicar o editar mi reseña</summary><p class="mt-3">Necesitas una cuenta con un pedido entregado de este producto. Las presentaciones comparten reseñas.</p><NuxtLink to="/cuenta" class="inline-flex min-h-11 items-center text-accent-text underline">Ir a mi cuenta</NuxtLink><UiButton variant="secondary" :disabled="busy" @click="editMine">Cargar mi reseña</UiButton>
       <form class="mt-4 grid max-w-xl gap-4" @submit.prevent="publish"><UiField id="review-rating" v-model="rating" label="Calificación" :options="[1,2,3,4,5].map(n => ({ value: String(n), label: `${n} de 5` }))" /><UiField id="review-title" v-model="title" label="Título (opcional)" maxlength="120" /><div><label for="review-body" class="mb-2 block font-semibold">Tu reseña</label><textarea id="review-body" v-model="body" required maxlength="4000" rows="5" class="w-full rounded-sm border border-border bg-surface p-3 text-ink" /></div><UiButton type="submit" :disabled="busy">{{ busy ? 'Guardando…' : 'Guardar reseña' }}</UiButton></form>
-    </details><p v-if="failure" role="alert" class="mt-3 text-crit">{{ failure }}</p><p v-if="message" role="status" class="mt-3 text-ok">{{ message }}</p>
+    </details><p v-if="failure" role="alert" class="mt-3 text-crit">{{ failure }}</p>
   </section>
 </template>

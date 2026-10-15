@@ -2,7 +2,7 @@ import { observeCart } from './cart-observation.js'
 
 export async function useCart() {
   const busy = useState('cart-mutation-busy', () => false)
-  const message = useState('cart-message', () => '')
+  const message = useConfirmationMessage(useState('cart-message', () => ''))
   const failure = useState('cart-failure', () => '')
   const selectedQuote = useState('cart-selected-quote', () => null)
   const { data, error, status, refresh } = await useFetch('/api/cart', { key: 'store-cart' })

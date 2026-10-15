@@ -29,7 +29,7 @@ async function warehouseSaved() {
 <template>
   <div>
     <h2 class="text-display-m font-bold">Inventario</h2>
-    <p v-if="failure" role="alert" class="my-4 text-crit">{{ failure }}</p><p v-if="message" role="status" class="my-4 text-ok">{{ message }}</p>
+    <p v-if="failure" role="alert" class="my-4 text-crit">{{ failure }}</p>
     <UiLoading v-if="status === 'pending'" label="Cargando inventario" />
     <div v-else-if="error" role="alert"><p>No se pudo cargar el inventario.</p><UiButton @click="refresh">Reintentar</UiButton></div>
     <template v-else>

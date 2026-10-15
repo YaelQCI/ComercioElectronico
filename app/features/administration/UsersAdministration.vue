@@ -12,7 +12,7 @@ async function deactivate() {
 <template>
   <div>
     <h2 class="text-display-m font-bold">Usuarios</h2><p class="mt-3 text-ink-2">La desactivación cierra sus sesiones y conserva el historial de compras.</p>
-    <p v-if="failure" role="alert" class="my-4 text-crit">{{ failure }}</p><p v-if="message" role="status" class="my-4 text-ok">{{ message }}</p>
+    <p v-if="failure" role="alert" class="my-4 text-crit">{{ failure }}</p>
     <UiLoading v-if="status === 'pending'" label="Cargando usuarios" />
     <div v-else-if="error" role="alert"><p>No se pudieron cargar los usuarios.</p><UiButton @click="refresh">Reintentar</UiButton></div>
     <template v-else>

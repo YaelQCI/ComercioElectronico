@@ -4,7 +4,7 @@ import ThemeControl from '~/features/appearance/ThemeControl.vue'
 import AddressModal from './AddressModal.vue'
 import { passwordConfirmationError } from '~~/shared/features/accounts/registration.js'
 const { data, error, status, refresh } = await useFetch('/api/account/session', { key: 'account-session' })
-const mode = ref('login'), busy = ref(false), failure = ref(''), message = ref('')
+const mode = ref('login'), busy = ref(false), failure = ref(''), message = useConfirmationMessage()
 const email = ref(''), password = ref(''), displayName = ref(''), phone = ref(''), currentPassword = ref(''), newPassword = ref('')
 const profile = ref(null)
 const passwordConfirmation = ref(''), confirmationTouched = ref(false)
@@ -54,7 +54,7 @@ onMounted(loadProfile)
     <UiBreadcrumbs :items="[{ label: 'Mi cuenta' }]" /><h1 class="text-display-l font-bold">Mi cuenta</h1>
     <UiLoading v-if="status === 'pending'" label="Consultando sesión" />
     <div v-if="error" role="alert"><p>Cuenta no disponible.</p><UiButton @click="refresh">Reintentar</UiButton></div>
-    <p v-if="failure" role="alert" class="mt-4 text-crit">{{ failure }}</p><p v-if="message" role="status" class="mt-4 text-ok">{{ message }}</p>
+    <p v-if="failure" role="alert" class="mt-4 text-crit">{{ failure }}</p>
     <template v-if="!error && status !== 'pending'">
       <div v-if="!data?.user" class="mt-6 max-w-xl">
         <div class="flex flex-wrap gap-3"><UiButton variant="secondary" :aria-pressed="mode === 'login'" @click="mode = 'login'">Iniciar sesión</UiButton><UiButton variant="secondary" :aria-pressed="mode === 'register'" @click="mode = 'register'">Crear cuenta</UiButton></div>

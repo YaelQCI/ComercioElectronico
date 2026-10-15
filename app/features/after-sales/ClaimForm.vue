@@ -1,16 +1,16 @@
 <script setup>
 const route=useRoute()
-const orderId=ref(typeof route.query.pedido==='string'?route.query.pedido:''),credential=ref(''),data=ref(null),selected=ref([]),type=ref('RETURN'),reason=ref('VOLUNTARY'),condition=ref('SEALED'),description=ref(''),url=ref(''),evidenceDescription=ref(''),comparison=reactive({}),busy=ref(false),message=ref('')
+const orderId=ref(typeof route.query.pedido==='string'?route.query.pedido:''),credential=ref(''),data=ref(null),selected=ref([]),type=ref('RETURN'),reason=ref('VOLUNTARY'),condition=ref('SEALED'),description=ref(''),url=ref(''),evidenceDescription=ref(''),comparison=reactive({}),busy=ref(false),failure=ref(''),message=useConfirmationMessage()
 const labels={REQUESTED:'Solicitada',APPROVED:'Aprobada',REJECTED:'Rechazada',RECEIVED:'Recibida',RESOLVED:'Resuelta',PROCESSING:'En proceso',SETTLED:'Liquidado',FAILED:'Fallido',REQUIRES_REVIEW:'Requiere revisión'}
 async function run(action){
-  busy.value=true;message.value=''
+  busy.value=true;message.value='';failure.value=''
   try{
     const body={action,orderId:orderId.value,guestToken:credential.value||undefined}
     if(action==='request')Object.assign(body,{type:type.value,idempotencyKey:crypto.randomUUID(),unitIds:selected.value,reason:reason.value,condition:condition.value,description:description.value,evidence:[{url:url.value,description:evidenceDescription.value}],comparison:selected.value.map(unitId=>({unitId,itemCents:comparison[unitId]?.price??'',shippingCents:comparison[unitId]?.shipping??''}))})
     const result=await $fetch('/api/after-sales',{method:'POST',body})
     if(action==='list'){data.value=result;selected.value=[];for(const u of result.units)comparison[u.id]??={price:'',shipping:''}}
     else{message.value=`Solicitud registrada: ${result.id}. Pendiente de revisión administrativa.`;data.value=await $fetch('/api/after-sales',{method:'POST',body:{action:'list',orderId:orderId.value,guestToken:credential.value||undefined}})}
-  }catch(e){message.value=e.data?.statusMessage??'No pudimos procesar la solicitud.'}finally{busy.value=false}
+  }catch(e){failure.value=e.data?.statusMessage??'No pudimos procesar la solicitud.'}finally{busy.value=false}
 }
 </script>
 <template>
@@ -22,7 +22,7 @@ async function run(action){
       <label class="block">Credencial del pedido (para invitados)<input v-model="credential" type="password" autocomplete="off" class="block w-full rounded border p-2" /></label>
       <button :disabled="busy" class="rounded border px-4 py-2">Consultar pedido</button>
     </form>
-    <p role="status">{{ message }}</p>
+    <p v-if="failure" role="alert" class="text-crit">{{ failure }}</p>
     <template v-if="data">
       <h2 class="text-xl font-bold">Pedido {{ data.number }}</h2>
       <form class="space-y-4" @submit.prevent="run('request')">
