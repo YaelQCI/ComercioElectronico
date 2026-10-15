@@ -1,5 +1,8 @@
 # Panel de administración
 
+Los productos desactivados se pueden recuperar desde **Gestionar → Reactivar producto**. El modal pide motivo y confirmación; vuelven como borrador y se habilita su edición. **Guardar y publicar** vuelve a exigir imagen frontal y variante activa. `POST /api/admin/catalog/:id/reactivate` comprueba administrador, motivo y `expectedUpdatedAt`, bloquea el producto y registra `REACTIVATE_PRODUCT` en la misma transacción. Solo limpia la baja y la publicación; conserva variantes, imágenes, categorías, precios, inventario e historial. No reactiva variantes desactivadas por separado.
+
+
 **Guardar cambios** conserva la publicación actual. En productos publicados, **Retirar del catálogo** es una acción separada que abre una confirmación con motivo propio; no guarda los cambios pendientes del editor. En borradores, **Guardar y publicar** guarda los datos y publica. Esto evita confundir el guardado de precios con retirar la publicación.
 
 

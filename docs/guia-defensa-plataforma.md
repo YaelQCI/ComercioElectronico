@@ -1,5 +1,12 @@
 # Guía para explicar y demostrar la plataforma
 
+## Reactivar un producto desactivado
+
+En `/admin` abre **Productos → Gestionar** sobre un producto marcado **Desactivado**. Pulsa **Reactivar producto**, escribe el motivo y confirma. El producto vuelve a **Borrador**, conserva sus datos e inventario y permite editar de nuevo. Revisa sus campos, escribe el motivo de los cambios y utiliza **Guardar y publicar** cuando cumpla los requisitos. La reactivación por sí sola no lo muestra al cliente ni reactiva variantes dadas de baja independientemente.
+
+Implementación: `reactivateProduct` en `server/features/administration/manage-store.js`, endpoint `POST /api/admin/catalog/:id/reactivate` y modal en `ProductsAdministration.vue`. Exige rol administrador vigente, motivo y versión; la recuperación y su auditoría son atómicas. Las pruebas PostgreSQL verifican permisos, motivo, versión obsoleta, conservación de la variante, regreso a borrador y edición posterior. La revisión visual en navegador queda pendiente.
+
+
 ## Cambiar precios sin retirar la publicación
 
 En un producto publicado, modifica el precio y pulsa **Guardar cambios**: la petición omite `published` y conserva `publishedAt`. Para ocultarlo hay que pulsar **Retirar del catálogo**, indicar un motivo y confirmar en otro modal. El retiro envía únicamente la decisión de publicación, la versión esperada y el motivo; no guarda otros cambios pendientes. La auditoría registra ambas operaciones. `tests/database/administration.test.mjs` comprueba que una edición completa de variante y precio mantiene la fecha de publicación existente.

@@ -40,6 +40,28 @@ test('alta borrador, precio versionado, categorías, baja histórica y permisos'
   assert.equal(await db.productCategory.count({ where: { productId: product.id } }), 1)
   assert.equal(await db.auditEvent.count({ where: { actorId: actor.id } }), 3)
 })
+test('reactivación administrativa conserva variantes e inventario, exige versión y regresa a borrador', async () => {
+  const actor = await user('ADMIN'), customer = await user(), code = randomUUID()
+  const product = await admin.createDraft(actor.id, { name: 'Reactivación sintética', description: 'Solo pruebas', slug: code, reason: 'Fixture', variants: [{ sku: code.toUpperCase(), flavor: 'Fixture', presentationLabel: 'Fixture', contentAmount: '100', contentUnit: 'g', priceCents: '15000', weightGrams: 100, lengthMm: 100, widthMm: 100, heightMm: 100 }] })
+  const variant = await db.productVariant.findFirst({ where: { productId: product.id } })
+  await admin.updateProduct(actor.id, product.id, { deactivate: true, reason: 'Fixture' })
+  const disabled = await db.product.findUnique({ where: { id: product.id } })
+  const input = { expectedUpdatedAt: disabled.updatedAt.toISOString(), reason: 'Revisar antes de publicar' }
+  await assert.rejects(admin.reactivateProduct(customer.id, product.id, input), e => e.status === 403)
+  await assert.rejects(admin.reactivateProduct(actor.id, product.id, { ...input, reason: '' }), e => e.status === 400)
+  await assert.rejects(admin.reactivateProduct(actor.id, product.id, { ...input, expectedUpdatedAt: 'obsoleto' }), e => e.status === 409)
+  assert.ok((await db.product.findUnique({ where: { id: product.id } })).deletedAt)
+  await admin.reactivateProduct(actor.id, product.id, input)
+  const restored = await db.product.findUnique({ where: { id: product.id } })
+  assert.equal(restored.deletedAt, null); assert.equal(restored.publishedAt, null)
+  assert.deepEqual(await db.productVariant.findUnique({ where: { id: variant.id } }), variant)
+  assert.equal(await db.auditEvent.count({ where: { entityId: product.id, action: 'REACTIVATE_PRODUCT', reason: input.reason } }), 1)
+  await assert.rejects(admin.reactivateProduct(actor.id, product.id, { ...input, expectedUpdatedAt: restored.updatedAt.toISOString() }), e => e.status === 409)
+  await assert.rejects(admin.updateProduct(actor.id, product.id, { published: true, reason: 'Fixture' }), e => e.status === 409)
+  await admin.updateProduct(actor.id, product.id, { name: 'Reactivado editable', reason: 'Fixture' })
+  assert.equal((await db.product.findUnique({ where: { id: product.id } })).name, 'Reactivado editable')
+})
+
 test('ajuste por ledger idempotente y desactivación de cuenta revoca sesiones', async () => {
   const actor = await user('ADMIN'), buyer = await user(), f = await deliveredFixture(db, buyer.id), key = randomUUID()
   const input = { lotId: f.lot.id, delta: 3, reason: 'Fixture', idempotencyKey: key }

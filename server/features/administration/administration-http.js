@@ -20,6 +20,7 @@ export async function administrationRequest(event, action) {
     if (action === 'categories') return { categories: await service.categories(identity.user.id) }
     if (action === 'createCategory') return await service.createCategory(identity.user.id, input)
     if (action === 'product') return await service.updateProduct(identity.user.id, target, input)
+    if (action === 'reactivateProduct') return await service.reactivateProduct(identity.user.id, target, input)
     if (action === 'variant') return await service.updateVariant(identity.user.id, target, input)
     if (action === 'stock') return await service.adjustStock(identity.user.id, input)
     return await service.deactivateUser(identity.user.id, target, input)

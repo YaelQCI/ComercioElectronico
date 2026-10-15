@@ -190,6 +190,21 @@ export function createStoreAdministration(db) {
         return { id: productId }
       })
     },
+    async reactivateProduct(adminId, productId, input) {
+      id(productId)
+      const reason = accountText(input?.reason, 'Motivo', 500)
+      return db.$transaction(async tx => {
+        await requireAdministrator(tx, adminId)
+        await tx.$queryRaw`SELECT id FROM "Product" WHERE id = ${productId}::uuid FOR UPDATE`
+        const product = await tx.product.findUnique({ where: { id: productId } })
+        if (!product) throw new AccountError(404, 'Producto no disponible.')
+        if (input.expectedUpdatedAt !== product.updatedAt.toISOString()) throw new AccountError(409, 'El producto cambió. Actualiza la información antes de reactivar.')
+        if (!product.deletedAt) throw new AccountError(409, 'El producto ya está activo.')
+        await tx.product.update({ where: { id: productId }, data: { deletedAt: null, publishedAt: null } })
+        await audit(tx, adminId, 'Product', productId, 'REACTIVATE_PRODUCT', reason, { deactivated: true, published: !!product.publishedAt }, { deactivated: false, published: false })
+        return { id: productId, published: false }
+      })
+    },
     async updateVariant(adminId, variantId, input) {
       return db.$transaction(async tx => {
         await requireAdministrator(tx, adminId)

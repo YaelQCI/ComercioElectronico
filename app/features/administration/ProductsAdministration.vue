@@ -16,6 +16,15 @@ const { pending: checkingIdentifiers, failure: identifierFailure, slugError, sku
 const fields = [{ key: 'sku', label: 'SKU' }, { key: 'flavor', label: 'Sabor' }, { key: 'presentationLabel', label: 'Presentación' }, { key: 'contentAmount', label: 'Contenido (cantidad)' }, { key: 'contentUnit', label: 'Unidad de contenido' }, { key: 'pricePesos', label: 'Precio en pesos (MXN)', hint: 'Ejemplo: 150.00. Hasta dos decimales, sin separadores de miles.', price: true }, { key: 'weightGrams', label: 'Peso en gramos', numeric: true }, { key: 'lengthMm', label: 'Largo en milímetros', numeric: true }, { key: 'widthMm', label: 'Ancho en milímetros', numeric: true }, { key: 'heightMm', label: 'Alto en milímetros', numeric: true }]
 const selected = ref(null), edit = reactive({ name: '', slug: '', description: '', reason: '', categoryIds: [] }), variantEdits = ref([]), editForm = ref(null)
 const withdrawing = ref(false), withdrawalReason = ref('')
+const reactivating = ref(false), reactivationReason = ref('')
+async function reactivate() {
+  const product = selected.value
+  if (await save(`/api/admin/catalog/${product.id}/reactivate`, { expectedUpdatedAt: product.updatedAt, reason: reactivationReason.value })) {
+    reactivating.value = false
+    const fresh = data.value?.products.find(item => item.id === product.id)
+    if (fresh) select(fresh)
+  }
+}
 async function withdraw() {
   const product = selected.value
   if (await save(`/api/admin/catalog/${product.id}`, { published: false, expectedUpdatedAt: product.updatedAt, reason: withdrawalReason.value }, 'PATCH')) {
@@ -128,6 +137,18 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
       <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
 
       <h3 class="text-display-s font-bold">Editar {{ selected.name }}</h3>
+      <div v-if="selected.deactivated" class="my-4">
+        <p class="mb-3">Este producto está desactivado. Puedes reactivarlo como borrador para revisar sus datos antes de publicarlo.</p>
+        <UiButton :disabled="busy" @click="reactivationReason = ''; reactivating = true">Reactivar producto</UiButton>
+      </div>
+      <UiModal :open="reactivating" title="Reactivar producto" :busy="busy" @close="reactivating = false">
+        <p class="mb-4">{{ selected.name }} volverá a estar activo como borrador. Sus imágenes, precios e inventario se conservan; no se publica automáticamente.</p>
+        <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
+        <form class="grid gap-4" @submit.prevent="reactivate">
+          <UiField id="reactivation-reason" v-model="reactivationReason" label="Motivo de la reactivación" required maxlength="500" :disabled="busy" />
+          <div class="flex flex-wrap gap-3"><UiButton type="submit" :disabled="busy">Confirmar reactivación</UiButton><UiButton variant="secondary" :disabled="busy" @click="reactivating = false">Cancelar</UiButton></div>
+        </form>
+      </UiModal>
       <p v-if="selected.creationReason" class="mt-3 text-body-s text-ink-2">Motivo del alta (histórico): {{ selected.creationReason }}</p>
       <p class="mt-3 text-body-s text-ink-2">Revisa y modifica los datos del producto y sus variantes. Guardar y publicar aplica todos los cambios del formulario en una sola operación.</p>
       <form ref="editForm" class="mt-4" @submit.prevent="update()">
