@@ -10,7 +10,7 @@ const { busy, failure, message, save } = useAdministration(refresh)
 const { data: classification, error: classificationError, refresh: refreshCategories } = await useFetch('/api/admin/categories')
 const draftCategoryIds = ref([])
 const draft = reactive({ name: '', slug: '', description: '', reason: '', sku: '', flavor: '', presentationLabel: '', contentAmount: '', contentUnit: '', priceCents: '', weightGrams: '', lengthMm: '', widthMm: '', heightMm: '' })
-const creating = ref(false)
+const creating = ref(false), creatingOpen = ref(false)
 const { pending: checkingIdentifiers, failure: identifierFailure, slugError, skuError, verify: verifyIdentifiers } = useDraftIdentifiers(draft)
 const fields = [{ key: 'sku', label: 'SKU' }, { key: 'flavor', label: 'Sabor' }, { key: 'presentationLabel', label: 'Presentación' }, { key: 'contentAmount', label: 'Contenido (cantidad)' }, { key: 'contentUnit', label: 'Unidad de contenido' }, { key: 'priceCents', label: 'Precio en centavos MXN', hint: 'Ejemplo: 15000 equivale a $150.00.' }, { key: 'weightGrams', label: 'Peso en gramos', numeric: true }, { key: 'lengthMm', label: 'Largo en milímetros', numeric: true }, { key: 'widthMm', label: 'Ancho en milímetros', numeric: true }, { key: 'heightMm', label: 'Alto en milímetros', numeric: true }]
 const selected = ref(null), edit = reactive({ name: '', slug: '', description: '', reason: '', categoryIds: [] }), variantEdits = ref([]), editForm = ref(null)
@@ -37,6 +37,7 @@ async function create() {
     if (await save('/api/admin/catalog', { name: draft.name, slug: draft.slug, description: draft.description, reason: draft.reason, categoryIds: draftCategoryIds.value, variants: [variant] })) {
       for (const key of Object.keys(draft)) draft[key] = ''
       draftCategoryIds.value = []
+      creatingOpen.value = false
     } else await verifyIdentifiers(true)
   } finally { creating.value = false }
 }
@@ -77,8 +78,9 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
     <p v-if="failure" role="alert" class="my-4 text-crit">{{ failure }}</p><p v-if="message" role="status" class="my-4 text-ok">{{ message }}</p>
     <CategoryManager @created="refreshCategories" />
     <div v-if="classificationError" role="alert" class="my-4"><p>No se pudieron cargar los tipos de suplemento y categorías.</p><UiButton variant="secondary" @click="refreshCategories">Reintentar categorías</UiButton></div>
-    <details class="my-6 rounded-sm border border-border p-4">
-      <summary class="min-h-11 cursor-pointer font-semibold">Crear producto en borrador</summary>
+    <UiButton class="my-4" aria-haspopup="dialog" @click="creatingOpen = true">Crear producto en borrador</UiButton>
+    <UiModal :open="creatingOpen" title="Crear producto en borrador" :busy="busy || creating" @close="creatingOpen = false">
+      <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
       <p class="my-3 text-ink-2">Ingresa información comercial documentada. Se crea con una variante; después usa Gestionar para agregar sus imágenes y publicarlo.</p>
       <form @submit.prevent="create">
         <fieldset :disabled="busy || creating" class="grid min-w-0 gap-4 md:grid-cols-2">
@@ -95,7 +97,7 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
         <UiButton type="submit" :disabled="busy || creating || checkingIdentifiers || !!slugError || !!skuError || !!identifierFailure">{{ creating ? 'Creando…' : 'Crear borrador' }}</UiButton>
         </fieldset>
       </form>
-    </details>
+    </UiModal>
     <UiLoading v-if="status === 'pending'" label="Cargando productos" />
     <div v-else-if="error" role="alert"><p>No se pudieron cargar los productos.</p><UiButton @click="refresh">Reintentar</UiButton></div>
     <template v-else>
@@ -108,7 +110,9 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
       </ul>
       <nav aria-label="Páginas de productos" class="my-4 flex items-center gap-4"><UiButton variant="secondary" :disabled="page <= 1 || busy" @click="page--">Anterior</UiButton><span>Página {{ page }} de {{ data?.pages || 1 }}</span><UiButton variant="secondary" :disabled="page >= (data?.pages || 1) || busy" @click="page++">Siguiente</UiButton></nav>
     </template>
-    <section v-if="selected" class="mt-6 rounded-sm border border-border p-4" aria-label="Editar producto">
+    <UiModal :open="!!selected" :title="`Editar ${selected?.name || 'producto'}`" :busy="busy" @close="selected = null">
+      <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
+      <p v-if="message" role="status" class="mb-4 text-ok">{{ message }}</p>
       <h3 class="text-display-s font-bold">Editar {{ selected.name }}</h3>
       <p v-if="selected.creationReason" class="mt-3 text-body-s text-ink-2">Motivo del alta (histórico): {{ selected.creationReason }}</p>
       <p class="mt-3 text-body-s text-ink-2">Revisa y modifica los datos del producto y sus variantes. Guardar y publicar aplica todos los cambios del formulario en una sola operación.</p>
@@ -133,6 +137,6 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
       <UiButton variant="secondary" class="mt-4 ml-3" :disabled="busy" @click="selected = null">Cerrar edición</UiButton>
       <UiButton v-if="failure" variant="secondary" class="mt-4 ml-3" :disabled="busy" @click="reloadSelected">Actualizar producto y descartar cambios</UiButton>
       <ProductImages :key="selected.id" :product="selected" @updated="imagesUpdated" />
-    </section>
+    </UiModal>
   </div>
 </template>

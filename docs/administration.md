@@ -1,5 +1,9 @@
 # Panel de administración
 
+Todos los formularios se abren en modales mediante botones: crear/gestionar producto, crear categoría, agregar imagen, configurar/editar almacén, registrar/ajustar lote, desactivar usuario y consultar/actualizar pedido. Las listas y la información del almacén siguen visibles en la página.
+
+`app/components/UiModal.vue` utiliza un diálogo nativo con título accesible, foco contenido y restaurado al cerrar, Escape y botón Cerrar; bloquea el desplazamiento del fondo y el cierre durante el guardado. Los errores se muestran dentro del modal y conservan los datos para reintentar. La carga de imágenes tiene su propio modal desde la edición del producto.
+
 Disponible en `/admin`. Se utiliza el mismo inicio de sesión de `/cuenta`; una cuenta con rol `ADMIN` muestra el enlace **Panel de administración** en su perfil. Una cuenta cliente no tiene acceso. Cada endpoint revalida el rol vigente en una transacción; ocultar los controles no es la barrera de autorización.
 
 La interfaz amplía las herramientas HTTP del issue #34. Para asignación restringida de administradores se conserva `node scripts/grant-administrator.mjs correo` (consulta) y `--apply` (asigna rol, audita y revoca sesiones). Esta herramienta requiere acceso privilegiado local y no debe exponerse por HTTP.

@@ -33,7 +33,8 @@ const money = (cents, currency = 'MXN') => new Intl.NumberFormat('es-MX', { styl
       <nav aria-label="Páginas de pedidos" class="my-4 flex items-center gap-4"><UiButton variant="secondary" :disabled="page <= 1 || busy" @click="page--">Anterior</UiButton><span>Página {{ page }} de {{ data?.pages || 1 }}</span><UiButton variant="secondary" :disabled="page >= (data?.pages || 1) || busy" @click="page++">Siguiente</UiButton></nav>
     </template>
     <UiLoading v-if="detailBusy" label="Consultando detalle" />
-    <section v-if="selected" class="mt-6 rounded-sm border border-border p-4" aria-label="Detalle del pedido">
+    <UiModal :open="!!selected" :title="`Pedido ${selected?.number || ''}`" :busy="busy" @close="selected = null">
+      <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
       <h3 class="text-display-s font-bold">Pedido {{ selected.number }}</h3><p class="my-3">{{ states[selected.status] || selected.status }}</p><p class="break-all">Cliente: {{ selected.buyerName }} · {{ selected.buyerEmail }}</p>
       <ul><li v-for="(line, index) in selected.lines" :key="index" class="my-2">{{ line.quantity }} × {{ line.name }} · {{ line.sku }} · {{ money(line.lineAfterCouponCents, selected.currency) }}</li></ul>
       <p class="my-3 font-semibold">Total: {{ money(selected.totalMoneyCents, selected.currency) }}</p>
@@ -41,6 +42,6 @@ const money = (cents, currency = 'MXN') => new Intl.NumberFormat('es-MX', { styl
       <h4 class="mt-4 font-semibold">Historial</h4><ul><li v-for="(item, index) in selected.history" :key="index">{{ states[item.status] || item.status }} · {{ new Date(item.date).toLocaleString('es-MX') }}</li></ul>
       <form v-if="next[selected.status] && ['PAID', 'NOT_REQUIRED', 'PARTIALLY_REFUNDED'].includes(selected.moneyStatus)" class="mt-6 grid gap-4" @submit.prevent="advance"><UiField id="order-reason" v-model="reason" label="Motivo del cambio de estado" required maxlength="500" /><UiButton type="submit" :disabled="busy">Marcar como {{ states[next[selected.status]].toLowerCase() }}</UiButton></form>
       <UiButton variant="secondary" class="mt-4" :disabled="busy" @click="selected = null">Cerrar detalle</UiButton>
-    </section>
+    </UiModal>
   </div>
 </template>

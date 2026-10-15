@@ -1,5 +1,11 @@
 # Guía para explicar y demostrar la plataforma
 
+## Formularios administrativos en modales
+
+En `/admin`, pulsa **Crear producto en borrador**, **Gestionar**, **Crear tipo de suplemento o categoría**, **Agregar imagen**, **Configurar almacén inicial**, **Editar almacén**, **Registrar lote**, **Ajustar lote**, **Desactivar usuario** o **Ver pedido** según la sección. Cada formulario aparece en un diálogo modal mediante `UiModal.vue`; las operaciones y validaciones del servidor se conservan. Cerrar o Escape devuelve el foco al control de apertura; durante una petición se bloquea el cierre. Los fallos se muestran dentro del modal para corregir y reintentar.
+
+Verificación de este cambio: compilación de las plantillas Vue y compilación Docker. La interacción visual en navegador queda pendiente de comprobar.
+
 Esta guía documenta la implementación del repositorio para preparar la exposición. Se ampliará con los siguientes requisitos que se revisen. Fecha de revisión del código: 15 de octubre de 2026.
 
 Las instrucciones de demostración son pasos para realizar en el navegador; no significan que se haya ejecutado una prueba visual en esta revisión. Usar una cuenta de prueba identificada como tal para registrar usuarios, cambiar contraseñas o agregar direcciones. No incluir contraseñas, cookies ni claves secretas en las evidencias.

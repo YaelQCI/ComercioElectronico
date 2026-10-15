@@ -5,6 +5,7 @@ import WarehouseInformation from './WarehouseInformation.vue'
 const page = ref(1)
 const { data, status, error, refresh } = await useFetch('/api/admin/inventory', { query: { page } })
 const { busy, failure, message, save } = useAdministration(refresh)
+const lotOpen = ref(false), warehouseOpen = ref(false)
 const lot = reactive({ sku: '', warehouseId: '', lotCode: '', expiresOn: '', reason: '' })
 const selected = ref(null), adjustment = reactive({ delta: '', reason: '' }), adjustmentKey = ref('')
 watch(adjustment, () => { adjustmentKey.value = '' })
@@ -14,9 +15,12 @@ async function adjust() {
   if (await save('/api/admin/inventory', { lotId: selected.value.id, delta: Number(adjustment.delta), reason: adjustment.reason, idempotencyKey: adjustmentKey.value })) selected.value = null
 }
 async function createLot() {
-  if (await save('/api/admin/lots', { ...lot })) Object.assign(lot, { sku: '', warehouseId: '', lotCode: '', expiresOn: '', reason: '' })
+  if (await save('/api/admin/lots', { ...lot })) { Object.assign(lot, { sku: '', warehouseId: '', lotCode: '', expiresOn: '', reason: '' }); lotOpen.value = false }
 }
 const warehouse = reactive(Object.fromEntries([...warehouseFields.map(field => [field.key, '']), ['reason', '']]))
+async function createWarehouse() {
+  if (await save('/api/admin/warehouse', { ...warehouse })) warehouseOpen.value = false
+}
 async function warehouseSaved() {
   failure.value = ''; message.value = 'Información del almacén actualizada.'
   await refresh()
@@ -30,10 +34,11 @@ async function warehouseSaved() {
     <div v-else-if="error" role="alert"><p>No se pudo cargar el inventario.</p><UiButton @click="refresh">Reintentar</UiButton></div>
     <template v-else>
       <WarehouseInformation v-for="item in data?.warehouses" :key="item.id" :warehouse="item" @saved="warehouseSaved" @refresh="refresh" />
-      <details v-if="!data?.warehouses.length" class="my-6 rounded-sm border border-border p-4">
-        <summary class="min-h-11 cursor-pointer font-semibold">Configurar almacén inicial</summary>
+      <UiButton v-if="!data?.warehouses.length" class="my-4 mr-3" aria-haspopup="dialog" @click="warehouseOpen = true">Configurar almacén inicial</UiButton>
+      <UiModal :open="warehouseOpen" title="Configurar almacén inicial" :busy="busy" @close="warehouseOpen = false">
+        <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
         <p class="my-3">Registra los datos reales del almacén antes de crear lotes. No se generan datos comerciales de ejemplo.</p>
-        <form @submit.prevent="save('/api/admin/warehouse', { ...warehouse })">
+        <form @submit.prevent="createWarehouse">
           <fieldset :disabled="busy" class="grid min-w-0 gap-4 md:grid-cols-2">
             <legend class="sr-only">Configuración inicial del almacén</legend>
             <UiField v-for="field in warehouseFields" :id="`warehouse-${field.key}`" :key="field.key" v-model="warehouse[field.key]" :label="field.label" :type="field.type || 'text'" :options="field.options" :required="!field.optional" :maxlength="field.options ? undefined : field.maxlength || 120" :pattern="field.pattern" :inputmode="field.inputmode" />
@@ -41,19 +46,21 @@ async function warehouseSaved() {
             <UiButton type="submit" :disabled="busy">Configurar almacén</UiButton>
           </fieldset>
         </form>
-      </details>
-      <details class="my-6 rounded-sm border border-border p-4"><summary class="min-h-11 cursor-pointer font-semibold">Registrar lote</summary><p class="my-3 text-ink-2">El lote comienza con cero piezas. Registra después una entrada con su motivo.</p><form class="grid gap-4 md:grid-cols-2" @submit.prevent="createLot">
+      </UiModal>
+      <UiButton class="my-4" aria-haspopup="dialog" @click="lotOpen = true">Registrar lote</UiButton>
+      <UiModal :open="lotOpen" title="Registrar lote" :busy="busy" @close="lotOpen = false"><p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p><p class="my-3 text-ink-2">El lote comienza con cero piezas. Registra después una entrada con su motivo.</p><form class="grid gap-4 md:grid-cols-2" @submit.prevent="createLot">
         <UiField id="lot-sku" v-model="lot.sku" label="SKU de la variante" required />
         <UiField id="lot-warehouse" v-model="lot.warehouseId" label="Almacén" :options="[{ value: '', label: 'Selecciona un almacén' }, ...(data?.warehouses || []).map(w => ({ value: w.id, label: w.name }))]" required />
         <UiField id="lot-code" v-model="lot.lotCode" label="Código de lote" required maxlength="120" />
         <UiField id="lot-expiry" v-model="lot.expiresOn" label="Caducidad (opcional)" type="date" />
         <UiField id="lot-reason" v-model="lot.reason" label="Motivo del alta" required maxlength="500" />
         <UiButton type="submit" :disabled="busy || !data?.warehouses.length">Registrar lote</UiButton>
-      </form></details>
+      </form></UiModal>
       <p v-if="!data?.lots.length" class="my-6">No hay lotes registrados.</p>
       <ul class="grid gap-4"><li v-for="item in data?.lots" :key="item.id" class="rounded-sm border border-border bg-surface p-4"><h3 class="font-semibold">{{ item.sku }} · {{ item.lotCode }}</h3><p>{{ item.warehouse }} · Caducidad: {{ item.expiresOn || 'Sin registrar' }}{{ item.isBlocked ? ' · Bloqueado' : '' }}</p><dl class="my-3 flex flex-wrap gap-6"><div><dt class="text-body-s text-ink-2">Existencias</dt><dd>{{ item.onHandQty }}</dd></div><div><dt class="text-body-s text-ink-2">Reservadas</dt><dd>{{ item.reservedQty }}</dd></div><div><dt class="text-body-s text-ink-2">No vendibles</dt><dd>{{ item.nonSellableQty }}</dd></div></dl><UiButton variant="secondary" :disabled="busy" @click="select(item)">Ajustar lote {{ item.lotCode }}</UiButton></li></ul>
       <nav aria-label="Páginas de inventario" class="my-4 flex items-center gap-4"><UiButton variant="secondary" :disabled="page <= 1 || busy" @click="page--">Anterior</UiButton><span>Página {{ page }} de {{ data?.pages || 1 }}</span><UiButton variant="secondary" :disabled="page >= (data?.pages || 1) || busy" @click="page++">Siguiente</UiButton></nav>
-      <form v-if="selected" class="mt-6 grid gap-4 rounded-sm border border-border p-4" @submit.prevent="adjust"><h3 class="font-semibold">Ajuste: {{ selected.sku }} · {{ selected.lotCode }}</h3><UiField id="stock-delta" v-model="adjustment.delta" label="Cantidad de piezas a agregar o retirar" type="number" step="1" min="-2147483647" max="2147483647" hint="Positivo para entradas y negativo para salidas. No se pueden retirar piezas reservadas." required /><UiField id="stock-reason" v-model="adjustment.reason" label="Motivo del ajuste" required maxlength="500" /><div class="flex gap-3"><UiButton type="submit" :disabled="busy || !Number(adjustment.delta)">Guardar ajuste</UiButton><UiButton variant="secondary" :disabled="busy" @click="selected = null">Cancelar</UiButton></div></form>
+      <UiModal :open="!!selected" title="Ajustar inventario" :busy="busy" @close="selected = null"><p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
+      <form class="mt-6 grid gap-4 rounded-sm border border-border p-4" @submit.prevent="adjust"><h3 class="font-semibold">Ajuste: {{ selected.sku }} · {{ selected.lotCode }}</h3><UiField id="stock-delta" v-model="adjustment.delta" label="Cantidad de piezas a agregar o retirar" type="number" step="1" min="-2147483647" max="2147483647" hint="Positivo para entradas y negativo para salidas. No se pueden retirar piezas reservadas." required /><UiField id="stock-reason" v-model="adjustment.reason" label="Motivo del ajuste" required maxlength="500" /><div class="flex gap-3"><UiButton type="submit" :disabled="busy || !Number(adjustment.delta)">Guardar ajuste</UiButton><UiButton variant="secondary" :disabled="busy" @click="selected = null">Cancelar</UiButton></div></form></UiModal>
     </template>
   </div>
 </template>
