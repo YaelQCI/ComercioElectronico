@@ -22,6 +22,6 @@ const controlClass = 'min-h-11 w-full rounded-sm border border-border bg-surface
       </button>
     </div>
     <p v-if="hint && !error" :id="`${id}-hint`" class="mt-2 text-body-s text-ink-2">{{ hint }}</p>
-    <p v-if="error" :id="`${id}-error`" class="mt-2 text-body-s text-crit">{{ error }}</p>
+    <p v-if="error" :id="`${id}-error`" role="alert" class="mt-2 text-body-s text-crit">{{ error }}</p>
   </div>
 </template>

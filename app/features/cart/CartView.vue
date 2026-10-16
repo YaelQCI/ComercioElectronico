@@ -37,7 +37,7 @@ function update(line) {
     <UiLoading v-if="status === 'pending'" label="Recuperando carrito…" :cards="1" />
     <div v-else-if="error" role="alert"><p class="mt-6">No pudimos recuperar tu carrito.</p><UiButton class="mt-4" @click="refresh()">Reintentar</UiButton></div>
     <template v-else-if="data?.lines.length">
-      <ul v-if="changes.length" role="status" class="mt-4 text-body-s text-crit"><li v-for="notice in changes" :key="notice">{{ notice }}</li></ul>
+      <ul v-if="changes.length" role="alert" class="mt-4 text-body-s text-crit"><li v-for="notice in changes" :key="notice">{{ notice }}</li></ul>
       <p class="mt-4">{{ data.pieces }} piezas en {{ data.products }} líneas de producto. El carrito no reserva existencias.</p>
       <ul class="mt-6 space-y-4"><li v-for="line in data.lines" :key="line.id" class="rounded-sm border border-line bg-surface p-4">
         <div class="flex flex-wrap gap-4"><div class="h-28 w-28 shrink-0"><UiImage :src="line.image?.url" :alt="line.image?.alt ?? line.name" /></div><div><NuxtLink v-if="line.productId" :to="{ path: `/producto/${line.productId}`, query: { variante: line.variantId } }" class="font-semibold underline">{{ line.name }}</NuxtLink><span v-else class="font-semibold">{{ line.name }}</span><p>{{ line.presentation }} · SKU {{ line.sku }}</p><p>{{ line.quantity }} × {{ formatMXN(line.unitPriceCents) }} = {{ formatMXN((BigInt(line.unitPriceCents) * BigInt(line.quantity)).toString()) }}</p></div></div>
