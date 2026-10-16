@@ -12,4 +12,12 @@ Contrato de snapshots de checkout: cada OrderComponent.productSnapshot contiene 
 
 Validación: tres pruebas puras específicas, regresión de nueve pruebas de precios, prueba PostgreSQL de aplicar/revalidar/reemplazar y tres pruebas de reservas (último uso concurrente, consumo/liberación idempotentes, correo normalizado, reconciliación, vencimiento y cambio de versión). Build y HTTP se verifican antes del commit. Fixtures aisladas, sin pagos ni cupones comerciales reales.
 
-Pendiente: coordinación final desde checkout/Stripe/worker (#24/#25), snapshots de compra de combos, cuentas (#23) y herramientas administrativas (#34). Se probaron primitivas, no un pedido comercial confirmado con todos sus recursos. Validación visual/teclado/tacto y datos definitivos siguen pendientes.
+## Administración (#19 / #34)
+
+En Administración → Cupones se pueden crear y editar descuentos fijos en MXN o porcentajes con hasta dos decimales, activar o desactivar, configurar vigencia, compra mínima elegible, límites globales y por cliente, y aplicar al catálogo, productos o categorías. Ofertas y paquetes se excluyen de forma predeterminada. Las fechas se capturan en el horario del dispositivo y se guardan en UTC. Sin fecha o límite se entiende sin restricción correspondiente.
+
+El listado pagina diez cupones y muestra usos reservados, consumidos y liberados. Los reservados y consumidos ocupan el límite global. No se eliminan cupones ni se permite cambiar su código. Cada escritura exige administrador vigente y motivo, y registra auditoría. Las ediciones bloquean el cupón, verifican la versión e incrementan esta para exigir nueva aceptación en checkout. Los pedidos pagados conservan sus snapshots. No se puede reducir el límite global por debajo de los usos ocupados.
+
+Se reutilizan las tablas existentes: esta sección no necesita migraciones ni crea promociones comerciales automáticamente. Puede conservar asociaciones históricas desactivadas para permitir desactivar un cupón existente; solo se añaden productos y categorías activos. Los endpoints son `/api/admin/coupons` (GET/POST), `/api/admin/coupons/:id` (PATCH) y `/api/admin/coupons/options` (GET). Las mutaciones verifican origen y todas las operaciones comprueban permisos en el servidor.
+
+Validación del apartado: pruebas de entrada, permisos, duplicados, alcances, rollback, edición concurrente, historial y paginación en PostgreSQL aislado. `scripts/check-coupons-browser.mjs` comprueba alta, selección, decimales, error/reintento, edición, desactivación, cierre y ancho móvil en navegador con APIs simuladas. La coordinación de reservas/consumo/liberación ya se utiliza desde pagos; esto no equivale a validar una promoción comercial definitiva. No se han creado cupones en producción.

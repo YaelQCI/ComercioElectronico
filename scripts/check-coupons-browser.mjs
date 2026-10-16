@@ -1,0 +1,136 @@
+// Chrome/Edge headless con CDP; sin dependencia adicional de automatización.
+import assert from 'node:assert/strict'
+import { spawn } from 'node:child_process'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, dirname, resolve, basename } from 'node:path'
+
+const base = process.env.TEST_HTTP_URL
+const executable = process.env.TEST_BROWSER_PATH
+if (!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(base ?? '') || !executable) throw Error('Configura TEST_HTTP_URL local y TEST_BROWSER_PATH con Chrome o Edge.')
+const profile = await mkdtemp(join(tmpdir(), 'fitness-coupon-admin-'))
+const browser = spawn(executable, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore', windowsHide: true })
+let socket
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+async function until(fn) {
+  for (let i = 0; i < 100; i++) { const result = await Promise.resolve().then(fn).catch(() => false); if (result) return result; await sleep(100) }
+  throw Error('La comprobación del navegador excedió 10 segundos.')
+}
+try {
+  browser.on('error', error => { console.error(error.message) })
+  const port = await until(async () => (await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0])
+  const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()
+  socket = new WebSocket(targets.find(target => target.type === 'page').webSocketDebuggerUrl)
+  await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject })
+  let sequence = 0
+  const pending = new Map()
+  socket.onmessage = event => {
+    const message = JSON.parse(event.data)
+    if (message.id && pending.has(message.id)) {
+      const { resolve, reject, timer } = pending.get(message.id)
+      clearTimeout(timer); pending.delete(message.id)
+      if (message.error) reject(Error(message.error.message)); else resolve(message.result)
+    }
+  }
+  function command(method, params = {}) {
+    return new Promise((resolve, reject) => {
+      const id = ++sequence
+      const timer = setTimeout(() => { pending.delete(id); reject(Error(`Sin respuesta CDP: ${method}`)) }, 10000)
+      pending.set(id, { resolve, reject, timer })
+      socket.send(JSON.stringify({ id, method, params }))
+    })
+  }
+  async function evaluate(expression) {
+    const result = await command('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true })
+    if (result.exceptionDetails) throw Error(result.exceptionDetails.text)
+    return result.result.value
+  }
+
+
+
+  const user = { id: '10000000-0000-4000-8000-000000000001', role: 'ADMIN', email: 'fixture@example.invalid', displayName: 'Fixture' }
+  const product = { id: '20000000-0000-4000-8000-000000000001', name: 'Producto sintético' }
+  let authenticated = false, rejectSave = true, captured, coupon = null, reads = 0
+  const exceptions = []
+  socket.onmessage = async event => {
+    const message = JSON.parse(event.data)
+    if (message.id && pending.has(message.id)) {
+      const entry = pending.get(message.id); clearTimeout(entry.timer); pending.delete(message.id)
+      if (message.error) entry.reject(Error(message.error.message)); else entry.resolve(message.result)
+    }
+    if (message.method === 'Runtime.exceptionThrown') exceptions.push(message.params.exceptionDetails)
+    if (message.method !== 'Fetch.requestPaused') return
+    const { requestId, request } = message.params, path = new URL(request.url).pathname
+    let payload = {}, responseCode = 200
+    if (path === '/api/account/login') { authenticated = true; payload = { user } }
+    else if (path === '/api/account/session') payload = { user: authenticated ? user : null }
+    else if (path === '/api/account/profile') payload = { user, addresses: [] }
+    else if (path === '/api/account/points') payload = { balanceTenths: '0', availableTenths: '0', reservedTenths: '0', movements: [], pages: 0 }
+    else if (path === '/api/admin/catalog') payload = { products: [], total: 0, pages: 0, page: 1 }
+    else if (path === '/api/admin/categories') payload = { categories: [] }
+    else if (path === '/api/admin/catalog/options') payload = { brands: [], products: [] }
+    else if (path === '/api/admin/coupons/options') payload = { products: [product], categories: [] }
+    else if (path.startsWith('/api/admin/coupons') && request.method !== 'GET') {
+      captured = JSON.parse(request.postData)
+      if (rejectSave) { responseCode = 409; payload = { statusMessage: 'Ya existe un cupón con ese código.' } }
+      else {
+        coupon = { ...captured, id: '30000000-0000-4000-8000-000000000001', version: (coupon?.version ?? 0) + 1, products: captured.productIds.length ? [product] : [], categories: [], uses: { RESERVED: 0, CONSUMED: 0, RELEASED: 0 } }
+        payload = { coupon }
+      }
+    } else if (path === '/api/admin/coupons') { reads++; payload = { coupons: coupon ? [coupon] : [], total: coupon ? 1 : 0, page: 1, pages: 1 } }
+    void command('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }], body: Buffer.from(JSON.stringify(payload)).toString('base64') })
+  }
+  await command('Page.enable'); await command('Runtime.enable')
+  await command('Fetch.enable', { patterns: [{ urlPattern: '*/api/account/*' }, { urlPattern: '*/api/admin/*' }] })
+  await command('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false })
+  await command('Page.navigate', { url: base + '/cuenta' })
+  await until(() => evaluate("!!document.querySelector('#__nuxt')?.__vue_app__"))
+  async function fill(id, value, event = 'input') { await evaluate(`(()=>{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event(${JSON.stringify(event)},{bubbles:true}));})()`); await sleep(80) }
+  async function click(text) { await evaluate(`[...document.querySelectorAll('button')].find(e=>e.textContent.trim()===${JSON.stringify(text)}).click()`); await sleep(150) }
+  await fill('account-email', user.email); await fill('account-password', 'SyntheticPassword123!')
+  await evaluate('document.querySelector("#account-email").closest("form").requestSubmit()')
+  await until(() => evaluate(`!!document.querySelector('a[href="/admin"]')`))
+  await evaluate(`document.querySelector('a[href="/admin"]').click()`)
+  await until(() => evaluate('document.body.textContent.includes("Registrar administrador")'))
+  await click('Cupones'); await until(() => reads > 0)
+  await click('Crear cupón')
+  await until(() => evaluate('!!document.querySelector("dialog[open] #coupon-code")'))
+  await fill('coupon-code', 'PRUEBA10'); await fill('coupon-amount', '12.50'); await fill('coupon-minimum', '500.00')
+  await fill('coupon-scope', 'PRODUCTS', 'change')
+  await until(() => evaluate('document.querySelector("dialog[open]").textContent.includes("Producto sintético")'))
+  await evaluate(`[...document.querySelectorAll('dialog label')].find(e=>e.textContent.includes('Producto sintético')).querySelector('input').click()`)
+  await fill('coupon-limit', '20'); await fill('coupon-customer-limit', '1'); await fill('coupon-reason', 'Campaña sintética')
+  await evaluate('document.querySelector("#coupon-code").closest("form").requestSubmit()')
+  await until(() => evaluate('!!document.querySelector("dialog[open] [role=alert]")'))
+  assert.equal(await evaluate('document.querySelector("#coupon-code").value'), 'PRUEBA10')
+  rejectSave = false
+  await evaluate('document.querySelector("#coupon-code").closest("form").requestSubmit()')
+  await until(() => evaluate('!document.querySelector("dialog[open]")'))
+  assert.equal(captured.percentageBasisPoints, 1250)
+  assert.equal(captured.minimumEligibleCents, '50000')
+  assert.deepEqual(captured.productIds, [product.id])
+  assert.equal(captured.maxUses, 20)
+  assert.equal(captured.maxUsesPerCustomer, 1)
+  await click('Editar / activar o desactivar')
+  await until(() => evaluate('!!document.querySelector("dialog[open]")'))
+  assert.equal(await evaluate('document.querySelector("#coupon-code").disabled'), true)
+  assert.equal(await evaluate('document.querySelector("#coupon-amount").value'), '12.50')
+  await evaluate(`[...document.querySelectorAll('dialog label')].find(e=>e.textContent.includes('Cupón activo')).querySelector('input').click()`)
+  await fill('coupon-reason', 'Finalizar campaña sintética')
+  await click('Guardar cambios')
+  await until(() => evaluate('!document.querySelector("dialog[open]")'))
+  assert.equal(captured.expectedVersion, 1); assert.equal(captured.isActive, false)
+  await command('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true })
+  await click('Crear cupón')
+  assert.equal(await evaluate('document.querySelector("#coupon-code").value'), '')
+  assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'), true)
+  await evaluate('document.querySelector("dialog[open]").dispatchEvent(new Event("cancel",{cancelable:true}))')
+  await until(() => evaluate('!document.querySelector("dialog[open]")'))
+  assert.deepEqual(exceptions, [])
+  console.log('Cupones: alta, selección de producto, precisión decimal, error, reintento, edición, desactivación, cierre y ancho móvil correctos. APIs simuladas; sin escrituras comerciales.')
+} finally {
+  socket?.close()
+  browser.kill()
+  if (dirname(resolve(profile)) !== resolve(tmpdir()) || !basename(profile).startsWith('fitness-coupon-admin-')) throw Error('Directorio temporal inesperado.')
+  await until(async () => { await rm(profile, { recursive: true, force: true }); return true }).catch(() => {})
+}
