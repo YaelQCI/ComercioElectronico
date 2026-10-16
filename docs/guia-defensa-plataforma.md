@@ -1,5 +1,17 @@
 # Guía para explicar y demostrar la plataforma
 
+## Error de caja apta al cotizar
+
+La consulta de solo lectura al entorno local confirmó que `PackageType` no tiene registros. Por eso `choosePackage`, en `shared/features/shipping/pack-order.js`, no encuentra una caja para el pedido y detiene la cotización antes de consultar Envia. No es un rechazo del token ni de la dirección del cliente.
+
+Para continuar se requieren cajas activas con código, dimensiones interiores y exteriores en milímetros, peso de la caja vacía en gramos y, opcionalmente, peso bruto máximo. Las variantes requieren peso y dimensiones válidos. El algoritmo comprueba que todos los artículos quepan en una sola caja, permitiendo rotaciones, y añade el peso de la caja al de los productos. No se insertaron medidas inventadas.
+
+En **Administración → Inventario → Cajas de envío**, pulsar **Agregar caja** para abrir el modal. Registrar código único, medidas y pesos reales y motivo. La lista muestra toda la configuración; **Editar caja** permite corregirla o cambiar su disponibilidad, incluyendo reactivar una caja. Las confirmaciones se muestran como toast y los errores permanecen dentro del modal. Las medidas deben ser enteros positivos, las exteriores no pueden ser menores que las interiores, el peso vacío permite cero y el máximo opcional debe superar ese peso. El código se normaliza a mayúsculas para evitar duplicados por capitalización.
+
+El módulo `server/features/shipping/manage-packages.js` exige administrador vigente dentro de una transacción, bloquea la caja al editar, comprueba su versión e incrementa esa versión. Cada alta o cambio registra motivo y datos anteriores/nuevos en auditoría. No se eliminan cajas ni se cambian los snapshots de pedidos existentes. La cotización vuelve a comprobar el empaque y su versión antes de la compra. No requiere migración: utiliza `PackageType`, ya presente en el esquema. Demostración: registrar una caja, editarla, desactivarla/reactivarla y volver a pulsar **Cotizar servicios** en el carrito. Registrar una caja no garantiza que cualquier pedido quepa; se siguen comprobando tamaño y peso.
+
+Verificación: compilación Docker correcta y suite aprobada, incluidas 87 pruebas PostgreSQL. La prueba de cajas comprueba permisos, medidas inválidas, códigos duplicados, ediciones simultáneas, auditoría, activación y uso de la caja en el cálculo de empaque. No se cargaron cajas ficticias en la base de la aplicación. Revisión visual y cotización con Envia pendientes.
+
 ## Mensaje «Cotización no configurada»
 
 Para obtener la configuración, crear primero una cuenta de [sandbox](https://accounts-sandbox.envia.com/signup), entrar al [panel de desarrolladores de pruebas](https://shipping-test.envia.com/settings/developers), abrir Desarrolladores → Acceso de API / API Keys y generar el token con Agregar. El token solo funciona en el entorno donde se generó ([autenticación oficial](https://docs.envia.com/docs/authentication)). Para la paquetería, consultar `GET https://queries.test.envia.com/carrier?country_code=MX` con `Authorization: Bearer <token>` y usar el valor exacto de `name` de una paquetería disponible como `NUXT_ENVIA_CARRIER`, no su descripción ([referencia oficial](https://docs.envia.com/reference/carriers-by-country)). Mantener `NUXT_ENVIA_ENVIRONMENT=test` para ese token. Configurar los valores en `.env.docker` y recrear app; no se necesita subirlos a Git ni compartirlos en el chat. La disponibilidad real depende del entorno, la cuenta y la ruta.

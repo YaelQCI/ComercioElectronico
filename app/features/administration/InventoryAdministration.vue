@@ -3,6 +3,7 @@ import { useAdministration } from './useAdministration.js'
 import { warehouseFields } from './warehouse-fields.js'
 import WarehouseInformation from './WarehouseInformation.vue'
 import LotVariantPicker from './LotVariantPicker.vue'
+import PackageAdministration from '../shipping/PackageAdministration.vue'
 const page = ref(1)
 const { data, status, error, refresh } = await useFetch('/api/admin/inventory', { query: { page } })
 const { busy, failure, message, save } = useAdministration(refresh)
@@ -36,6 +37,7 @@ async function warehouseSaved() {
     <div v-else-if="error" role="alert"><p>No se pudo cargar el inventario.</p><UiButton @click="refresh">Reintentar</UiButton></div>
     <template v-else>
       <WarehouseInformation v-for="item in data?.warehouses" :key="item.id" :warehouse="item" @saved="warehouseSaved" @refresh="refresh" />
+      <PackageAdministration />
       <UiButton v-if="!data?.warehouses.length" class="my-4 mr-3" aria-haspopup="dialog" @click="warehouseOpen = true">Configurar almacén inicial</UiButton>
       <UiModal :open="warehouseOpen" title="Configurar almacén inicial" :busy="busy" @close="warehouseOpen = false">
         <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
