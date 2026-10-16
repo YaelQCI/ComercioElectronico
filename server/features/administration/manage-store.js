@@ -6,6 +6,7 @@ import { adjustInventory } from '../inventory/adjust-inventory.js'
 import { isMexicanStateCode } from '../../../shared/features/shipping/mexican-states.js'
 import { publicImage } from '../catalog/catalog-repository.js'
 import { searchQuery, searchPattern } from '../../../shared/features/catalog/search.js'
+import { parseServings } from '../../../shared/features/catalog/servings.js'
 const id = value => { if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value ?? '')) throw new AccountError(400, 'Identificador inválido.'); return value }
 const cents = value => { if (typeof value !== 'string' || !/^(0|[1-9]\d{0,14})$/.test(value)) throw new AccountError(400, 'Precio inválido; utiliza centavos como texto.'); return BigInt(value) }
 function warehouseData(input) {
@@ -24,6 +25,7 @@ function variantData(input) {
   data.flavorNormalized = data.flavor.toLowerCase(); data.presentationNormalized = data.presentationLabel.toLowerCase()
   if (typeof input.contentAmount !== 'string' || !/^(?:0|[1-9]\d{0,9})(?:\.\d{1,4})?$/.test(input.contentAmount) || Number(input.contentAmount) <= 0) throw new AccountError(400, 'Contenido inválido.')
   data.contentAmount = input.contentAmount; data.priceCents = cents(input.priceCents)
+  try { data.servings = parseServings(input.servings) } catch (error) { throw new AccountError(400, error.message) }
   for (const key of ['weightGrams', 'lengthMm', 'widthMm', 'heightMm']) { if (!Number.isInteger(input[key]) || input[key] < 1 || input[key] > 2147483647) throw new AccountError(400, 'Medidas inválidas.'); data[key] = input[key] }
   return data
 }
@@ -41,14 +43,14 @@ async function changeVariant(tx, adminId, variantId, input, productId) {
   if (!product || product.deletedAt) throw new AccountError(409, 'El producto está desactivado.')
   if (current.priceVersion !== input.expectedPriceVersion) throw new AccountError(409, 'La variante cambió. Actualiza la información antes de guardar.')
   if (current.deletedAt) throw new AccountError(409, 'Una variante desactivada no se puede modificar.')
-  const merged = { ...current, contentAmount: current.contentAmount.toString(), priceCents: current.priceCents.toString(), ...input }
+  const merged = { ...current, contentAmount: current.contentAmount.toString(), priceCents: current.priceCents.toString(), servings: current.servings?.toString() ?? null, ...input }
   const data = variantData(merged)
   if (input.compareAtPriceCents !== undefined) data.compareAtPriceCents = input.compareAtPriceCents === null ? null : cents(input.compareAtPriceCents)
   if (input.deactivate === true) data.deletedAt = new Date()
   const previous = data.compareAtPriceCents !== undefined ? data.compareAtPriceCents : current.compareAtPriceCents
   if (previous !== null && previous <= data.priceCents) throw new AccountError(400, 'Precio anterior debe superar el vigente.')
   await tx.productVariant.update({ where: { id: variantId }, data: { ...data, priceVersion: { increment: 1 } } })
-  await audit(tx, adminId, 'ProductVariant', variantId, 'UPDATE_VARIANT', reason, { sku: current.sku, priceCents: current.priceCents.toString(), version: current.priceVersion }, { sku: data.sku, flavor: data.flavor, presentationLabel: data.presentationLabel, contentAmount: data.contentAmount, contentUnit: data.contentUnit, priceCents: data.priceCents.toString(), weightGrams: data.weightGrams, lengthMm: data.lengthMm, widthMm: data.widthMm, heightMm: data.heightMm, version: current.priceVersion+1, deactivated: !!data.deletedAt })
+  await audit(tx, adminId, 'ProductVariant', variantId, 'UPDATE_VARIANT', reason, { sku: current.sku, priceCents: current.priceCents.toString(), servings: current.servings?.toString() ?? null, version: current.priceVersion }, { sku: data.sku, flavor: data.flavor, presentationLabel: data.presentationLabel, contentAmount: data.contentAmount, contentUnit: data.contentUnit, servings: data.servings, priceCents: data.priceCents.toString(), weightGrams: data.weightGrams, lengthMm: data.lengthMm, widthMm: data.widthMm, heightMm: data.heightMm, version: current.priceVersion+1, deactivated: !!data.deletedAt })
   return { id: variantId, priceVersion: current.priceVersion+1 }
 }
 async function assignCategories(tx, productId, categoryIds) {
@@ -118,7 +120,7 @@ export function createStoreAdministration(db) {
           const total = await tx.product.count()
           const products = await tx.product.findMany({ skip: (page-1)*20, take: 20, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], include: { productVariant_product: { orderBy: { sku: 'asc' } }, productMedia_product: { include: { asset: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }] }, productCategory_product: { include: { category: true }, orderBy: [{ isPrimary: 'desc' }, { categoryId: 'asc' }] } } })
           const creationEvents = await tx.auditEvent.findMany({ where: { action: 'CREATE_DRAFT_PRODUCT', entityType: 'Product', entityId: { in: products.map(product => product.id) } }, select: { entityId: true, reason: true } })
-          return { total, page, pages: Math.ceil(total/20), products: products.map(p => ({ id: p.id, name: p.name, slug: p.slug, description: p.description, updatedAt: p.updatedAt.toISOString(), creationReason: creationEvents.find(event => event.entityId === p.id)?.reason ?? null, categories: p.productCategory_product.map(link => ({ id: link.categoryId, name: link.category.name, isPrimary: link.isPrimary, isActive: link.category.isActive })), published: !!p.publishedAt, deactivated: !!p.deletedAt, images: p.productMedia_product.map(publicImage).filter(Boolean), variants: p.productVariant_product.map(v => ({ id: v.id, sku: v.sku, flavor: v.flavor, presentationLabel: v.presentationLabel, contentAmount: v.contentAmount.toString(), contentUnit: v.contentUnit, weightGrams: v.weightGrams, lengthMm: v.lengthMm, widthMm: v.widthMm, heightMm: v.heightMm, priceCents: v.priceCents.toString(), compareAtPriceCents: v.compareAtPriceCents?.toString() ?? null, priceVersion: v.priceVersion, deactivated: !!v.deletedAt })) })) }
+          return { total, page, pages: Math.ceil(total/20), products: products.map(p => ({ id: p.id, name: p.name, slug: p.slug, description: p.description, updatedAt: p.updatedAt.toISOString(), creationReason: creationEvents.find(event => event.entityId === p.id)?.reason ?? null, categories: p.productCategory_product.map(link => ({ id: link.categoryId, name: link.category.name, isPrimary: link.isPrimary, isActive: link.category.isActive })), published: !!p.publishedAt, deactivated: !!p.deletedAt, images: p.productMedia_product.map(publicImage).filter(Boolean), variants: p.productVariant_product.map(v => ({ id: v.id, sku: v.sku, flavor: v.flavor, presentationLabel: v.presentationLabel, contentAmount: v.contentAmount.toString(), contentUnit: v.contentUnit, servings: v.servings?.toString() ?? null, weightGrams: v.weightGrams, lengthMm: v.lengthMm, widthMm: v.widthMm, heightMm: v.heightMm, priceCents: v.priceCents.toString(), compareAtPriceCents: v.compareAtPriceCents?.toString() ?? null, priceVersion: v.priceVersion, deactivated: !!v.deletedAt })) })) }
         }
         const total = await tx.inventoryLot.count()
         const lots = await tx.inventoryLot.findMany({ skip: (page-1)*20, take: 20, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], include: { variant: { select: { sku: true } }, warehouse: { select: { name: true } } } })

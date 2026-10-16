@@ -1,5 +1,9 @@
 # Panel de administración
 
+El alta y la edición de cada variante incluyen **Número de porciones por envase (opcional)**, tomado de la etiqueta. Acepta valores positivos con hasta cuatro decimales y punto decimal, o vacío si no aplica/no está documentado. Se guarda en `ProductVariant.servings`, columna existente, sin migración adicional. El administrador puede consultar, modificar o vaciar el valor; las ediciones conservan permisos, versión y auditoría. Cambiar otros datos sin enviar `servings` conserva el valor previo. El costo por porción y su filtro lo utilizan automáticamente.
+
+Verificación del campo de porciones: compilación de formulario y build Docker correctos; 72 pruebas unitarias y 84 PostgreSQL aprobadas, incluyendo el cambio efectivo del filtro al editar o eliminar porciones. Revisión visual pendiente. No se asignaron porciones inventadas a artículos existentes.
+
 El filtro público **Categorías** muestra todas las categorías activas registradas, incluidas las siete base y las adicionales, aunque no tengan productos publicados. Seleccionar una categoría vacía muestra cero resultados; no publica ni revela borradores. Las categorías inactivas se excluyen. Las opciones se consultan desde `Category` en `catalog-repository.js`, en lugar de derivarse únicamente de productos publicados.
 
 Verificación del filtro: build Docker, 71 pruebas unitarias y 83 PostgreSQL correctas; API y HTML SSR contienen las siete opciones, y una categoría vacía devuelve cero resultados. Esto no sustituye la revisión visual/interactiva en navegador.

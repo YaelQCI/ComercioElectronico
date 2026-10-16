@@ -1,5 +1,21 @@
 # Guía para explicar y demostrar la plataforma
 
+## Registrar el número de porciones
+
+En **Administrador → Productos → Crear producto en borrador** escribe el dato de la etiqueta en **Número de porciones por envase (opcional)**. Para un artículo existente, abre **Gestionar**, busca el campo dentro de su variante, modifica el valor e indica el motivo antes de **Guardar cambios**. Se precarga el valor actual. Puedes dejarlo vacío si no corresponde al artículo o desconoces el dato; vaciarlo elimina el dato y excluye esa variante del filtro por porción. No modifica el estado de publicación.
+
+Se admiten números positivos, hasta diez dígitos enteros y cuatro decimales con punto. El dato pertenece a cada variante/presentación. `parseServings` valida la entrada en servidor; `variantData` la guarda, la consulta administrativa la devuelve como texto y la edición registra valores anterior/nuevo en auditoría. Se reutiliza la columna `ProductVariant.servings`; no hace falta cambiar el esquema. Los campos de porción no se deducen del peso. Las pruebas cubren alta, edición, eliminación, permisos, formatos inválidos, conservación en ediciones ajenas y efecto en el filtro público.
+
+## Cómo funciona el filtro de costo por porción
+
+Divide el precio vigente de cada variante entre su número de porciones (`ProductVariant.servings`). Ejemplo ilustrativo: un bote de $600 MXN con 30 porciones cuesta $20 por porción y cumple **De $15 a $30 MXN**. No representa el precio del bote ni el costo por gramo. No incluye envío, cupones ni puntos; usa el precio vigente, no el precio anterior de referencia.
+
+Los límites son **Menos de $15**, **De $15 a $30** (incluye exactamente $15 y $30) y **Más de $30**. El filtro compara la razón exacta con enteros, sin redondear antes de clasificar; la etiqueta visible sí se redondea a centavos. Seleccionar varios rangos admite cualquiera de ellos; al combinar con disponibilidad, presentación o precio, una misma variante debe cumplir todos los grupos. El producto aparece si queda al menos una variante compatible.
+
+Si no existe el número de porciones, la variante no aparece al activar este filtro. El sistema no lo deduce del peso ni inventa porciones. El administrador puede registrar `servings` en el campo **Número de porciones por envase (opcional)** al crear o editar cada variante, usando el dato documentado de la etiqueta. Registrar stock no completa las porciones automáticamente.
+
+Para demostrarlo: abre `/catalogo`, despliega **Costo por porción**, marca un rango y compara el precio y número de porciones de una variante con esos datos registrados. Una consulta de ejemplo es `/catalogo?porcion=15-30`. Puede devolver cero resultados si las variantes publicadas carecen de porciones. Código: `servingRatio` en `shared/features/pricing/prices.js` y `filterProducts` en `shared/features/catalog/filters.js`. Las pruebas `tests/catalog/filters.test.mjs` verifican los límites exactos y la combinación entre filtros. Explicación revisada contra el código; no equivale a comprobación visual en navegador.
+
 ## Categorías sin productos en el filtro público
 
 En `/catalogo`, el filtro **Categorías** muestra todas las categorías activas del sistema, aunque todavía no tengan productos publicados. Así aparecen los siete tipos base desde el inicio. Al marcar un tipo vacío se muestra el estado sin resultados; los borradores y productos desactivados permanecen ocultos. `catalog-repository.js` consulta las opciones desde `Category`, mientras conserva el filtrado de los productos públicos. La prueba PostgreSQL de `catalog-search.test.mjs` verifica tipos base, categorías vacías, exclusión de inactivas y cero resultados al seleccionar una vacía.

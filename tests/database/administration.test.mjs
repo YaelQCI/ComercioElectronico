@@ -8,6 +8,8 @@ import { createAccounts } from '../../server/features/accounts/account-repositor
 import { deliveredFixture } from './order-fixture.mjs'
 import { createCartRepository } from '../../server/features/cart/cart-repository.js'
 import { createShippingQuotes } from '../../server/features/shipping/shipping-quotes.js'
+import { createCatalogRepository } from '../../server/features/catalog/catalog-repository.js'
+import { filterProducts, parseCatalogFilters } from '../../shared/features/catalog/filters.js'
 const url = process.env.TEST_DATABASE_URL
 if (!url || !new URL(url).pathname.startsWith('/fitness_migration_test')) throw new Error('Base aislada requerida.')
 const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) }), admin = createStoreAdministration(db)
@@ -81,6 +83,35 @@ test('buscador de variantes para lotes exige administrador, busca nombre/SKU e i
   await db.productVariant.updateMany({ where: { productId: product.id }, data: { deletedAt: null } })
   await admin.updateProduct(actor.id, product.id, { deactivate: true, reason: 'Fixture' })
   assert.equal((await admin.searchLotVariants(actor.id, code)).variants.length, 0)
+})
+
+test('porciones se crean, editan y eliminan por variante, actualizan el filtro y validan permisos', async () => {
+  const actor = await user('ADMIN'), customer = await user(), code = randomUUID()
+  const input = { name: 'Porciones sintéticas', slug: code, description: 'Solo pruebas', reason: 'Fixture', variants: [{ sku: code.toUpperCase(), flavor: 'Fixture', presentationLabel: 'Bote', contentAmount: '1000', contentUnit: 'g', priceCents: '60000', servings: '30', weightGrams: 1000, lengthMm: 100, widthMm: 100, heightMm: 100 }] }
+  const product = await admin.createDraft(actor.id, input)
+  const variant = await db.productVariant.findFirst({ where: { productId: product.id } })
+  assert.equal(variant.servings.toString(), '30')
+  const overview = await admin.overview(actor.id, 'products')
+  assert.equal(overview.products.find(p => p.id === product.id).variants[0].servings, '30')
+  const publication = new Date('2026-01-01T00:00:00Z')
+  await db.product.update({ where: { id: product.id }, data: { publishedAt: publication } })
+  const repository = createCatalogRepository(db)
+  const matches = async bucket => filterProducts([await repository.getById(product.id)], parseCatalogFilters({ porcion: bucket })).length
+  assert.equal(await matches('15-30'), 1)
+  const change = { servings: '60', expectedPriceVersion: 1, reason: 'Actualizar etiqueta sintética' }
+  await assert.rejects(admin.updateVariant(customer.id, variant.id, change), e => e.status === 403)
+  await admin.updateProduct(actor.id, product.id, { variants: [{ id: variant.id, ...change }], reason: change.reason })
+  assert.equal(await matches('menos-15'), 1)
+  assert.equal((await db.product.findUnique({ where: { id: product.id } })).publishedAt.toISOString(), publication.toISOString())
+  for (const servings of ['0', '-1', '2.12345', '10000000000', 30]) await assert.rejects(admin.updateVariant(actor.id, variant.id, { servings, expectedPriceVersion: 2, reason: 'Fixture' }), e => e.status === 400)
+  assert.equal((await db.productVariant.findUnique({ where: { id: variant.id } })).servings.toString(), '60')
+  await admin.updateVariant(actor.id, variant.id, { priceCents: '66000', expectedPriceVersion: 2, reason: 'Cambiar solo precio' })
+  assert.equal((await db.productVariant.findUnique({ where: { id: variant.id } })).servings.toString(), '60')
+  await admin.updateVariant(actor.id, variant.id, { servings: null, expectedPriceVersion: 3, reason: 'Dato sin documentar' })
+  assert.equal(await matches('menos-15'), 0)
+  assert.equal((await db.productVariant.findUnique({ where: { id: variant.id } })).servings, null)
+  const audit = await db.auditEvent.findFirst({ where: { entityId: variant.id, reason: change.reason } })
+  assert.equal(audit.safeBefore.servings, '30'); assert.equal(audit.safeAfter.servings, '60')
 })
 
 test('ajuste por ledger idempotente y desactivación de cuenta revoca sesiones', async () => {
