@@ -1,5 +1,9 @@
 # Guía para explicar y demostrar la plataforma
 
+## Abrir productos desde inventario
+
+En **Administrador → Inventario**, pulsa el nombre, las existencias o el espacio de una tarjeta de lote para abrir la página del producto con la variante seleccionada. **Ajustar lote** sigue abriendo el modal sin navegar. Se usa un enlace nativo extendido a la tarjeta con foco visible, sin anidar el botón dentro del enlace; permite Tab, Enter y abrir en otra pestaña. La consulta administrativa devuelve `productId`, `variantId` y nombre para construir el enlace. Las reglas de acceso público siguen vigentes: un producto sin publicación no queda expuesto por este enlace. Prueba de servidor: el DTO del lote conserva los IDs y el nombre correctos. Interacción visual en navegador pendiente.
+
 ## Registrar el número de porciones
 
 En **Administrador → Productos → Crear producto en borrador** escribe el dato de la etiqueta en **Número de porciones por envase (opcional)**. Para un artículo existente, abre **Gestionar**, busca el campo dentro de su variante, modifica el valor e indica el motivo antes de **Guardar cambios**. Se precarga el valor actual. Puedes dejarlo vacío si no corresponde al artículo o desconoces el dato; vaciarlo elimina el dato y excluye esa variante del filtro por porción. No modifica el estado de publicación.

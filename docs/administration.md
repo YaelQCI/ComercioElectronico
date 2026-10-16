@@ -1,5 +1,9 @@
 # Panel de administración
 
+Las tarjetas de lotes en **Inventario** enlazan a `/producto/:id?variante=:variantId` al pulsar su superficie o título, con navegación nativa mediante teclado y apertura en otra pestaña. Muestran nombre del producto, SKU y lote. **Ajustar lote** conserva su acción independiente por encima del enlace. El destino público mantiene sus reglas de publicación: navegar desde inventario no expone borradores ni productos desactivados.
+
+Verificación de tarjetas: build Docker correcto, 72 pruebas unitarias y 84 PostgreSQL aprobadas; la prueba administrativa comprueba producto, variante y nombre de cada lote. Salud HTTP correcta. Revisión visual y de clics pendiente en navegador.
+
 El alta y la edición de cada variante incluyen **Número de porciones por envase (opcional)**, tomado de la etiqueta. Acepta valores positivos con hasta cuatro decimales y punto decimal, o vacío si no aplica/no está documentado. Se guarda en `ProductVariant.servings`, columna existente, sin migración adicional. El administrador puede consultar, modificar o vaciar el valor; las ediciones conservan permisos, versión y auditoría. Cambiar otros datos sin enviar `servings` conserva el valor previo. El costo por porción y su filtro lo utilizan automáticamente.
 
 Verificación del campo de porciones: compilación de formulario y build Docker correctos; 72 pruebas unitarias y 84 PostgreSQL aprobadas, incluyendo el cambio efectivo del filtro al editar o eliminar porciones. Revisión visual pendiente. No se asignaron porciones inventadas a artículos existentes.

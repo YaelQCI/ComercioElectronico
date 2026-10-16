@@ -147,6 +147,10 @@ test('consultas administrativas, creación de lotes y protección de informació
   assert.equal(lot.onHandQty, 0)
   assert.equal(lot.variantId, f.variant.id)
   assert.equal(lot.expiresOn.toISOString().slice(0,10), input.expiresOn)
+  const lotCard = (await admin.overview(actor.id, 'inventory')).lots.find(item => item.id === lot.id)
+  assert.equal(lotCard.productId, f.variant.productId)
+  assert.equal(lotCard.variantId, f.variant.id)
+  assert.equal(lotCard.productName, (await db.product.findUnique({ where: { id: f.variant.productId } })).name)
   await admin.adjustStock(actor.id, { lotId: lot.id, delta: 5, reason: 'Entrada sintética', idempotencyKey: randomUUID() })
   assert.equal((await db.inventoryLot.findUnique({ where: { id: lot.id } })).onHandQty, 5)
   for (const initialQuantity of [-1, 1.5, 2147483648, '12', null]) {
