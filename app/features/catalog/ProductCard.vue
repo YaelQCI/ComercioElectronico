@@ -30,8 +30,9 @@ const productPath = computed(() => ({ path: `/producto/${props.product.id}`, que
       </div>
       <p v-if="pricing?.servingCostLabel" class="mt-3 font-mono text-label leading-relaxed text-ink-2">{{ pricing.servingCostLabel.replace(' MXN', '') }} · {{ variant.servings }} porciones<template v-if="variant.servingAmount && variant.servingUnit"> · {{ variant.servingAmount }} {{ variant.servingUnit }}</template></p>
       <div class="relative z-10 mt-auto pt-4">
-        <UiButton class="w-full" :disabled="cart.busy.value || !available" :aria-label="`Agregar ${product.name} al carrito${variant ? `, ${variant.presentationLabel}, ${variant.flavor}` : ''}`" @click="cart.add(variant.id, 1)">{{ available ? 'Agregar al carrito' : 'Sin existencias' }}</UiButton>
-        <RestockForm v-if="variant && !available" :variant-id="variant.id" :sku="variant.sku" :presentation="`${variant.presentationLabel} · ${variant.flavor}`" />
+        <UiButton v-if="available" class="w-full" :disabled="cart.busy.value" :aria-label="`Agregar ${product.name} al carrito${variant ? `, ${variant.presentationLabel}, ${variant.flavor}` : ''}`" @click="cart.add(variant.id, 1)">Agregar al carrito</UiButton>
+        <RestockForm v-else-if="variant" compact :variant-id="variant.id" :sku="variant.sku" :presentation="`${variant.presentationLabel} · ${variant.flavor}`" />
+        <UiButton v-else class="w-full" disabled>Sin existencias</UiButton>
       </div>
     </div>
   </article>

@@ -823,6 +823,16 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 **Frase para exponer:** “El catálogo permite buscar por nombre, SKU o categoría y combinar filtros de disponibilidad, presentación y precio. Los criterios se conservan en la URL y solo se muestran productos publicados y activos.”
 
+## Diseño del inicio en claro y oscuro
+
+La página principal reproduce la composición de las referencias del propietario: franja de envío gratis desde $1,499, encabezado compacto, portada con colores invertidos, bloque Price Match con borde superior amarillo, cuadrícula de cuatro productos por fila en escritorio, beneficios, categorías con iconos y pie de cuatro columnas. Los tokens existentes determinan la variante clara y oscura. El orden de los enlaces administrativos y la configuración del tema dentro de la cuenta se conservan.
+
+El inicio muestra la selección real configurada por el administrador; no calcula un ranking de ventas ni inventa ocho productos para llenar la cuadrícula. Los conteos de categorías provienen de la base de datos. El skeleton ilustrativo del prototipo no es contenido permanente: los skeletons aparecen durante la carga. Se mantienen las siete categorías actuales y los datos reales de contacto configurados; no se copian contactos, ubicación ni medios de pago ficticios del ejemplo.
+
+`HomePriceGuarantee.vue` presenta el texto Price Match proporcionado en la referencia y abre un modal informativo con enlace a Contacto. No implementa reembolsos automáticos ni un sistema de reclamaciones. `HomeBenefits.vue` describe trazabilidad, desglose de precio y cotización de envío; no promete entrega local en 24–48 horas sin una cotización que la respalde. Las tarjetas agotadas usan la acción compacta Avisarme cuando llegue y conservan el formulario de registro de interés.
+
+Para demostrarlo, visita Inicio y cambia el tema desde Mi cuenta. Prueba Leer condiciones, su cierre con Escape y los enlaces de categorías. `scripts/check-index-design-browser.mjs` verifica ambos temas, cuatro columnas con ocho productos simulados, el modal, devolución del foco, registro de interés desplegable, navegación y ausencia de desbordamiento a 390, 768 y 1280 píxeles. La compilación Docker y la revisión de capturas completas en ambos temas complementan estas comprobaciones; los productos simulados solo existen dentro de la prueba de navegador.
+
 ## Diseño de tarjetas de producto
 
 `ProductCard.vue`, compartido por inicio y catálogo, muestra imagen sobre fondo blanco, título en mayúsculas, SKU/lote/caducidad, indicador de disponibilidad, precio con moneda secundaria, costo por porción y un botón de ancho completo para agregar una pieza de la presentación mostrada. Imagen y tarjeta enlazan al detalle con esa variante seleccionada; el botón de compra es una acción independiente. Se conserva la vista de información nutrimental y el registro de interés cuando no hay existencias.
