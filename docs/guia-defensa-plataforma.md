@@ -1,5 +1,17 @@
 # Guía para explicar y demostrar la plataforma
 
+## Pantalla de pago validado y regreso a la pestaña
+
+En `/pago?pedido=…`, un pago `PAID` con pedido confirmado o posterior muestra **Pago validado**, **¡Gracias por tu compra!** y una marca de verificación animada. Un pedido de total cero confirmado agradece la compra y aclara que no requirió cobro. La presentación no se activa por volver de Stripe ni por parámetros de la URL: utiliza únicamente el estado que devuelve el servidor. Pendiente, rechazo, revisión, cancelación y reembolsos tienen mensajes distintos y no celebran un pago confirmado.
+
+El resumen presenta importe con MXN una sola vez, número de pedido, estado y fecha de última actualización con formato legible. El plazo del intento se muestra solo mientras el pedido está pendiente de pago. Incluye **Ver mis pedidos** para cuentas con sesión y **Seguir comprando**. Las acciones de reanudar y cerrar se conservan para intentos pendientes que no están en revisión. Los errores mantienen el último estado conocido y explican que no se pudo actualizar.
+
+`usePaymentStatus.js` consulta al entrar y al recuperar visibilidad o foco de la ventana, además del regreso desde la caché de navegación. Actualiza los datos sin recargar la página. Agrupa eventos consecutivos de foco/visibilidad, no consulta mientras la pestaña está oculta y no superpone solicitudes; si se regresa durante una operación, deja una consulta pendiente para después. Desregistra los eventos al salir e ignora respuestas tardías. No inicia ni repite pagos automáticamente.
+
+La animación SVG dibuja círculo y marca una sola vez al entrar al estado confirmado; se desactiva con `prefers-reduced-motion`. Se reutilizan colores, fuentes y estados del sistema visual. Demostración: abrir un pedido, cambiar de pestaña/ventana y regresar; comprobar la fecha/estado actualizado. Con un pago verificado aparece el agradecimiento; un intento pendiente mantiene su aviso y acciones.
+
+Verificación: diez pruebas de pagos aprobadas, incluida la presentación de estados; compilación Docker correcta. `scripts/check-payment-status-browser.mjs` prueba en Edge con APIs simuladas el cambio pendiente → pagado al recuperar visibilidad, deduplicación, ausencia de recarga, movimiento reducido, error con último estado conservado, consultas sin solaparse y limpieza al salir. Comprueba ausencia de desbordamiento horizontal en móvil claro/oscuro. No se hicieron cobros ni se modificaron pedidos reales. Se inspeccionaron capturas de escritorio oscuro y móvil claro; las pruebas de eventos simulados no equivalen a comprobar todos los comportamientos de cada navegador.
+
 ## Error genérico al abrir Stripe después de crear la sesión
 
 El intento de prueba quedó con sesión `open`, pago `unpaid` y reserva activa, pero el endpoint devolvía HTTP 503. El diagnóstico HTTP mostró `ReferenceError`: `setCookie` se utilizaba para guardar `fitness_guest_order` después de abrir la sesión, pero no estaba importado en el módulo compilado. Se corrigió con una importación explícita desde `h3`. No fue un cobro rechazado ni requirió crear otra sesión.
