@@ -30,6 +30,28 @@ test('cajas: permisos, validación, duplicados, concurrencia, auditoría y empaq
   assert.throws(() => choosePackage(units, [disabled]))
   const active = await service.save(admin.id, { ...input, maxGrossWeightGrams: null, isActive: true, expectedVersion: 3 }, box.id)
   assert.equal(choosePackage(units, [active]).packageVersion, 4)
-  assert.ok((await service.list(admin.id)).packages.some(item => item.id === box.id))
+  const first = await service.list(admin.id)
+  const listed = []
+  for (let page = 1; page <= first.totalPages; page++) listed.push(...(await service.list(admin.id, page)).packages)
+  assert.ok(listed.some(item => item.id === box.id))
   assert.equal(await db.auditEvent.count({ where: { entityType: 'PackageType', entityId: box.id } }), 4)
+})
+
+test('cajas: páginas de cinco, orden estable y validación', async () => {
+  const admin = await user('ADMIN')
+  for (let index = 0; index < 6; index++) await service.save(admin.id, { code: `PAGE-${randomUUID()}`, innerLengthMm: 100, innerWidthMm: 100, innerHeightMm: 100, outerLengthMm: 110, outerWidthMm: 110, outerHeightMm: 110, tareWeightGrams: 100, maxGrossWeightGrams: 1000, isActive: true, reason: 'Prueba de paginación' })
+  const expected = await db.packageType.findMany({ orderBy: [{ code: 'asc' }, { id: 'asc' }] })
+  const ids = []
+  for (let page = 1; page <= Math.ceil(expected.length / 5); page++) {
+    const result = await service.list(admin.id, String(page))
+    assert.equal(result.page, page)
+    assert.equal(result.pageSize, 5)
+    assert.equal(result.total, expected.length)
+    assert.equal(result.totalPages, Math.ceil(expected.length / 5))
+    assert.deepEqual(result.packages.map(box => box.id), expected.slice((page - 1) * 5, page * 5).map(box => box.id))
+    ids.push(...result.packages.map(box => box.id))
+  }
+  assert.equal(new Set(ids).size, expected.length)
+  assert.equal((await service.list(admin.id, 999999)).page, Math.ceil(expected.length / 5))
+  for (const page of [0, -1, 'abc', '1.5', [], ['1', '2'], Number.MAX_SAFE_INTEGER + 1]) await assert.rejects(service.list(admin.id, page), error => error.status === 400)
 })

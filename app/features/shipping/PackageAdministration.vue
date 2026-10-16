@@ -1,7 +1,9 @@
 <script setup>
 import { packageMeasurements } from '~~/shared/features/shipping/package-configuration.js'
 import { useAdministration } from '../administration/useAdministration.js'
-const { data, status, error, refresh } = await useFetch('/api/admin/packages')
+const page = ref(1)
+const { data, status, error, refresh } = await useFetch('/api/admin/packages', { query: { page } })
+watch(() => data.value?.page, value => { if (value && value !== page.value) page.value = value })
 const { busy, failure, save } = useAdministration(refresh)
 const open = ref(false), target = ref(null), draft = reactive({})
 function edit(box) {
@@ -28,6 +30,11 @@ async function submit() {
         <dl class="my-3 grid gap-3 md:grid-cols-2"><div><dt>Medidas interiores (largo × ancho × alto)</dt><dd>{{ box.innerLengthMm }} × {{ box.innerWidthMm }} × {{ box.innerHeightMm }} mm</dd></div><div><dt>Medidas exteriores (largo × ancho × alto)</dt><dd>{{ box.outerLengthMm }} × {{ box.outerWidthMm }} × {{ box.outerHeightMm }} mm</dd></div><div><dt>Peso de la caja vacía</dt><dd>{{ box.tareWeightGrams }} g</dd></div><div><dt>Peso bruto máximo</dt><dd>{{ box.maxGrossWeightGrams == null ? 'Sin límite configurado' : `${box.maxGrossWeightGrams} g` }}</dd></div></dl>
         <UiButton variant="secondary" aria-haspopup="dialog" @click="edit(box)">Editar caja {{ box.code }}</UiButton>
       </li></ul>
+      <nav v-if="data?.total" aria-label="Paginación de cajas de envío" class="mt-4 flex flex-wrap items-center gap-3">
+        <p class="text-body-s">{{ data.total }} cajas · Página {{ data.page }} de {{ data.totalPages }}</p>
+        <UiButton variant="secondary" :disabled="busy || status === 'pending' || data.page <= 1" @click="page = data.page - 1">Anterior</UiButton>
+        <UiButton variant="secondary" :disabled="busy || status === 'pending' || data.page >= data.totalPages" @click="page = data.page + 1">Siguiente</UiButton>
+      </nav>
     </template>
     <UiModal :open="open" :title="target ? 'Editar caja de envío' : 'Agregar caja de envío'" :busy="busy" @close="open = false">
       <p class="mb-4 text-body-s">Medidas en milímetros y pesos en gramos. El peso bruto incluye productos y caja. Al cambiar la configuración será necesario recotizar; los pedidos existentes conservan sus datos.</p>

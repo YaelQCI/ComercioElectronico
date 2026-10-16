@@ -823,6 +823,14 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 **Frase para exponer:** “El catálogo permite buscar por nombre, SKU o categoría y combinar filtros de disponibilidad, presentación y precio. Los criterios se conservan en la URL y solo se muestran productos publicados y activos.”
 
+## Paginación de cajas de envío
+
+En Administración → Inventario → Cajas de envío se muestran hasta cinco cajas por página, ordenadas por código. Los botones Anterior y Siguiente permiten recorrerlas y el indicador muestra el total de cajas y la página actual. Agregar y editar continúan disponibles mediante un modal.
+
+El servidor aplica el límite mediante `skip` y `take` en `server/features/shipping/manage-packages.js`; no descarga todas las cajas al navegador. Valida el número de página y exige el rol administrador. Si la página solicitada supera las disponibles, devuelve la última. La selección de cajas para cotizar sigue considerando todas las cajas activas, independientemente de esta paginación administrativa.
+
+Para demostrarlo, registra más de cinco cajas y utiliza Siguiente en esa sección. Las pruebas de base de datos en `tests/database/package-administration.test.mjs` verifican el tamaño de página, el orden, los totales, las entradas inválidas y que no se repitan ni omitan registros al recorrer una lista sin cambios concurrentes. El listado puede cambiar de posición si se modifica el código de una caja entre consultas.
+
 ## Alcance pendiente de cuentas que conviene reconocer
 
 - Verificación de propiedad del correo y recuperación de contraseña por correo.

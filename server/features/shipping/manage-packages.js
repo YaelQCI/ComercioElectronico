@@ -6,11 +6,14 @@ import { packageConfiguration } from '../../../shared/features/shipping/package-
 const snapshot = box => Object.fromEntries(['code', 'isActive', 'innerLengthMm', 'innerWidthMm', 'innerHeightMm', 'outerLengthMm', 'outerWidthMm', 'outerHeightMm', 'tareWeightGrams', 'maxGrossWeightGrams', 'version'].map(key => [key, box[key]]))
 export function createPackageAdministration(db) {
   return {
-    list(adminId) {
+    async list(adminId, requestedPage = 1) {
+      if (!['string', 'number'].includes(typeof requestedPage) || !/^[1-9]\d*$/.test(String(requestedPage)) || !Number.isSafeInteger(Number(requestedPage))) throw new AccountError(400, 'Página de cajas inválida.')
       return db.$transaction(async tx => {
         await requireAdministrator(tx, adminId)
-        return { packages: await tx.packageType.findMany({ orderBy: [{ code: 'asc' }, { id: 'asc' }] }) }
-      })
+        const pageSize = 5, total = await tx.packageType.count(), totalPages = Math.max(1, Math.ceil(total / pageSize))
+        const page = Math.min(Number(requestedPage), totalPages)
+        return { packages: await tx.packageType.findMany({ orderBy: [{ code: 'asc' }, { id: 'asc' }], skip: (page - 1) * pageSize, take: pageSize }), page, pageSize, total, totalPages }
+      }, { isolationLevel: 'RepeatableRead' })
     },
     async save(adminId, input, target) {
       let data
