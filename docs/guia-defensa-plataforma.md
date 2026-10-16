@@ -1,5 +1,15 @@
 # Guía para explicar y demostrar la plataforma
 
+## Existencias y cantidades en el carrito
+
+La etiqueta **Cantidad** va sobre el grupo completo de controles. El campo y los botones −, +, Actualizar y Quitar se alinean en una fila flexible; el máximo y los errores aparecen debajo para no desplazar los botones. El control conserva etiqueta, descripción accesible, límites y estados deshabilitados. Ajuste verificado mediante compilación; revisión visual pendiente.
+
+Cada línea muestra las piezas disponibles para comprar y, cuando hay demanda compartida con otras líneas o combos, su máximo específico. No representa todo el inventario físico: descuenta reservas y excluye lotes bloqueados/vencidos. El campo de cantidad limita lo escrito al máximo de esa línea. Si el carrito tenía más piezas que las disponibles, propone ese máximo en el campo y muestra las cantidades con la instrucción **Actualizar**; no modifica automáticamente la cantidad guardada ni los totales sin confirmar.
+
+Sin stock muestra **Por el momento no hay existencias de esta presentación**, y deshabilita cantidad, +, − y Actualizar; permite quitar o guardar para después. Si el producto se retiró o desactivó, muestra un mensaje distinto de producto no disponible. Si otras líneas o combos consumen el máximo, lo explica por separado. `stock-feedback.js` centraliza límites y mensajes; `cart-observation.js` usa esos mismos mensajes para los cambios detectados. El servidor revalida al guardar y al iniciar compra: el carrito no reserva existencias. Las pruebas verifican reducción real por ledger, límite actualizado, rechazo de exceso, corrección y eliminación cuando se agota.
+
+Verificación: build Docker, 74 pruebas unitarias y 86 PostgreSQL correctas. Lectura del carrito local, sin modificarlo: tenía 2 piezas, disponible/máximo 1 y cantidad propuesta 1, con aviso explícito para actualizar. Revisión visual e interacción en navegador pendientes.
+
 ## Imágenes subidas en el carrito
 
 El carrito utiliza la misma conversión segura de imágenes del catálogo (`publicImage`): los archivos subidos al volumen se sirven mediante `/api/catalog/images/:assetId`, mientras las imágenes estáticas revisadas conservan `/images/catalog/...`. Antes, el carrito descartaba las rutas de almacenamiento `uploads/...` y mostraba «Imagen no disponible» aunque la foto existiera. Se prioriza la frontal de la variante y, si no existe, la frontal general del producto. No se muestran rutas internas ni se cambian las reglas de publicación del endpoint de imágenes.

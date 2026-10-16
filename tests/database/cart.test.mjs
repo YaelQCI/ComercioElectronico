@@ -7,6 +7,8 @@ import { importCatalog } from '../../server/features/catalog/import-catalog.js'
 import { createCartRepository } from '../../server/features/cart/cart-repository.js'
 import { createCatalogRepository } from '../../server/features/catalog/catalog-repository.js'
 import { createShippingQuotes } from '../../server/features/shipping/shipping-quotes.js'
+import { adjustInventory } from '../../server/features/inventory/adjust-inventory.js'
+import { withInventoryTransaction } from '../../server/features/inventory/inventory-transaction.js'
 
 const url = process.env.TEST_DATABASE_URL
 if (!url || !new URL(url).pathname.startsWith('/fitness_migration_test')) throw new Error('Usar base aislada fitness_migration_test*.')
@@ -46,6 +48,29 @@ test('carrito resuelve imágenes subidas, prefiere la frontal de variante y cons
   assert.deepEqual((await repository.read(owner)).lines[0].image, { url: `/api/catalog/images/${asset.id}`, alt: 'Frontal de la variante' })
   await db.mediaAsset.update({ where: { id: asset.id }, data: { storageKey: '/ruta-interna-no-publica.webp' } })
   assert.equal((await repository.read(owner)).lines[0].image, null)
+})
+
+test('stock reducido actualiza el máximo; permite corregir y quitar una línea agotada', async () => {
+  const [variant] = await fixture(), owner = hash(), email = `${randomUUID()}@example.invalid`
+  const actor = await db.user.create({ data: { email, emailNormalized: email, passwordHash: 'fixture', displayName: 'Fixture', role: 'ADMIN' } })
+  const lot = await db.inventoryLot.findFirst({ where: { variantId: variant.id } })
+  const added = await repository.add(owner, { variantId: variant.id, quantity: 5, version: 1 })
+  const adjust = delta => withInventoryTransaction(db, context => adjustInventory(context, { lotId: lot.id, actorId: actor.id, delta, reason: 'Cambio de stock sintético', idempotencyKey: randomUUID() }))
+  await adjust(-9)
+  const reduced = await repository.read(owner)
+  assert.equal(reduced.lines[0].quantity, 5)
+  assert.equal(reduced.lines[0].availableQty, 3)
+  assert.equal(reduced.lines[0].maxQuantity, 3)
+  assert.equal(reduced.lines[0].stockSufficient, false)
+  await assert.rejects(repository.edit(owner, { itemId: added.lines[0].id, quantity: 4, version: reduced.version }), /stock/)
+  const corrected = await repository.edit(owner, { itemId: added.lines[0].id, quantity: 3, version: reduced.version })
+  assert.equal(corrected.lines[0].stockSufficient, true)
+  await adjust(-3)
+  const empty = await repository.read(owner)
+  assert.equal(empty.lines[0].availableQty, 0)
+  assert.equal(empty.lines[0].maxQuantity, 0)
+  const removed = await repository.edit(owner, { itemId: added.lines[0].id, version: empty.version }, true)
+  assert.equal(removed.lines.length, 0)
 })
 
 test('dos peticiones con misma versión solo agregan una vez; entradas inválidas no escriben', async () => {

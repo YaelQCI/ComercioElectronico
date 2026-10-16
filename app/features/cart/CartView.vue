@@ -7,6 +7,7 @@ import ConfiguredBundles from '../catalog/ConfiguredBundles.vue'
 import ShippingProgress from '../shipping/ShippingProgress.vue'
 import ShippingCalculator from '../shipping/ShippingCalculator.vue'
 import RestockForm from '../restock/RestockForm.vue'
+import { canSetQuantity, limitedQuantity, stockMessage } from './stock-feedback.js'
 const { data, error, status, refresh, busy, edit, move, selectedQuote, applyCoupon } = await useCart()
 const code = ref('')
 const quote = computed(() => selectedQuote.value?.cartVersion === data.value?.version ? selectedQuote.value : null)
@@ -15,10 +16,17 @@ const drafts = ref({})
 const inputErrors = ref({})
 const changes = ref([])
 onMounted(() => { changes.value = observeCart(data.value) })
-watch(data, value => { drafts.value = Object.fromEntries((value?.lines ?? []).map(l => [l.id, String(l.quantity)])); inputErrors.value = {} }, { immediate: true })
+watch(data, value => { drafts.value = Object.fromEntries((value?.lines ?? []).map(l => [l.id, limitedQuantity(l, l.quantity)])); inputErrors.value = {} }, { immediate: true })
+function limit(line, value) {
+  const quantity = limitedQuantity(line, value)
+  drafts.value[line.id] = quantity; inputErrors.value[line.id] = ''
+  // Sincroniza también el control si la cantidad limitada coincide con el valor anterior.
+  nextTick(() => { const control = document.getElementById(`quantity-${line.id}`); if (control && control.value !== quantity) control.value = quantity })
+}
 function update(line) {
+  if (!canSetQuantity(line)) return
   const value = drafts.value[line.id]
-  if (!/^\d+$/.test(value) || !Number.isInteger(Number(value)) || Number(value) < 1 || Number(value) > line.maxQuantity) { inputErrors.value[line.id] = 'Usa un entero entre 1 y el stock disponible para esta línea.'; return }
+  if (!/^\d+$/.test(value) || !Number.isInteger(Number(value)) || Number(value) < 1 || Number(value) > line.maxQuantity) { inputErrors.value[line.id] = `Escribe una cantidad entre 1 y ${line.maxQuantity} piezas.`; return }
   inputErrors.value[line.id] = ''
   edit(line.id, Number(value))
 }
@@ -33,8 +41,14 @@ function update(line) {
       <p class="mt-4">{{ data.pieces }} piezas en {{ data.products }} líneas de producto. El carrito no reserva existencias.</p>
       <ul class="mt-6 space-y-4"><li v-for="line in data.lines" :key="line.id" class="rounded-sm border border-line bg-surface p-4">
         <div class="flex flex-wrap gap-4"><div class="h-28 w-28 shrink-0"><UiImage :src="line.image?.url" :alt="line.image?.alt ?? line.name" /></div><div><NuxtLink v-if="line.productId" :to="{ path: `/producto/${line.productId}`, query: { variante: line.variantId } }" class="font-semibold underline">{{ line.name }}</NuxtLink><span v-else class="font-semibold">{{ line.name }}</span><p>{{ line.presentation }} · SKU {{ line.sku }}</p><p>{{ line.quantity }} × {{ formatMXN(line.unitPriceCents) }} = {{ formatMXN((BigInt(line.unitPriceCents) * BigInt(line.quantity)).toString()) }}</p></div></div>
-        <p v-if="!line.valid || !line.stockSufficient" role="alert" class="mt-2 text-crit">Esta selección requiere revisión: publicación o existencias cambiaron.</p>
-        <form class="mt-4 flex flex-wrap items-end gap-2" @submit.prevent="update(line)"><UiButton variant="secondary" :disabled="busy || line.quantity <= 1" :aria-label="`Restar una pieza de ${line.name}`" @click="edit(line.id, line.quantity - 1)">−</UiButton><UiField :id="`quantity-${line.id}`" v-model="drafts[line.id]" label="Cantidad" type="number" min="1" step="1" :max="Math.max(1, line.maxQuantity)" :disabled="busy" :error="inputErrors[line.id]" class="max-w-36" /><UiButton variant="secondary" :disabled="busy || line.quantity >= line.maxQuantity" :aria-label="`Agregar una pieza de ${line.name}`" @click="edit(line.id, line.quantity + 1)">+</UiButton><UiButton type="submit" variant="secondary" :disabled="busy">Actualizar</UiButton><UiButton variant="secondary" :disabled="busy" :aria-label="`Quitar ${line.name} del carrito`" @click="edit(line.id, 0, true)">Quitar</UiButton></form>
+        <p v-if="line.valid" class="mt-3 text-body-s text-ink-2">Disponibles: {{ line.availableQty }} piezas.<span v-if="line.maxQuantity < line.availableQty"> Máximo para esta línea: {{ line.maxQuantity }}, considerando otras líneas y combos del carrito.</span></p>
+        <p v-if="stockMessage(line)" role="alert" class="mt-2 text-crit">{{ stockMessage(line) }}</p>
+        <form class="mt-4" @submit.prevent="update(line)">
+          <label :for="`quantity-${line.id}`" class="mb-2 block text-body-s font-semibold">Cantidad</label>
+          <div class="flex flex-wrap items-center gap-2"><UiButton variant="secondary" :disabled="busy || !canSetQuantity(line) || line.quantity <= 1" :aria-label="`Restar una pieza de ${line.name}`" @click="edit(line.id, Math.min(line.maxQuantity, line.quantity - 1))">−</UiButton><input :id="`quantity-${line.id}`" :value="drafts[line.id]" type="number" min="1" step="1" :max="line.maxQuantity" :disabled="busy || !canSetQuantity(line)" :aria-invalid="!!inputErrors[line.id]" :aria-describedby="inputErrors[line.id] ? `quantity-error-${line.id}` : canSetQuantity(line) ? `quantity-hint-${line.id}` : undefined" class="min-h-11 w-24 rounded-sm border border-border bg-surface px-3 py-2 text-ink disabled:bg-off-soft disabled:text-off" @input="limit(line, $event.target.value)"><UiButton variant="secondary" :disabled="busy || !canSetQuantity(line) || line.quantity >= line.maxQuantity" :aria-label="`Agregar una pieza de ${line.name}`" @click="edit(line.id, line.quantity + 1)">+</UiButton><UiButton type="submit" variant="secondary" :disabled="busy || !canSetQuantity(line)">Actualizar</UiButton><UiButton variant="secondary" :disabled="busy" :aria-label="`Quitar ${line.name} del carrito`" @click="edit(line.id, 0, true)">Quitar</UiButton></div>
+          <p v-if="inputErrors[line.id]" :id="`quantity-error-${line.id}`" role="alert" class="mt-2 text-body-s text-crit">{{ inputErrors[line.id] }}</p>
+          <p v-else-if="canSetQuantity(line)" :id="`quantity-hint-${line.id}`" class="mt-2 text-body-s text-ink-2">Máximo: {{ line.maxQuantity }} piezas.</p>
+        </form>
       </li></ul>
       <div class="mt-4 flex flex-wrap gap-2"><UiButton v-for="line in data.lines" :key="line.id" variant="secondary" :disabled="busy" @click="move(line.id, 'SAVE')">Guardar {{ line.name }} · {{ line.presentation }} para después</UiButton></div>
       <ShippingProgress :base-cents="data.totals.goodsAfterCouponCents" />
