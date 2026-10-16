@@ -15,6 +15,8 @@ La instancia `i-0307c6afd99306957`, cuenta `086241318012`, conserva la IP `52.37
 
 Cada base tiene su propia contraseña aleatoria. El administrador inicial de producción tiene credenciales independientes en `.aws/production-admin-credentials.json`, archivo local privado ignorado por Git. No se copiaron las sesiones de staging. Ambos entornos requieren revisar sus políticas, configurar los datos comerciales y el almacén antes de completar compras; producción tampoco tiene configurado un token real de Envia.
 
+Las seis cuentas académicas que insertan las migraciones quedan desactivadas en producción, identificadas por sus correos exactos, hash DEMO, rol y auditoría de origen. Se conservan los registros y se audita su desactivación; no se tocan usuarios reales ni administradores.
+
 ## Despliegues
 
 El workflow valida ambas ramas, publica imágenes del commit y elige un único directorio según la rama. Los PR no despliegan. Los environments restringen las ramas y OIDC acepta exclusivamente los subjects `production` y `staging` del repositorio. Cada entorno conserva su propio bloqueo, respaldo previo a migraciones y marcador `current-commit`.
