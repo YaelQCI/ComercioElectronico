@@ -823,6 +823,14 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 **Frase para exponer:** “El catálogo permite buscar por nombre, SKU o categoría y combinar filtros de disponibilidad, presentación y precio. Los criterios se conservan en la URL y solo se muestran productos publicados y activos.”
 
+## CI/CD hacia EC2
+
+`.github/workflows/ci-cd.yml` ejecuta pruebas en pull requests y pushes a `main`. Con `EC2_DEPLOY_ENABLED=true`, publica imágenes de aplicación/herramientas en GHCR por commit, despliega referencias por digest mediante SSH al environment `production`, respalda PostgreSQL antes de migrar, comprueba salud y conserva los volúmenes. Los secretos de la aplicación permanecen en el servidor. La instancia todavía no existe; la ejecución real de Actions y EC2 queda pendiente de configurarla y subir los cambios. La guía [GitHub Actions y EC2](github-actions-ec2.md) detalla preparación, los cuatro secretos SSH, credenciales de lectura GHCR y activación.
+
+`deploy/compose.ec2.yaml` separa este entorno del local, reinicia servicios y mantiene PostgreSQL privado. Nginx sirve HTTPS; `prepare-server.sh` genera configuración y certificado autofirmado para demostrar sin dominio, sin sobrescribir secretos existentes. Las cookies Secure y la comprobación de origen se conservan. El certificado necesita confianza en los equipos de prueba y no habilita por sí solo webhooks públicos de Stripe. Las actualizaciones pueden interrumpir brevemente el servicio y no incluyen rollback automático de esquema.
+
+Verificación: workflow validado con actionlint y shellcheck; Bash/Compose correctos; pruebas simuladas de respaldo, fallos de migración/aplicación/salud, reconciliador e inicialización repetida aprobadas. Se levantó además un stack Docker efímero con el Compose de EC2, migraciones y proxy HTTPS: salud, certificado, registro, login, sesión Secure y rechazo de otro origen correctos. Se usaron puertos, usuarios y volúmenes separados de la tienda. El script `check-ec2-compose.sh` incorpora esa comprobación a CI. Esta evidencia local no equivale a un despliegue verificado en EC2.
+
 ## Diseño y selección en la página de producto
 
 ### Catálogo inicial para demostración

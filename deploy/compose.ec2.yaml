@@ -1,0 +1,94 @@
+name: fitness-stuff-ec2
+
+x-database: &database
+  DATABASE_URL: postgresql://fitness:${DOCKER_POSTGRES_PASSWORD:?Falta contraseña privada}@postgres:5432/fitness_ec2
+
+x-payments: &payments
+  NUXT_STRIPE_ENABLED: ${NUXT_STRIPE_ENABLED:-false}
+  NUXT_STRIPE_ENVIRONMENT: ${NUXT_STRIPE_ENVIRONMENT:-test}
+  NUXT_STRIPE_SECRET_KEY: ${NUXT_STRIPE_SECRET_KEY:-}
+  NUXT_STRIPE_WEBHOOK_SECRET: ${NUXT_STRIPE_WEBHOOK_SECRET:-}
+  NUXT_STRIPE_SITE_URL: ${NUXT_STRIPE_SITE_URL:-}
+  NUXT_STRIPE_MINIMUM_CENTS: ${NUXT_STRIPE_MINIMUM_CENTS:-1000}
+
+services:
+  postgres:
+    image: postgres:17.7-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fitness
+      POSTGRES_PASSWORD: ${DOCKER_POSTGRES_PASSWORD:?Falta contraseña privada}
+      POSTGRES_DB: fitness_ec2
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U fitness -d fitness_ec2']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    logging: &logging
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }
+  migrate:
+    image: ${TOOLS_IMAGE:?Falta imagen de herramientas por digest}
+    environment: *database
+    command: [npm, run, db:deploy]
+    depends_on:
+      postgres: { condition: service_healthy }
+    logging: *logging
+  app:
+    image: ${APP_IMAGE:?Falta imagen de aplicación por digest}
+    restart: unless-stopped
+    environment:
+      <<: [*database, *payments]
+      NUXT_AUTH_SECRET: ${DOCKER_AUTH_SECRET:?Falta clave de autenticación}
+      NUXT_PUBLIC_CONTACT_EMAIL: ${NUXT_PUBLIC_CONTACT_EMAIL:-}
+      NUXT_PUBLIC_CONTACT_PHONE: ${NUXT_PUBLIC_CONTACT_PHONE:-}
+      NUXT_PUBLIC_SERVICE_HOURS: ${NUXT_PUBLIC_SERVICE_HOURS:-}
+      NUXT_CATALOG_UPLOAD_DIRECTORY: /app/catalog-uploads
+      NUXT_ENVIA_TOKEN: ${NUXT_ENVIA_TOKEN:-}
+      NUXT_ENVIA_ENVIRONMENT: ${NUXT_ENVIA_ENVIRONMENT:-test}
+      NUXT_ENVIA_CARRIER: ${NUXT_ENVIA_CARRIER:-}
+    volumes:
+      - catalog_uploads:/app/catalog-uploads
+    ports:
+      - '127.0.0.1:3001:3000'
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+    depends_on:
+      postgres: { condition: service_healthy }
+    logging: *logging
+  payment-reconciler:
+    profiles: [payments]
+    image: ${TOOLS_IMAGE:?Falta imagen de herramientas por digest}
+    restart: unless-stopped
+    environment:
+      <<: [*database, *payments]
+    command: [node, scripts/run-payment-reconciliation.mjs]
+    depends_on:
+      app: { condition: service_healthy }
+    logging: *logging
+  proxy:
+    image: nginx:stable-alpine@sha256:970364228b1e4f932abc22d321932816782cca8a20b85a77552a7cfe9acfb3b5
+    restart: unless-stopped
+    ports: ['80:80', '443:443']
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${DEPLOY_ROOT:-/opt/fitness-stuff}/shared/tls:/etc/nginx/tls:ro
+    depends_on:
+      app: { condition: service_healthy }
+    healthcheck:
+      test: [CMD-SHELL, 'wget -q --no-check-certificate -O - https://127.0.0.1/api/health >/dev/null']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    logging: *logging
+
+volumes:
+  postgres_data:
+    name: fitness-stuff-ec2-postgres
+  catalog_uploads:
+    name: fitness-stuff-ec2-uploads
