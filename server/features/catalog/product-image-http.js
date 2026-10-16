@@ -30,7 +30,7 @@ export async function readImageUpload(stream, contentType) {
   catch { throw new AccountError(400, 'Formulario de imagen inválido.') }
   const file = form.get('image')
   if (form.getAll('image').length !== 1 || !file || typeof file.arrayBuffer !== 'function') throw new AccountError(400, 'Selecciona una imagen.')
-  return { bytes: Buffer.from(await file.arrayBuffer()), mimeType: file.type, alt: form.get('alt'), kind: form.get('kind'), reason: form.get('reason') }
+  return { bytes: Buffer.from(await file.arrayBuffer()), mimeType: file.type, alt: form.get('alt'), kind: form.get('kind'), reason: form.get('reason'), variantId: form.get('variantId') }
 }
 export async function uploadProductImage(event) {
   setHeader(event, 'Cache-Control', 'no-store')

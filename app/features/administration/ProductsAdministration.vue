@@ -5,12 +5,19 @@ import { useDraftIdentifiers } from './useDraftIdentifiers.js'
 import ProductImages from './ProductImages.vue'
 import CategorySelection from './CategorySelection.vue'
 import CategoryManager from './CategoryManager.vue'
+import VariantNutritionFields from '../catalog/VariantNutritionFields.vue'
+import BrandSelection from '../catalog/BrandSelection.vue'
+import ProductRecommendationsFields from '../catalog/ProductRecommendationsFields.vue'
+import AddProductVariant from '../catalog/AddProductVariant.vue'
+import ProductTextFields from '../catalog/ProductTextFields.vue'
 const page = ref(1)
 const { data, status, error, refresh } = await useFetch('/api/admin/catalog', { query: { page } })
 const { busy, failure, message, save } = useAdministration(refresh)
 const { data: classification, error: classificationError, refresh: refreshCategories } = await useFetch('/api/admin/categories')
 const draftCategoryIds = ref([])
-const draft = reactive({ name: '', slug: '', description: '', reason: '', sku: '', flavor: '', presentationLabel: '', contentAmount: '', contentUnit: '', pricePesos: '', servings: '', weightGrams: '', lengthMm: '', widthMm: '', heightMm: '' })
+const { data: detailOptions, refresh: refreshDetailOptions } = await useFetch('/api/admin/catalog/options')
+async function brandCreated(brand) { if (detailOptions.value) detailOptions.value.brands.push(brand); await refreshDetailOptions() }
+const draft = reactive({ name: '', slug: '', description: '', reason: '', sku: '', flavor: '', presentationLabel: '', contentAmount: '', contentUnit: '', pricePesos: '', servings: '', weightGrams: '', lengthMm: '', widthMm: '', heightMm: '', ingredients: '', usageInstructions: '', allergenInformation: '', brandId: '', servingAmount: '', servingUnit: '', nutritionRows: [], relatedProductIds: [], crossSellProductIds: [] })
 const creating = ref(false), creatingOpen = ref(false)
 const { pending: checkingIdentifiers, failure: identifierFailure, slugError, skuError, verify: verifyIdentifiers } = useDraftIdentifiers(draft)
 const fields = [{ key: 'sku', label: 'SKU' }, { key: 'flavor', label: 'Sabor' }, { key: 'presentationLabel', label: 'Presentación' }, { key: 'contentAmount', label: 'Contenido (cantidad)' }, { key: 'contentUnit', label: 'Unidad de contenido' }, { key: 'pricePesos', label: 'Precio en pesos (MXN)', hint: 'Ejemplo: 150.00. Hasta dos decimales, sin separadores de miles.', price: true }, { key: 'weightGrams', label: 'Peso en gramos', numeric: true }, { key: 'lengthMm', label: 'Largo en milímetros', numeric: true }, { key: 'widthMm', label: 'Ancho en milímetros', numeric: true }, { key: 'heightMm', label: 'Alto en milímetros', numeric: true }]
@@ -44,9 +51,12 @@ const publicationProblem = computed(() => {
 })
 function select(product) {
   selected.value = product
-  Object.assign(edit, { name: product.name, slug: product.slug, description: product.description, featuredPosition: product.featuredPosition == null ? '' : String(product.featuredPosition), reason: '', categoryIds: product.categories.map(category => category.id) })
-  variantEdits.value = product.variants.map(variant => ({ ...variant, servings: variant.servings ?? '', pricePesos: centsToPesos(variant.priceCents), compareAtPricePesos: centsToPesos(variant.compareAtPriceCents) }))
+  Object.assign(edit, { name: product.name, slug: product.slug, description: product.description, ingredients: product.ingredients ?? '', usageInstructions: product.usageInstructions ?? '', allergenInformation: product.allergenInformation ?? '', brandId: product.brandId ?? '', relatedProductIds: (product.recommendations ?? []).filter(item => item.kind === 'RELATED').map(item => item.id), crossSellProductIds: (product.recommendations ?? []).filter(item => item.kind === 'CROSS_SELL').map(item => item.id), featuredPosition: product.featuredPosition == null ? '' : String(product.featuredPosition), reason: '', categoryIds: product.categories.map(category => category.id) })
+  variantEdits.value = product.variants.map(variantDraft)
 }
+function variantDraft(variant) { return { ...variant, servings: variant.servings ?? '', servingAmount: variant.servingAmount ?? '', servingUnit: variant.servingUnit ?? '', nutritionRows: (variant.nutritionData?.rows ?? []).map(row => ({ ...row })), pricePesos: centsToPesos(variant.priceCents), compareAtPricePesos: centsToPesos(variant.compareAtPriceCents) } }
+function variantPayload(variant) { return { servingAmount: variant.servingAmount.trim() || null, servingUnit: variant.servingUnit.trim() || null, nutritionData: variant.nutritionRows.length ? { rows: variant.nutritionRows.map(row => ({ name: row.name, amount: String(row.amount), unit: row.unit })) } : null } }
+async function variantCreated() { const productId = selected.value.id; await refresh(); const fresh = data.value?.products.find(item => item.id === productId); if (fresh) { for (const variant of fresh.variants) if (!variantEdits.value.some(item => item.id === variant.id)) variantEdits.value.push(variantDraft(variant)); selected.value = fresh } }
 async function create() {
   if (creating.value || busy.value) return
   creating.value = true
@@ -54,8 +64,9 @@ async function create() {
     if (!await verifyIdentifiers(true)) return
     const variant = Object.fromEntries(fields.map(f => [f.price ? 'priceCents' : f.key, f.price ? pesosToCents(draft[f.key]) : f.numeric ? Number(draft[f.key]) : draft[f.key]]))
     variant.servings = draft.servings.trim() || null
-    if (await save('/api/admin/catalog', { name: draft.name, slug: draft.slug, description: draft.description, reason: draft.reason, categoryIds: draftCategoryIds.value, variants: [variant] })) {
-      for (const key of Object.keys(draft)) draft[key] = ''
+    Object.assign(variant, variantPayload(draft))
+    if (await save('/api/admin/catalog', { name: draft.name, slug: draft.slug, description: draft.description, reason: draft.reason, ingredients: draft.ingredients, usageInstructions: draft.usageInstructions, allergenInformation: draft.allergenInformation, brandId: draft.brandId || null, relatedProductIds: draft.relatedProductIds, crossSellProductIds: draft.crossSellProductIds, categoryIds: draftCategoryIds.value, variants: [variant] })) {
+      for (const key of Object.keys(draft)) draft[key] = Array.isArray(draft[key]) ? [] : ''
       draftCategoryIds.value = []
       creatingOpen.value = false
     } else await verifyIdentifiers(true)
@@ -70,13 +81,14 @@ async function update(extra = {}) {
       const original = product.variants.find(item => item.id === variant.id)
       const values = Object.fromEntries(fields.map(field => [field.price ? 'priceCents' : field.key, field.price ? pesosToCents(variant[field.key]) : field.numeric ? Number(variant[field.key]) : variant[field.key]]))
       values.servings = variant.servings.trim() || null
+      Object.assign(values, variantPayload(variant))
       values.compareAtPriceCents = variant.compareAtPricePesos.trim() === '' ? null : pesosToCents(variant.compareAtPricePesos)
       if (values.compareAtPriceCents !== null && BigInt(values.compareAtPriceCents) <= BigInt(values.priceCents)) throw new RangeError('El precio anterior debe superar el precio vigente.')
-      if (!Object.keys(values).some(key => values[key] !== original[key])) return null
+      if (!Object.keys(values).some(key => key === 'nutritionData' ? JSON.stringify(values[key]) !== JSON.stringify(original[key] ?? null) : values[key] !== original[key])) return null
       return { id: variant.id, expectedPriceVersion: original.priceVersion, ...values }
     }).filter(Boolean)
   } catch (error) { failure.value = error.message; return }
-  if (await save(`/api/admin/catalog/${product.id}`, { ...edit, featuredPosition: edit.featuredPosition === '' ? null : Number(edit.featuredPosition), expectedUpdatedAt: product.updatedAt, ...(variants.length ? { variants } : {}), ...extra }, 'PATCH')) {
+  if (await save(`/api/admin/catalog/${product.id}`, { ...edit, brandId: edit.brandId || null, featuredPosition: edit.featuredPosition === '' ? null : Number(edit.featuredPosition), expectedUpdatedAt: product.updatedAt, ...(variants.length ? { variants } : {}), ...extra }, 'PATCH')) {
     const fresh = data.value?.products.find(item => item.id === product.id)
     if (fresh) select(fresh)
     else selected.value = null
@@ -114,9 +126,13 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
         <UiField id="draft-name" v-model="draft.name" label="Nombre" required maxlength="120" />
         <UiField id="draft-slug" v-model="draft.slug" label="Identificador de URL" hint="Minúsculas, números y guiones. Se comprueba que no esté registrado." :error="slugError" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="150" @blur="verifyIdentifiers()" />
         <UiField id="draft-description" v-model="draft.description" label="Descripción" required maxlength="10000" />
+        <BrandSelection v-model="draft.brandId" :brands="detailOptions?.brands" prefix="draft" @created="brandCreated" />
+        <ProductTextFields :draft="draft" prefix="draft" />
         <CategorySelection id="draft-category" v-model="draftCategoryIds" :categories="classification?.categories" />
         <UiField v-for="field in fields" :id="`draft-${field.key}`" :key="field.key" v-model="draft[field.key]" :label="field.label" :error="field.key === 'sku' ? skuError : undefined" :hint="field.key === 'presentationLabel' ? 'Sabor y presentación deben ser únicos dentro del mismo producto; pueden repetirse en otros productos.' : field.hint" :type="field.numeric ? 'number' : 'text'" :min="field.numeric ? 1 : undefined" :step="field.numeric ? 1 : undefined" :maxlength="field.numeric ? undefined : field.price ? 24 : 120" :inputmode="field.price ? 'decimal' : undefined" :pattern="field.price ? '[0-9]+([.,][0-9]{1,2})?' : undefined" required @blur="field.key === 'sku' && verifyIdentifiers()" />
         <UiField id="draft-servings" v-model="draft.servings" label="Número de porciones por envase (opcional)" hint="Cantidad indicada en la etiqueta, por ejemplo 30. Se usa para calcular el costo por porción. Déjalo vacío si no aplica; usa punto para decimales." inputmode="decimal" maxlength="15" pattern="(0|[1-9][0-9]{0,9})([.][0-9]{1,4})?" />
+        <VariantNutritionFields :variant="draft" prefix="draft" :disabled="busy || creating" />
+        <ProductRecommendationsFields :edit="draft" :disabled="busy || creating" />
         <UiField id="draft-reason" v-model="draft.reason" label="Motivo del alta" required maxlength="500" />
         <p role="status" aria-live="polite" class="text-body-s text-ink-2 md:col-span-2">{{ checkingIdentifiers ? 'Comprobando identificadores…' : slugError || skuError }}</p>
         <p v-if="identifierFailure" role="alert" class="text-crit md:col-span-2">{{ identifierFailure }}</p>
@@ -158,6 +174,8 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
         <UiField id="edit-name" v-model="edit.name" label="Nombre" required maxlength="120" />
         <UiField id="edit-slug" v-model="edit.slug" label="Identificador de URL" required maxlength="150" pattern="[a-z0-9]+(-[a-z0-9]+)*" />
         <UiField id="edit-description" v-model="edit.description" label="Descripción" required maxlength="10000" />
+        <BrandSelection v-model="edit.brandId" :brands="detailOptions?.brands" :current="selected.brand" prefix="edit" :disabled="busy || selected.deactivated" @created="brandCreated" />
+        <ProductTextFields :draft="edit" prefix="edit" />
         <fieldset class="rounded-sm border border-line bg-surface-2 p-4 md:col-span-2">
           <legend class="px-2 font-semibold">Nuestra selección del inicio</legend>
           <p class="mb-3 text-body-s text-ink-2">Asigna una prioridad para incluir este producto. La prioridad 1 aparece antes que la 2. Se muestran los primeros ocho productos publicados y activos; si hay prioridades iguales, se usa un orden estable por identificador.</p>
@@ -171,7 +189,9 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
           <UiField v-for="field in fields" :id="`edit-${variant.id}-${field.key}`" :key="field.key" v-model="variant[field.key]" :label="field.label" :hint="field.hint" :type="field.numeric ? 'number' : 'text'" :min="field.numeric ? 1 : undefined" :step="field.numeric ? 1 : undefined" :maxlength="field.numeric ? undefined : field.price ? 24 : 120" :inputmode="field.price ? 'decimal' : undefined" :pattern="field.price ? '[0-9]+([.,][0-9]{1,2})?' : field.key === 'sku' ? '[A-Z0-9][A-Z0-9._-]*' : undefined" required />
           <UiField :id="`edit-${variant.id}-servings`" v-model="variant.servings" label="Número de porciones por envase (opcional)" hint="Cantidad indicada en la etiqueta, por ejemplo 30. Se usa para calcular el costo por porción. Déjalo vacío si no aplica; usa punto para decimales." inputmode="decimal" maxlength="15" pattern="(0|[1-9][0-9]{0,9})([.][0-9]{1,4})?" />
           <UiField :id="`edit-${variant.id}-previous-price`" v-model="variant.compareAtPricePesos" label="Precio anterior en pesos (MXN, opcional)" hint="Si lo indicas, debe ser mayor que el precio vigente. Ejemplo: 180.00." inputmode="decimal" maxlength="24" pattern="[0-9]+([.,][0-9]{1,2})?" />
+          <VariantNutritionFields :variant="variant" :prefix="`edit-${variant.id}`" :disabled="busy || variant.deactivated" />
         </fieldset>
+        <ProductRecommendationsFields :edit="edit" :product-id="selected.id" :names="selected.recommendations" :disabled="busy || selected.deactivated" />
         <UiField id="edit-reason" v-model="edit.reason" label="Motivo de los cambios" hint="Obligatorio para guardar o publicar los datos revisados. El motivo de la carga de imágenes es independiente." required maxlength="500" />
         </fieldset>
         <div class="mt-6 grid gap-4">
@@ -206,6 +226,7 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
         <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
         <form class="grid gap-4" @submit.prevent="withdraw"><UiField id="withdrawal-reason" v-model="withdrawalReason" label="Motivo del retiro" required maxlength="500" :disabled="busy" /><div class="flex flex-wrap gap-3"><UiButton type="submit" :disabled="busy">Confirmar retiro</UiButton><UiButton variant="secondary" :disabled="busy" @click="withdrawing = false">Cancelar</UiButton></div></form>
       </UiModal>
+      <AddProductVariant :product="selected" :fields="fields" @created="variantCreated" />
       <ProductImages :key="selected.id" :product="selected" @updated="imagesUpdated" />
     </UiModal>
   </div>

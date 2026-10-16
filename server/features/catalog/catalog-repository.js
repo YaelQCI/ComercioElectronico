@@ -20,7 +20,7 @@ export function publicImage(media) {
   return { id: media.id, url: uploaded ? `/api/catalog/images/${media.asset.id}` : media.asset.storageKey, alt: media.altText, kind: media.kind, variantId: media.variantId }
 }
 function publicLots(variant) {
-  return sellableLots(variant.inventoryLot_variant).map(lot => ({ id: lot.id, lotCode: lot.lotCode, expiresOn: lot.expiresOn?.toISOString().slice(0, 10) ?? null, expiryPrecision: lot.expiryPrecision, importedOn: lot.importedOn?.toISOString().slice(0, 10) ?? null, customsEntry: lot.customsEntry, origin: lot.origin, availableQty: lot.onHandQty - lot.reservedQty, certificateUrl: lot.certificateAsset?.mimeType === 'application/pdf' ? `/api/catalog/lots/${lot.id}/certificate` : null }))
+  return sellableLots(variant.inventoryLot_variant).map(lot => ({ id: lot.id, lotCode: lot.lotCode, expiryPrecision: lot.expiryPrecision, expiresOn: lot.expiresOn?.toISOString().slice(0, 10) ?? null, expiryPrecision: lot.expiryPrecision, importedOn: lot.importedOn?.toISOString().slice(0, 10) ?? null, customsEntry: lot.customsEntry, origin: lot.origin, availableQty: lot.onHandQty - lot.reservedQty, certificateUrl: lot.certificateAsset?.mimeType === 'application/pdf' ? `/api/catalog/lots/${lot.id}/certificate` : null }))
 }
 export function catalogProductDTO(product) {
   return {

@@ -44,6 +44,13 @@ test('carga autorizada en borrador, publicación, frontal reemplazada y persiste
     assert.equal((await readdir(root)).length, 2)
     assert.equal(await db.productMedia.count({ where: { productId: product.id } }), 2)
     assert.equal(await db.auditEvent.count({ where: { actorId: actor.id, action: 'UPLOAD_PRODUCT_IMAGE' } }), 2)
+    const variantId = (await db.productVariant.findFirst({ where: { productId: product.id } })).id
+    await assert.rejects(images.add(actor.id, product.id, { ...input, variantId: randomUUID() }), e => e.status === 400 || e.status === 404)
+    assert.equal((await readdir(root)).length, 2)
+    const variantImage = await images.add(actor.id, product.id, { ...input, variantId })
+    assert.equal((await db.productMedia.findUnique({ where: { id: variantImage.id } })).variantId, variantId)
+    assert.equal((await db.productMedia.findUnique({ where: { id: second.id } })).kind, 'FRONT')
+    assert.equal((await catalog.getById(product.id)).images.find(image => image.id === variantImage.id).variantId, variantId)
     await admin.updateProduct(actor.id, product.id, { deactivate: true, published: false, reason: 'Fixture' })
     assert.equal(await catalog.imageAsset(media.assetId), null)
     await assert.rejects(images.add(actor.id, product.id, input), e => e.status === 404)

@@ -6,7 +6,9 @@ import { adjustInventory } from '../inventory/adjust-inventory.js'
 import { isMexicanStateCode } from '../../../shared/features/shipping/mexican-states.js'
 import { publicImage } from '../catalog/catalog-repository.js'
 import { searchQuery, searchPattern } from '../../../shared/features/catalog/search.js'
-import { parseServings } from '../../../shared/features/catalog/servings.js'
+import { variantData } from '../catalog/variant-input.js'
+import { variantDetails, assignProductDetails } from '../catalog/manage-product-details.js'
+import { lotTraceability } from '../../../shared/features/inventory/lot-traceability.js'
 import { featuredPosition } from '../catalog/featured-selection.js'
 const id = value => { if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value ?? '')) throw new AccountError(400, 'Identificador inválido.'); return value }
 const cents = value => { if (typeof value !== 'string' || !/^(0|[1-9]\d{0,14})$/.test(value)) throw new AccountError(400, 'Precio inválido; utiliza centavos como texto.'); return BigInt(value) }
@@ -19,17 +21,7 @@ function warehouseData(input) {
   if (!isMexicanStateCode(data.state)) throw new AccountError(400, 'Selecciona un estado de México válido.')
   return data
 }
-function variantData(input) {
-  const data = {}
-  for (const key of ['sku', 'flavor', 'presentationLabel', 'contentUnit']) data[key] = accountText(input?.[key], key, 120)
-  if (!/^[A-Z0-9][A-Z0-9._-]*$/.test(data.sku)) throw new AccountError(400, 'SKU inválido.')
-  data.flavorNormalized = data.flavor.toLowerCase(); data.presentationNormalized = data.presentationLabel.toLowerCase()
-  if (typeof input.contentAmount !== 'string' || !/^(?:0|[1-9]\d{0,9})(?:\.\d{1,4})?$/.test(input.contentAmount) || Number(input.contentAmount) <= 0) throw new AccountError(400, 'Contenido inválido.')
-  data.contentAmount = input.contentAmount; data.priceCents = cents(input.priceCents)
-  try { data.servings = parseServings(input.servings) } catch (error) { throw new AccountError(400, error.message) }
-  for (const key of ['weightGrams', 'lengthMm', 'widthMm', 'heightMm']) { if (!Number.isInteger(input[key]) || input[key] < 1 || input[key] > 2147483647) throw new AccountError(400, 'Medidas inválidas.'); data[key] = input[key] }
-  return data
-}
+
 async function audit(tx, actorId, entityType, entityId, action, reason, before, after) {
   await tx.auditEvent.create({ data: { actorId, actorType: 'ADMIN', entityType, entityId, action, reason, safeBefore: before, safeAfter: after, correlationId: randomUUID() } })
 }
@@ -45,13 +37,13 @@ async function changeVariant(tx, adminId, variantId, input, productId) {
   if (current.priceVersion !== input.expectedPriceVersion) throw new AccountError(409, 'La variante cambió. Actualiza la información antes de guardar.')
   if (current.deletedAt) throw new AccountError(409, 'Una variante desactivada no se puede modificar.')
   const merged = { ...current, contentAmount: current.contentAmount.toString(), priceCents: current.priceCents.toString(), servings: current.servings?.toString() ?? null, ...input }
-  const data = variantData(merged)
+  const data = { ...variantData(merged), ...variantDetails(input) }
   if (input.compareAtPriceCents !== undefined) data.compareAtPriceCents = input.compareAtPriceCents === null ? null : cents(input.compareAtPriceCents)
   if (input.deactivate === true) data.deletedAt = new Date()
   const previous = data.compareAtPriceCents !== undefined ? data.compareAtPriceCents : current.compareAtPriceCents
   if (previous !== null && previous <= data.priceCents) throw new AccountError(400, 'Precio anterior debe superar el vigente.')
   await tx.productVariant.update({ where: { id: variantId }, data: { ...data, priceVersion: { increment: 1 } } })
-  await audit(tx, adminId, 'ProductVariant', variantId, 'UPDATE_VARIANT', reason, { sku: current.sku, priceCents: current.priceCents.toString(), servings: current.servings?.toString() ?? null, version: current.priceVersion }, { sku: data.sku, flavor: data.flavor, presentationLabel: data.presentationLabel, contentAmount: data.contentAmount, contentUnit: data.contentUnit, servings: data.servings, priceCents: data.priceCents.toString(), weightGrams: data.weightGrams, lengthMm: data.lengthMm, widthMm: data.widthMm, heightMm: data.heightMm, version: current.priceVersion+1, deactivated: !!data.deletedAt })
+  await audit(tx, adminId, 'ProductVariant', variantId, 'UPDATE_VARIANT', reason, { sku: current.sku, priceCents: current.priceCents.toString(), servings: current.servings?.toString() ?? null, version: current.priceVersion, servingAmount: current.servingAmount?.toString() ?? null, servingUnit: current.servingUnit, nutritionData: current.nutritionData }, { details: { servingAmount: input.servingAmount === undefined ? current.servingAmount?.toString() ?? null : input.servingAmount, servingUnit: input.servingUnit === undefined ? current.servingUnit : input.servingUnit, nutritionData: input.nutritionData === undefined ? current.nutritionData : input.nutritionData }, sku: data.sku, flavor: data.flavor, presentationLabel: data.presentationLabel, contentAmount: data.contentAmount, contentUnit: data.contentUnit, servings: data.servings, priceCents: data.priceCents.toString(), weightGrams: data.weightGrams, lengthMm: data.lengthMm, widthMm: data.widthMm, heightMm: data.heightMm, version: current.priceVersion+1, deactivated: !!data.deletedAt })
   return { id: variantId, priceVersion: current.priceVersion+1 }
 }
 async function assignCategories(tx, productId, categoryIds) {
@@ -119,14 +111,14 @@ export function createStoreAdministration(db) {
         await requireAdministrator(tx, adminId)
         if (section === 'products') {
           const total = await tx.product.count()
-          const products = await tx.product.findMany({ skip: (page-1)*20, take: 20, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], include: { productVariant_product: { orderBy: { sku: 'asc' } }, productMedia_product: { include: { asset: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }] }, productCategory_product: { include: { category: true }, orderBy: [{ isPrimary: 'desc' }, { categoryId: 'asc' }] } } })
+          const products = await tx.product.findMany({ skip: (page-1)*20, take: 20, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], include: { brand: true, productRelation_sourceProduct: { include: { targetProduct: { select: { id: true, name: true, deletedAt: true } } }, orderBy: [{ position: 'asc' }, { targetProductId: 'asc' }] }, productVariant_product: { orderBy: { sku: 'asc' } }, productMedia_product: { include: { asset: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }] }, productCategory_product: { include: { category: true }, orderBy: [{ isPrimary: 'desc' }, { categoryId: 'asc' }] } } })
           const creationEvents = await tx.auditEvent.findMany({ where: { action: 'CREATE_DRAFT_PRODUCT', entityType: 'Product', entityId: { in: products.map(product => product.id) } }, select: { entityId: true, reason: true } })
-          return { total, page, pages: Math.ceil(total/20), products: products.map(p => ({ id: p.id, name: p.name, slug: p.slug, description: p.description, featuredPosition: p.featuredPosition, updatedAt: p.updatedAt.toISOString(), creationReason: creationEvents.find(event => event.entityId === p.id)?.reason ?? null, categories: p.productCategory_product.map(link => ({ id: link.categoryId, name: link.category.name, isPrimary: link.isPrimary, isActive: link.category.isActive })), published: !!p.publishedAt, deactivated: !!p.deletedAt, images: p.productMedia_product.map(publicImage).filter(Boolean), variants: p.productVariant_product.map(v => ({ id: v.id, sku: v.sku, flavor: v.flavor, presentationLabel: v.presentationLabel, contentAmount: v.contentAmount.toString(), contentUnit: v.contentUnit, servings: v.servings?.toString() ?? null, weightGrams: v.weightGrams, lengthMm: v.lengthMm, widthMm: v.widthMm, heightMm: v.heightMm, priceCents: v.priceCents.toString(), compareAtPriceCents: v.compareAtPriceCents?.toString() ?? null, priceVersion: v.priceVersion, deactivated: !!v.deletedAt })) })) }
+          return { total, page, pages: Math.ceil(total/20), products: products.map(p => ({ id: p.id, name: p.name, slug: p.slug, description: p.description, ingredients: p.ingredients, usageInstructions: p.usageInstructions, allergenInformation: p.allergenInformation, brandId: p.brandId, brand: p.brand ? { id: p.brand.id, name: p.brand.name, isActive: p.brand.isActive } : null, recommendations: p.productRelation_sourceProduct.map(link => ({ id: link.targetProductId, name: link.targetProduct.name, kind: link.kind, deactivated: !!link.targetProduct.deletedAt })), featuredPosition: p.featuredPosition, updatedAt: p.updatedAt.toISOString(), creationReason: creationEvents.find(event => event.entityId === p.id)?.reason ?? null, categories: p.productCategory_product.map(link => ({ id: link.categoryId, name: link.category.name, isPrimary: link.isPrimary, isActive: link.category.isActive })), published: !!p.publishedAt, deactivated: !!p.deletedAt, images: p.productMedia_product.map(publicImage).filter(Boolean), variants: p.productVariant_product.map(v => ({ id: v.id, sku: v.sku, flavor: v.flavor, presentationLabel: v.presentationLabel, contentAmount: v.contentAmount.toString(), contentUnit: v.contentUnit, servings: v.servings?.toString() ?? null, servingAmount: v.servingAmount?.toString() ?? null, servingUnit: v.servingUnit, nutritionData: v.nutritionData, weightGrams: v.weightGrams, lengthMm: v.lengthMm, widthMm: v.widthMm, heightMm: v.heightMm, priceCents: v.priceCents.toString(), compareAtPriceCents: v.compareAtPriceCents?.toString() ?? null, priceVersion: v.priceVersion, deactivated: !!v.deletedAt })) })) }
         }
         const total = await tx.inventoryLot.count()
         const lots = await tx.inventoryLot.findMany({ skip: (page-1)*20, take: 20, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], include: { variant: { select: { sku: true, productId: true, product: { select: { name: true } } } }, warehouse: { select: { name: true } } } })
         const warehouses = await tx.warehouse.findMany({ select: { id: true, name: true, recipientName: true, contactName: true, phone: true, countryCode: true, postalCode: true, state: true, city: true, district: true, street: true, exteriorNumber: true, interiorNumber: true, references: true, timezone: true, configurationVersion: true, updatedAt: true } })
-        return { total, page, pages: Math.ceil(total/20), warehouses, lots: lots.map(l => ({ id: l.id, sku: l.variant.sku, productId: l.variant.productId, variantId: l.variantId, productName: l.variant.product.name, warehouse: l.warehouse.name, lotCode: l.lotCode, expiresOn: l.expiresOn?.toISOString().slice(0,10) ?? null, onHandQty: l.onHandQty, reservedQty: l.reservedQty, nonSellableQty: l.nonSellableQty, isBlocked: l.isBlocked })) }
+        return { total, page, pages: Math.ceil(total/20), warehouses, lots: lots.map(l => ({ id: l.id, sku: l.variant.sku, productId: l.variant.productId, variantId: l.variantId, productName: l.variant.product.name, warehouse: l.warehouse.name, lotCode: l.lotCode, version: l.version, importedOn: l.importedOn?.toISOString().slice(0,10) ?? null, origin: l.origin, customsEntry: l.customsEntry, certificateUrl: l.certificateAssetId ? `/api/catalog/lots/${l.id}/certificate` : null, expiresOn: l.expiresOn?.toISOString().slice(0,10) ?? null, onHandQty: l.onHandQty, reservedQty: l.reservedQty, nonSellableQty: l.nonSellableQty, isBlocked: l.isBlocked })) }
       }, { isolationLevel: 'RepeatableRead' })
     },
     async createLot(adminId, input) {
@@ -141,9 +133,11 @@ export function createStoreAdministration(db) {
         const variant = await tx.productVariant.findFirst({ where: { sku, deletedAt: null, product: { deletedAt: null } } })
         if (!variant || !await tx.warehouse.findUnique({ where: { id: warehouseId } })) throw new AccountError(400, 'Variante o almacén no disponible.')
         const variantId = variant.id
-        const lot = await tx.inventoryLot.create({ data: { variantId, warehouseId, lotCode, expiresOn, expiryPrecision: expiresOn ? 'DAY' : null } })
+        let trace
+        try { trace = lotTraceability(input) } catch (error) { throw new AccountError(400, error.message) }
+        const lot = await tx.inventoryLot.create({ data: { variantId, warehouseId, lotCode, expiresOn, expiryPrecision: expiresOn ? 'DAY' : null, ...trace, importedOn: trace.importedOn ? new Date(trace.importedOn+'T00:00:00Z') : null } })
         if (initialQuantity > 0) await adjustInventory(context, { lotId: lot.id, delta: initialQuantity, reason, actorId: adminId, idempotencyKey: `lot-initial:${lot.id}` })
-        await audit(tx, adminId, 'InventoryLot', lot.id, 'CREATE_LOT', reason, undefined, { lotCode, variantId, warehouseId, initialQuantity })
+        await audit(tx, adminId, 'InventoryLot', lot.id, 'CREATE_LOT', reason, undefined, { lotCode, variantId, warehouseId, initialQuantity, origin: lot.origin, customsEntry: lot.customsEntry, importedOn: lot.importedOn })
         return { id: lot.id }
       })
     },
@@ -175,10 +169,11 @@ export function createStoreAdministration(db) {
     async createDraft(adminId, input) {
       const name = accountText(input?.name, 'Nombre'), description = accountText(input?.description, 'Descripción', 10000), slug = accountText(input?.slug, 'Slug', 150), reason = accountText(input?.reason, 'Motivo', 500)
       if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) || !Array.isArray(input?.variants) || !input.variants.length || input.variants.length > 100) throw new AccountError(400, 'Producto o variantes inválidos.')
-      const variants = input.variants.map(variantData)
+      const variants = input.variants.map(variant => ({ ...variantData(variant), ...variantDetails(variant) }))
       return db.$transaction(async tx => {
         await requireAdministrator(tx, adminId)
         const saved = await tx.product.create({ data: { name, description, slug, productVariant_product: { create: variants } } })
+        await assignProductDetails(tx, saved.id, input, adminId)
         if (input.categoryIds !== undefined) await assignCategories(tx, saved.id, input.categoryIds)
         await audit(tx, adminId, 'Product', saved.id, 'CREATE_DRAFT_PRODUCT', reason, undefined, { name, slug })
         return { id: saved.id, published: false }
@@ -189,7 +184,7 @@ export function createStoreAdministration(db) {
       if (input.featuredPosition !== undefined) {
         try { data.featuredPosition = featuredPosition(input.featuredPosition) } catch (error) { throw new AccountError(400, error.message) }
       }
-      for (const key of ['name', 'description', 'ingredients', 'allergenInformation', 'usageInstructions']) if (input[key] !== undefined) data[key] = accountText(input[key], key, key === 'name' ? 120 : 10000)
+      for (const key of ['name', 'description']) if (input[key] !== undefined) data[key] = accountText(input[key], key, key === 'name' ? 120 : 10000)
       if (input.slug !== undefined) {
         data.slug = accountText(input.slug, 'Identificador de URL', 150)
         if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(data.slug)) throw new AccountError(400, 'Identificador de URL inválido.')
@@ -213,6 +208,7 @@ export function createStoreAdministration(db) {
           if (!variants || !images) throw new AccountError(409, 'Antes de publicar configura variantes e imagen frontal documentada.')
           data.publishedAt = new Date()
         } else if (input.published === false) data.publishedAt = null
+        await assignProductDetails(tx, productId, input, adminId)
         if (input.categoryIds !== undefined) await assignCategories(tx, productId, input.categoryIds)
         await tx.product.update({ where: { id: productId }, data })
         await audit(tx, adminId, 'Product', productId, 'UPDATE_PRODUCT', reason, { name: product.name, published: !!product.publishedAt, deactivated: !!product.deletedAt, featuredPosition: product.featuredPosition }, { featuredPosition: data.featuredPosition === undefined ? product.featuredPosition : data.featuredPosition, name: data.name ?? product.name, published: input.published ?? !!product.publishedAt, deactivated: !!(data.deletedAt ?? product.deletedAt), categoryIds: input.categoryIds ?? null })

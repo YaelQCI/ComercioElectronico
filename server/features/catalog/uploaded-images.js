@@ -60,14 +60,16 @@ export function createProductImages(db, storage) {
           await tx.$queryRaw`SELECT id FROM "Product" WHERE id = ${productId}::uuid FOR UPDATE`
           const product = await tx.product.findUnique({ where: { id: productId } })
           if (!product || product.deletedAt) throw new AccountError(404, 'Producto no disponible para cargar imágenes.')
+          const variantId = input.variantId || null
+          if (variantId !== null && (typeof variantId !== 'string' || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(variantId) || !await tx.productVariant.findFirst({ where: { id: variantId, productId, deletedAt: null } }))) throw new AccountError(400, 'Presentación no disponible para esa imagen.')
           if (await tx.productMedia.count({ where: { productId } }) >= 20) throw new AccountError(409, 'El producto ya tiene el máximo de 20 imágenes.')
           const bytes = await prepareProductImage(input.bytes, input.mimeType)
           storedKey = await storage.write(bytes)
           const asset = await tx.mediaAsset.create({ data: { storageKey: storedKey, mimeType: 'image/webp', byteSize: BigInt(bytes.length), checksum: createHash('sha256').update(bytes).digest('hex'), createdById: adminId } })
-          if (input.kind !== 'GALLERY') await tx.productMedia.updateMany({ where: { productId, variantId: null, kind: input.kind }, data: { kind: 'GALLERY' } })
+          if (input.kind !== 'GALLERY') await tx.productMedia.updateMany({ where: { productId, variantId, kind: input.kind }, data: { kind: 'GALLERY' } })
           const last = await tx.productMedia.aggregate({ where: { productId }, _max: { position: true } })
-          const media = await tx.productMedia.create({ data: { productId, assetId: asset.id, kind: input.kind, altText, position: (last._max.position ?? -1)+1 } })
-          await tx.auditEvent.create({ data: { actorId: adminId, actorType: 'ADMIN', entityType: 'Product', entityId: productId, action: 'UPLOAD_PRODUCT_IMAGE', reason, safeAfter: { mediaId: media.id, kind: media.kind, checksum: asset.checksum }, correlationId: randomUUID() } })
+          const media = await tx.productMedia.create({ data: { productId, variantId, assetId: asset.id, kind: input.kind, altText, position: (last._max.position ?? -1)+1 } })
+          await tx.auditEvent.create({ data: { actorId: adminId, actorType: 'ADMIN', entityType: 'Product', entityId: productId, action: 'UPLOAD_PRODUCT_IMAGE', reason, safeAfter: { mediaId: media.id, variantId, kind: media.kind, checksum: asset.checksum }, correlationId: randomUUID() } })
           return { id: media.id, url: `/api/catalog/images/${asset.id}`, kind: media.kind, alt: altText }
         }, { timeout: 30000 })
       } catch (error) {
