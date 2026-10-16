@@ -36,9 +36,17 @@ async function warehouseSaved() {
     <UiLoading v-if="status === 'pending'" label="Cargando inventario" />
     <div v-else-if="error" role="alert"><p>No se pudo cargar el inventario.</p><UiButton @click="refresh">Reintentar</UiButton></div>
     <template v-else>
-      <WarehouseInformation v-for="item in data?.warehouses" :key="item.id" :warehouse="item" @saved="warehouseSaved" @refresh="refresh" />
-      <PackageAdministration />
-      <UiButton v-if="!data?.warehouses.length" class="my-4 mr-3" aria-haspopup="dialog" @click="warehouseOpen = true">Configurar almacén inicial</UiButton>
+      <details class="my-4 rounded-sm border border-border bg-surface">
+        <summary class="min-h-11 cursor-pointer rounded-sm p-4 text-display-s font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">Información del almacén</summary>
+        <div class="px-4">
+          <WarehouseInformation v-for="item in data?.warehouses" :key="item.id" :warehouse="item" @saved="warehouseSaved" @refresh="refresh" />
+          <UiButton v-if="!data?.warehouses.length" class="my-4" aria-haspopup="dialog" @click="warehouseOpen = true">Configurar almacén inicial</UiButton>
+        </div>
+      </details>
+      <details class="my-4 rounded-sm border border-border bg-surface">
+        <summary class="min-h-11 cursor-pointer rounded-sm p-4 text-display-s font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink">Cajas de envío</summary>
+        <div class="px-4"><PackageAdministration /></div>
+      </details>
       <UiModal :open="warehouseOpen" title="Configurar almacén inicial" :busy="busy" @close="warehouseOpen = false">
         <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
         <p class="my-3">Registra los datos reales del almacén antes de crear lotes. No se generan datos comerciales de ejemplo.</p>
@@ -51,6 +59,7 @@ async function warehouseSaved() {
           </fieldset>
         </form>
       </UiModal>
+      <h3 class="mt-6 text-display-s font-bold">Lotes</h3>
       <UiButton class="my-4" aria-haspopup="dialog" @click="lotOpen = true">Registrar lote</UiButton>
       <UiModal :open="lotOpen" title="Registrar lote" :busy="busy" @close="lotOpen = false"><p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p><p class="my-3 text-ink-2">Registra el lote y sus existencias iniciales. Para entradas o salidas posteriores utiliza Ajustar lote.</p><form class="grid gap-4 md:grid-cols-2" @submit.prevent="createLot">
         <LotVariantPicker v-model="lot.sku" :disabled="busy" />

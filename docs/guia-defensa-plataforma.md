@@ -825,6 +825,8 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 ## Paginación de cajas de envío
 
+La vista de Inventario mantiene los lotes visibles y agrupa Información del almacén y Cajas de envío en dos acordeones inicialmente cerrados. Se pueden abrir independientemente mediante clic o con Enter/Espacio al enfocar su encabezado. Se utilizan los elementos nativos `details` y `summary` en `InventoryAdministration.vue`; los formularios continúan en modales y las cajas conservan su paginación.
+
 En Administración → Inventario → Cajas de envío se muestran hasta cinco cajas por página, ordenadas por código. Los botones Anterior y Siguiente permiten recorrerlas y el indicador muestra el total de cajas y la página actual. Agregar y editar continúan disponibles mediante un modal.
 
 El servidor aplica el límite mediante `skip` y `take` en `server/features/shipping/manage-packages.js`; no descarga todas las cajas al navegador. Valida el número de página y exige el rol administrador. Si la página solicitada supera las disponibles, devuelve la última. La selección de cajas para cotizar sigue considerando todas las cajas activas, independientemente de esta paginación administrativa.
