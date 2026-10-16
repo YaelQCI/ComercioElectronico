@@ -25,14 +25,14 @@ const money = (cents, currency = 'MXN') => new Intl.NumberFormat('es-MX', { styl
   <div>
     <h2 class="text-display-m font-bold">Pedidos</h2><p class="mt-3 text-ink-2">Consulta el detalle y registra la preparación, el envío y la entrega de pedidos confirmados.</p>
     <p v-if="failure" role="alert" class="my-4 text-crit">{{ failure }}</p>
-    <UiLoading v-if="status === 'pending'" label="Cargando pedidos" />
+    <UiLoading variant="list" v-if="status === 'pending'" label="Cargando pedidos" />
     <div v-else-if="error" role="alert"><p>No se pudieron cargar los pedidos.</p><UiButton @click="refresh">Reintentar</UiButton></div>
     <template v-else>
       <p v-if="!data?.orders.length" class="my-6">No hay pedidos registrados.</p>
       <ul class="mt-6 grid gap-4"><li v-for="order in data?.orders" :key="order.id" class="flex flex-wrap items-center justify-between gap-4 rounded-sm border border-border bg-surface p-4"><div><h3 class="font-semibold">Pedido {{ order.number }}</h3><p>{{ states[order.status] || order.status }} · {{ money(order.totalMoneyCents, order.currency) }}</p><p class="text-body-s text-ink-2">Pago: {{ payments[order.moneyStatus] || order.moneyStatus }}</p></div><UiButton variant="secondary" :disabled="busy || detailBusy" @click="read(order)">Ver pedido {{ order.number }}</UiButton></li></ul>
       <nav aria-label="Páginas de pedidos" class="my-4 flex items-center gap-4"><UiButton variant="secondary" :disabled="page <= 1 || busy" @click="page--">Anterior</UiButton><span>Página {{ page }} de {{ data?.pages || 1 }}</span><UiButton variant="secondary" :disabled="page >= (data?.pages || 1) || busy" @click="page++">Siguiente</UiButton></nav>
     </template>
-    <UiLoading v-if="detailBusy" label="Consultando detalle" />
+    <UiLoading variant="list" v-if="detailBusy" label="Consultando detalle" />
     <UiModal :open="!!selected" :title="`Pedido ${selected?.number || ''}`" :busy="busy" @close="selected = null">
       <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
       <h3 class="text-display-s font-bold">Pedido {{ selected.number }}</h3><p class="my-3">{{ states[selected.status] || selected.status }}</p><p class="break-all">Cliente: {{ selected.buyerName }} · {{ selected.buyerEmail }}</p>

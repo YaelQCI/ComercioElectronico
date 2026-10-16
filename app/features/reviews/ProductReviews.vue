@@ -24,7 +24,7 @@ async function publish() {
 </script>
 <template>
   <section class="mt-10" aria-label="Reseñas verificadas"><h2 class="text-display-m font-bold">Reseñas verificadas</h2>
-    <UiLoading v-if="status === 'pending'" label="Cargando reseñas" />
+    <UiLoading variant="list" v-if="status === 'pending'" label="Cargando reseñas" />
     <div v-else-if="error" role="alert"><p>Reseñas no disponibles.</p><UiButton @click="refresh">Reintentar</UiButton></div>
     <template v-else-if="data">
       <div class="mt-4 grid gap-6 rounded-sm border border-line bg-surface p-4 md:grid-cols-2 md:p-6">

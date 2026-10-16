@@ -53,7 +53,7 @@ watch(() => data.value?.user?.id, (id, previous) => { if (id !== previous) loadP
 <template>
   <section class="mx-auto max-w-store px-4 py-12 md:px-8">
     <UiBreadcrumbs :items="[{ label: 'Mi cuenta' }]" /><h1 class="text-display-l font-bold">Mi cuenta</h1>
-    <UiLoading v-if="status === 'pending'" label="Consultando sesión" />
+    <UiLoading v-if="status === 'pending'" label="Consultando sesión" variant="form" />
     <div v-if="error" role="alert"><p>Cuenta no disponible.</p><UiButton @click="refresh">Reintentar</UiButton></div>
     <p v-if="failure" role="alert" class="mt-4 text-crit">{{ failure }}</p>
     <template v-if="!error && status !== 'pending'">

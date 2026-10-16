@@ -24,7 +24,7 @@ async function publish() {
   <section aria-label="Administración de políticas">
     <h2 class="text-display-m font-bold">Políticas</h2>
     <p class="mt-3 text-ink-2">Para confirmar pedidos deben estar publicadas las tres políticas. Revisa y aprueba el contenido antes de publicarlo.</p>
-    <UiLoading v-if="status === 'pending'" label="Cargando políticas" />
+    <UiLoading variant="list" v-if="status === 'pending'" label="Cargando políticas" />
     <div v-else-if="error" role="alert" class="mt-4"><p>No pudimos cargar las políticas.</p><UiButton @click="refresh">Reintentar</UiButton></div>
     <ul v-else class="mt-6 grid gap-4"><li v-for="policy in data?.policies" :key="policy.slug" class="rounded-sm border border-border bg-surface p-4">
       <h3 class="font-semibold">{{ policy.title }}</h3>

@@ -32,7 +32,7 @@ function update(line) {
 <template>
   <section class="mx-auto max-w-store px-4 py-8 md:px-8" :aria-busy="status === 'pending'">
     <UiBreadcrumbs :items="[{ label: 'Carrito' }]" /><h1 class="text-display-l font-bold">Tu carrito</h1>
-    <UiLoading v-if="status === 'pending'" label="Recuperando carrito…" :cards="1" />
+    <UiLoading v-if="status === 'pending'" label="Recuperando carrito…" variant="list" :cards="2" />
     <div v-else-if="error" role="alert"><p class="mt-6">No pudimos recuperar tu carrito.</p><UiButton class="mt-4" @click="refresh()">Reintentar</UiButton></div>
     <template v-else-if="data?.lines.length">
       <ul v-if="changes.length" role="alert" class="mt-4 text-body-s text-crit"><li v-for="notice in changes" :key="notice">{{ notice }}</li></ul>

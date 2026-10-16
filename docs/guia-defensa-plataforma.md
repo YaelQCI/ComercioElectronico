@@ -823,6 +823,14 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 **Frase para exponer:** “El catálogo permite buscar por nombre, SKU o categoría y combinar filtros de disponibilidad, presentación y precio. Los criterios se conservan en la URL y solo se muestran productos publicados y activos.”
 
+## Skeletons y carga entre páginas
+
+El layout compartido utiliza `useLoadingIndicator` de Nuxt para detectar la navegación pendiente. Si tarda más de 200 ms muestra una barra superior y `UiPageLoading.vue`, conservando el encabezado y el pie. El contenido anterior queda oculto e inerte mientras carga y vuelve a estar disponible al terminar; no se pierden componentes por alternar la pantalla de carga. La barra indica actividad estimada, no porcentaje real de descarga.
+
+`UiLoading.vue` ofrece skeletons de tarjetas, listas, formulario y detalle de producto. Catálogo conserva las tarjetas; cuenta usa formulario; carrito, pedidos, inventario, cajas, reseñas, puntos y políticas administrativas usan listas; el detalle de producto representa imagen e información. Son placeholders visuales sin datos ficticios, con mensajes accesibles y animación solo si el usuario permite movimiento. También aparecen durante nuevas consultas de datos dentro de una página.
+
+Para demostrarlo, activa una conexión lenta en las herramientas del navegador y navega entre páginas o cambia una búsqueda del catálogo. `scripts/check-loading-browser.mjs` retrasa consultas de lectura y simula un error para verificar inicio y fin de la navegación, el contenido inerte, los skeletons y la recuperación con Reintentar. La compilación Docker y esta prueba de interacción pasaron; se revisó una captura de la pantalla de carga. Esto cubre la navegación dentro de la aplicación; antes de recibir el HTML inicial, la indicación de conexión depende del navegador.
+
 ## Acciones de edición de productos
 
 En Administración → Productos → Gestionar, las acciones se organizan en tres filas: Cerrar edición, Descartar cambios y Guardar cambios; después Publicar y Retirar del catálogo con un indicador destacado de visibilidad; finalmente Activar o Desactivar según el estado actual. Los botones se ajustan al ancho disponible. Publicar guarda el formulario y exige sus validaciones; retirar pide un motivo en un modal y no guarda cambios pendientes. Activar conserva los datos y devuelve el producto a borrador. El cierre y descarte siguen disponibles cuando el producto está desactivado, mientras que guardar y publicar permanecen bloqueados.
