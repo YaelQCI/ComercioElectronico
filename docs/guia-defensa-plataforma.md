@@ -823,6 +823,16 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 **Frase para exponer:** “El catálogo permite buscar por nombre, SKU o categoría y combinar filtros de disponibilidad, presentación y precio. Los criterios se conservan en la URL y solo se muestran productos publicados y activos.”
 
+## Nuestra selección de productos en el inicio
+
+La selección se define en el campo opcional `Product.featuredPosition` de la base de datos. Un valor numérico marca al producto como destacado y determina su orden ascendente; `null` lo excluye. El caso `home()` de `server/features/catalog/catalog-repository.js` devuelve como máximo ocho productos destacados, publicados y activos, con alguna variante activa y marca activa si tienen marca. No se eligen automáticamente por ventas, reseñas o fecha de creación.
+
+`StoreHome.vue` presenta los resultados de `/api/catalog/home` en Nuestra selección. Si no hay productos que cumplan los requisitos, muestra Estamos preparando nuestra selección de productos. Publicar un producto por sí solo no lo incluye en la selección.
+
+Para configurarla, abre Administración → Productos → Gestionar → Nuestra selección del inicio. Asigna una prioridad entera entre 1 y 1000, escribe el motivo y pulsa Guardar cambios. Una prioridad menor aparece antes; con prioridades iguales se usa el identificador como desempate. Deja la prioridad vacía y guarda para quitarlo de la selección sin retirarlo del catálogo. Los borradores pueden prepararse con prioridad, pero solo aparecerán cuando se publiquen. Si hay más de ocho candidatos visibles, se muestran los primeros ocho. La tarjeta administrativa identifica la prioridad guardada y avisa si falta activar o publicar.
+
+Se reutiliza el campo existente, sin migración adicional. `featured-selection.js` valida el dato; `manage-store.js` aplica la autorización, bloqueo y control de versión del producto, y registra el valor anterior y nuevo en auditoría. Las pruebas `tests/database/featured-selection.test.mjs` y `store-home.test.mjs` verifican permisos, validación, orden, publicación, retiro, versión y auditoría. La configuración se aplica a la siguiente consulta del inicio; las páginas ya abiertas requieren actualizarse.
+
 ## Skeletons y carga entre páginas
 
 El layout compartido utiliza `useLoadingIndicator` de Nuxt para detectar la navegación pendiente. Si tarda más de 200 ms muestra una barra superior y `UiPageLoading.vue`, conservando el encabezado y el pie. El contenido anterior queda oculto e inerte mientras carga y vuelve a estar disponible al terminar; no se pierden componentes por alternar la pantalla de carga. La barra indica actividad estimada, no porcentaje real de descarga.

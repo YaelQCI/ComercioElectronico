@@ -7,6 +7,7 @@ import { isMexicanStateCode } from '../../../shared/features/shipping/mexican-st
 import { publicImage } from '../catalog/catalog-repository.js'
 import { searchQuery, searchPattern } from '../../../shared/features/catalog/search.js'
 import { parseServings } from '../../../shared/features/catalog/servings.js'
+import { featuredPosition } from '../catalog/featured-selection.js'
 const id = value => { if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value ?? '')) throw new AccountError(400, 'Identificador inválido.'); return value }
 const cents = value => { if (typeof value !== 'string' || !/^(0|[1-9]\d{0,14})$/.test(value)) throw new AccountError(400, 'Precio inválido; utiliza centavos como texto.'); return BigInt(value) }
 function warehouseData(input) {
@@ -120,7 +121,7 @@ export function createStoreAdministration(db) {
           const total = await tx.product.count()
           const products = await tx.product.findMany({ skip: (page-1)*20, take: 20, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], include: { productVariant_product: { orderBy: { sku: 'asc' } }, productMedia_product: { include: { asset: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }] }, productCategory_product: { include: { category: true }, orderBy: [{ isPrimary: 'desc' }, { categoryId: 'asc' }] } } })
           const creationEvents = await tx.auditEvent.findMany({ where: { action: 'CREATE_DRAFT_PRODUCT', entityType: 'Product', entityId: { in: products.map(product => product.id) } }, select: { entityId: true, reason: true } })
-          return { total, page, pages: Math.ceil(total/20), products: products.map(p => ({ id: p.id, name: p.name, slug: p.slug, description: p.description, updatedAt: p.updatedAt.toISOString(), creationReason: creationEvents.find(event => event.entityId === p.id)?.reason ?? null, categories: p.productCategory_product.map(link => ({ id: link.categoryId, name: link.category.name, isPrimary: link.isPrimary, isActive: link.category.isActive })), published: !!p.publishedAt, deactivated: !!p.deletedAt, images: p.productMedia_product.map(publicImage).filter(Boolean), variants: p.productVariant_product.map(v => ({ id: v.id, sku: v.sku, flavor: v.flavor, presentationLabel: v.presentationLabel, contentAmount: v.contentAmount.toString(), contentUnit: v.contentUnit, servings: v.servings?.toString() ?? null, weightGrams: v.weightGrams, lengthMm: v.lengthMm, widthMm: v.widthMm, heightMm: v.heightMm, priceCents: v.priceCents.toString(), compareAtPriceCents: v.compareAtPriceCents?.toString() ?? null, priceVersion: v.priceVersion, deactivated: !!v.deletedAt })) })) }
+          return { total, page, pages: Math.ceil(total/20), products: products.map(p => ({ id: p.id, name: p.name, slug: p.slug, description: p.description, featuredPosition: p.featuredPosition, updatedAt: p.updatedAt.toISOString(), creationReason: creationEvents.find(event => event.entityId === p.id)?.reason ?? null, categories: p.productCategory_product.map(link => ({ id: link.categoryId, name: link.category.name, isPrimary: link.isPrimary, isActive: link.category.isActive })), published: !!p.publishedAt, deactivated: !!p.deletedAt, images: p.productMedia_product.map(publicImage).filter(Boolean), variants: p.productVariant_product.map(v => ({ id: v.id, sku: v.sku, flavor: v.flavor, presentationLabel: v.presentationLabel, contentAmount: v.contentAmount.toString(), contentUnit: v.contentUnit, servings: v.servings?.toString() ?? null, weightGrams: v.weightGrams, lengthMm: v.lengthMm, widthMm: v.widthMm, heightMm: v.heightMm, priceCents: v.priceCents.toString(), compareAtPriceCents: v.compareAtPriceCents?.toString() ?? null, priceVersion: v.priceVersion, deactivated: !!v.deletedAt })) })) }
         }
         const total = await tx.inventoryLot.count()
         const lots = await tx.inventoryLot.findMany({ skip: (page-1)*20, take: 20, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], include: { variant: { select: { sku: true, productId: true, product: { select: { name: true } } } }, warehouse: { select: { name: true } } } })
@@ -185,6 +186,9 @@ export function createStoreAdministration(db) {
     },
     async updateProduct(adminId, productId, input) {
       id(productId); const reason = accountText(input?.reason, 'Motivo', 500), data = {}
+      if (input.featuredPosition !== undefined) {
+        try { data.featuredPosition = featuredPosition(input.featuredPosition) } catch (error) { throw new AccountError(400, error.message) }
+      }
       for (const key of ['name', 'description', 'ingredients', 'allergenInformation', 'usageInstructions']) if (input[key] !== undefined) data[key] = accountText(input[key], key, key === 'name' ? 120 : 10000)
       if (input.slug !== undefined) {
         data.slug = accountText(input.slug, 'Identificador de URL', 150)
@@ -211,7 +215,7 @@ export function createStoreAdministration(db) {
         } else if (input.published === false) data.publishedAt = null
         if (input.categoryIds !== undefined) await assignCategories(tx, productId, input.categoryIds)
         await tx.product.update({ where: { id: productId }, data })
-        await audit(tx, adminId, 'Product', productId, 'UPDATE_PRODUCT', reason, { name: product.name, published: !!product.publishedAt, deactivated: !!product.deletedAt }, { name: data.name ?? product.name, published: input.published ?? !!product.publishedAt, deactivated: !!(data.deletedAt ?? product.deletedAt), categoryIds: input.categoryIds ?? null })
+        await audit(tx, adminId, 'Product', productId, 'UPDATE_PRODUCT', reason, { name: product.name, published: !!product.publishedAt, deactivated: !!product.deletedAt, featuredPosition: product.featuredPosition }, { featuredPosition: data.featuredPosition === undefined ? product.featuredPosition : data.featuredPosition, name: data.name ?? product.name, published: input.published ?? !!product.publishedAt, deactivated: !!(data.deletedAt ?? product.deletedAt), categoryIds: input.categoryIds ?? null })
         return { id: productId }
       })
     },
