@@ -6,19 +6,33 @@ import { useCart } from '../cart/useCart.js'
 import RestockForm from '../restock/RestockForm.vue'
 const cart = await useCart()
 const props = defineProps({ product: { type: Object, required: true } })
-const pricing = computed(() => props.product.variants[0] ? variantPricing(props.product.variants[0]) : null)
+const variant = computed(() => props.product.variants[0])
+const pricing = computed(() => variant.value ? variantPricing(variant.value) : null)
+const lot = computed(() => variant.value?.lots?.[0])
+const available = computed(() => (variant.value?.availableQty ?? 0) > 0)
+const productPath = computed(() => ({ path: `/producto/${props.product.id}`, query: variant.value ? { variante: variant.value.id } : {} }))
 </script>
 <template>
-  <UiCard :title="product.name" :to="`/producto/${product.id}`" class="min-w-0 [overflow-wrap:anywhere]">
-    <template #image><CardPackshot :images="product.images" :variant-id="product.variants[0]?.id" :to="`/producto/${product.id}`" :product-name="product.name" /></template>
-    <p v-if="product.brand" class="text-body-s text-ink-2">{{ product.brand.name }}</p>
-    <p v-if="pricing" class="mt-2 font-mono text-data-l font-semibold tabular-nums"><span v-if="product.variants.length > 1" class="text-body-s">Desde </span>{{ pricing.priceLabel }}</p>
-    <p v-if="pricing?.compareAtPriceLabel" class="mt-1 text-body-s text-ink-2">Precio anterior: <s>{{ pricing.compareAtPriceLabel }}</s></p>
-    <p v-if="pricing?.servingCostLabel" class="mt-2 font-mono text-body-s tabular-nums">{{ pricing.servingCostLabel }}</p>
-    <p v-if="product.variants[0]" class="mt-2 font-mono text-body-s text-ink-2">SKU {{ product.variants[0].sku }}</p>
-    <p v-if="product.variants[0]?.lots?.[0]" class="mt-2 font-mono text-body-s text-ink-2">Lote orientativo {{ product.variants[0].lots[0].lotCode }} · CAD {{ expiryLabel(product.variants[0].lots[0]) }}</p>
-    <p v-if="product.variants[0]" class="mt-2 text-body-s" :class="product.variants[0].availableQty ? 'text-ok' : 'text-off'">{{ product.variants[0].availableQty === 0 ? 'Presentación mostrada agotada' : product.variants[0].availableQty <= 5 ? `Últimas ${product.variants[0].availableQty} piezas` : 'Disponible' }}</p>
-    <RestockForm v-if="product.variants[0]?.availableQty === 0" class="relative z-10" :variant-id="product.variants[0].id" :sku="product.variants[0].sku" :presentation="`${product.variants[0].presentationLabel} · ${product.variants[0].flavor}`" />
-    <template #actions><div class="flex flex-wrap gap-2"><UiButton :to="`/producto/${product.id}`" variant="secondary">Ver producto</UiButton><UiButton :disabled="cart.busy.value || !product.variants[0]?.availableQty" @click="cart.add(product.variants[0].id, 1)">Agregar {{ product.variants[0]?.presentationLabel }} · {{ product.variants[0]?.flavor }}</UiButton></div></template>
-  </UiCard>
+  <article class="relative isolate flex h-full min-w-0 flex-col overflow-hidden rounded-sm border border-line bg-surface [overflow-wrap:anywhere]" data-product-card>
+    <div class="relative">
+      <CardPackshot :images="product.images" :variant-id="variant?.id" :to="productPath" :product-name="product.name" />
+      <span v-if="lot?.origin" class="pointer-events-none absolute left-3 top-3 z-20 max-w-[calc(100%-24px)] rounded-sm bg-accent-soft px-2 py-1 font-mono text-label font-semibold uppercase tracking-wider text-accent-text">{{ lot.importedOn ? 'Importado · ' : 'Origen · ' }}{{ lot.origin }}</span>
+    </div>
+    <div class="flex flex-1 flex-col p-4">
+      <h3 class="font-display text-display-m font-bold uppercase leading-tight"><NuxtLink :to="productPath" class="after:absolute after:inset-0 hover:text-accent-text hover:underline focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-ink">{{ product.name }}</NuxtLink></h3>
+      <p v-if="product.brand" class="mt-1 text-body-s text-ink-2">{{ product.brand.name }}</p>
+      <p v-if="variant" class="mt-2 font-mono text-label uppercase leading-relaxed text-ink-2">SKU {{ variant.sku }}<template v-if="lot"> · Lote {{ lot.lotCode }} · CAD {{ expiryLabel(lot) }}</template></p>
+      <p v-if="lot" class="mt-1 text-label text-ink-2">Lote orientativo; se confirma al reservar.</p>
+      <p class="mt-3 flex items-center gap-2 rounded-pill px-3 py-1 text-body-s font-semibold" :class="available ? 'bg-ok-soft text-ok' : 'bg-off-soft text-off'"><span class="h-2 w-2 shrink-0 rounded-full bg-current" aria-hidden="true" />{{ available ? variant.availableQty <= 5 ? `En stock · Últimas ${variant.availableQty} piezas` : 'En stock' : product.variants.length > 1 ? 'Presentación mostrada agotada' : 'Agotado por el momento' }}</p>
+      <div v-if="pricing" class="mt-4">
+        <p class="flex flex-wrap items-baseline gap-x-2 font-mono tabular-nums"><span v-if="product.variants.length > 1" class="text-body-s text-ink-2">Desde</span><span class="text-data-l font-semibold">{{ pricing.priceLabel.replace(' MXN', '') }}</span><span class="text-label text-ink-2">MXN</span></p>
+        <p v-if="pricing.compareAtPriceLabel" class="mt-1 text-body-s text-ink-2">Antes: <s>{{ pricing.compareAtPriceLabel }}</s></p>
+      </div>
+      <p v-if="pricing?.servingCostLabel" class="mt-3 font-mono text-label leading-relaxed text-ink-2">{{ pricing.servingCostLabel.replace(' MXN', '') }} · {{ variant.servings }} porciones<template v-if="variant.servingAmount && variant.servingUnit"> · {{ variant.servingAmount }} {{ variant.servingUnit }}</template></p>
+      <div class="relative z-10 mt-auto pt-4">
+        <UiButton class="w-full" :disabled="cart.busy.value || !available" :aria-label="`Agregar ${product.name} al carrito${variant ? `, ${variant.presentationLabel}, ${variant.flavor}` : ''}`" @click="cart.add(variant.id, 1)">{{ available ? 'Agregar al carrito' : 'Sin existencias' }}</UiButton>
+        <RestockForm v-if="variant && !available" :variant-id="variant.id" :sku="variant.sku" :presentation="`${variant.presentationLabel} · ${variant.flavor}`" />
+      </div>
+    </div>
+  </article>
 </template>

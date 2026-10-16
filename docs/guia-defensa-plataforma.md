@@ -823,6 +823,14 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 **Frase para exponer:** “El catálogo permite buscar por nombre, SKU o categoría y combinar filtros de disponibilidad, presentación y precio. Los criterios se conservan en la URL y solo se muestran productos publicados y activos.”
 
+## Diseño de tarjetas de producto
+
+`ProductCard.vue`, compartido por inicio y catálogo, muestra imagen sobre fondo blanco, título en mayúsculas, SKU/lote/caducidad, indicador de disponibilidad, precio con moneda secundaria, costo por porción y un botón de ancho completo para agregar una pieza de la presentación mostrada. Imagen y tarjeta enlazan al detalle con esa variante seleccionada; el botón de compra es una acción independiente. Se conserva la vista de información nutrimental y el registro de interés cuando no hay existencias.
+
+La procedencia solo se muestra cuando el lote la documenta; no se deduce del nombre del producto. No se promete envío el mismo día a partir del stock. El lote es orientativo y su asignación se confirma al reservar. Porciones y tamaño de porción aparecen únicamente si hay datos para mostrarlos. El diseño usa los tokens claro/oscuro y se adapta al ancho disponible.
+
+Para verlo, abre el inicio o el catálogo. Se verificó la compilación Docker y se revisaron capturas en escritorio y móvil, en temas claro y oscuro. La prueba de interacción usó datos y agregado al carrito simulados para comprobar precio, porciones, lote, caducidad, producto agotado, enlaces y agregado independiente, sin modificar el carrito real.
+
 ## Portada de la página principal
 
 El primer bloque de `StoreHome.vue` presenta el título, descripción y botón Ver catálogo proporcionados por el propietario. Utiliza las fuentes y tokens de tema del proyecto, con una composición adaptable a escritorio y móvil. El botón dirige a `/catalogo` y el bloque aparece antes de Nuestra selección. El texto comercial es contenido editorial proporcionado por el propietario; no representa una validación automática de certificados, procedencia o condiciones fiscales de cada producto.
