@@ -1,0 +1,19 @@
+name: fitness-stuff-gateway
+services:
+  gateway:
+    image: nginx:stable-alpine@sha256:970364228b1e4f932abc22d321932816782cca8a20b85a77552a7cfe9acfb3b5
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /opt/fitness-stuff-gateway/conf.d:/etc/nginx/conf.d:ro
+      - /opt/fitness-stuff-gateway/acme:/var/www/acme:ro
+      - /opt/fitness-stuff/shared/tls:/etc/nginx/ip-tls:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    healthcheck:
+      test: [CMD-SHELL, 'wget -q --no-check-certificate -O - https://127.0.0.1/api/health >/dev/null']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }

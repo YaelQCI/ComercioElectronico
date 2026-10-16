@@ -3,7 +3,7 @@ name: Validar y desplegar en EC2
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, staging]
   workflow_dispatch:
 
 permissions:
@@ -30,7 +30,7 @@ jobs:
             "$(openssl rand -hex 32)" "$(openssl rand -base64 32)" > "$RUNNER_TEMP/ci.env"
       - name: Validar scripts de despliegue
         run: |
-          bash -n deploy/prepare-server.sh deploy/deploy.sh deploy/ec2-bootstrap.sh deploy/ec2-demo-stop.sh
+          bash -n deploy/*.sh
           bash scripts/check-deployment.sh
       - name: Validar el workflow
         run: docker run --rm -i --network none rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 -no-color - < .github/workflows/ci-cd.yml
@@ -49,7 +49,7 @@ jobs:
   publish:
     name: Publicar imágenes del commit
     needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && vars.EC2_DEPLOY_ENABLED == 'true'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging') && github.event_name != 'pull_request' && vars.EC2_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     permissions:
@@ -90,13 +90,13 @@ jobs:
     needs: publish
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    environment: production
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
     permissions:
       contents: read
       packages: read
       id-token: write
     concurrency:
-      group: ec2-production
+      group: ec2-${{ github.ref_name }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v6
@@ -133,9 +133,15 @@ jobs:
           APP_IMAGE: ${{ needs.publish.outputs.app_image }}
           TOOLS_IMAGE: ${{ needs.publish.outputs.tools_image }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_ENVIRONMENT: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
         shell: bash
         run: |
           set -euo pipefail
+          case "$DEPLOY_ENVIRONMENT" in
+            production) deploy_root=/opt/fitness-stuff-production ;;
+            staging) deploy_root=/opt/fitness-stuff ;;
+            *) exit 1 ;;
+          esac
           [[ "$EC2_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] || { echo 'EC2_HOST inválido o ausente'; exit 1; }
           [[ "$EC2_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || { echo 'EC2_USER inválido o ausente'; exit 1; }
           [[ "$APP_IMAGE" =~ ^ghcr.io/[a-z0-9/_.-]+@sha256:[a-f0-9]{64}$ ]]
@@ -155,14 +161,15 @@ jobs:
             ssh "${ssh_options[@]}" "$EC2_USER@$EC2_HOST" "rm -f /opt/fitness-stuff/registry-$GITHUB_RUN_ID/config.json; rmdir /opt/fitness-stuff/registry-$GITHUB_RUN_ID 2>/dev/null || true" >/dev/null 2>&1 || true
           }
           trap cleanup_registry EXIT
-          ssh "${ssh_options[@]}" "$EC2_USER@$EC2_HOST" 'mkdir -p /opt/fitness-stuff/incoming /opt/fitness-stuff/releases'
+          # shellcheck disable=SC2029
+          ssh "${ssh_options[@]}" "$EC2_USER@$EC2_HOST" "mkdir -p $deploy_root/incoming $deploy_root/releases"
           # shellcheck disable=SC2029
           printf '%s' "$GHCR_TOKEN" | ssh "${ssh_options[@]}" "$EC2_USER@$EC2_HOST" "umask 077; mkdir -p /opt/fitness-stuff/registry-$GITHUB_RUN_ID; DOCKER_CONFIG=/opt/fitness-stuff/registry-$GITHUB_RUN_ID docker login ghcr.io -u '$GITHUB_ACTOR' --password-stdin"
-          scp "${ssh_options[@]}" "$RUNNER_TEMP/ec2-release.tgz" "$EC2_USER@$EC2_HOST:/opt/fitness-stuff/incoming/$GITHUB_SHA.tgz"
+          scp "${ssh_options[@]}" "$RUNNER_TEMP/ec2-release.tgz" "$EC2_USER@$EC2_HOST:$deploy_root/incoming/$GITHUB_SHA.tgz"
           # El SHA de GitHub se expande intencionalmente en el runner.
           # shellcheck disable=SC2029
           ssh "${ssh_options[@]}" "$EC2_USER@$EC2_HOST" \
-            "set -eu; export DOCKER_CONFIG=/opt/fitness-stuff/registry-$GITHUB_RUN_ID; mkdir -p /opt/fitness-stuff/releases/$GITHUB_SHA; tar -xzf /opt/fitness-stuff/incoming/$GITHUB_SHA.tgz -C /opt/fitness-stuff/releases/$GITHUB_SHA; bash /opt/fitness-stuff/releases/$GITHUB_SHA/deploy.sh $GITHUB_SHA"
+            "set -eu; export DOCKER_CONFIG=/opt/fitness-stuff/registry-$GITHUB_RUN_ID DEPLOY_ROOT=$deploy_root; mkdir -p $deploy_root/releases/$GITHUB_SHA; tar -xzf $deploy_root/incoming/$GITHUB_SHA.tgz -C $deploy_root/releases/$GITHUB_SHA; bash $deploy_root/releases/$GITHUB_SHA/deploy.sh $GITHUB_SHA"
       - name: Retirar la regla SSH de esta ejecución
         if: always() && steps.ingress.outputs.rule != ''
         env:

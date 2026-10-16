@@ -1,4 +1,4 @@
-name: fitness-stuff-ec2
+name: ${COMPOSE_PROJECT_NAME:-fitness-stuff-ec2}
 
 x-database: &database
   DATABASE_URL: postgresql://fitness:${DOCKER_POSTGRES_PASSWORD:?Falta contraseña privada}@postgres:5432/fitness_ec2
@@ -31,7 +31,10 @@ services:
       options: { max-size: 10m, max-file: '3' }
   migrate:
     image: ${TOOLS_IMAGE:?Falta imagen de herramientas por digest}
-    environment: *database
+    environment:
+      <<: *database
+      DEPLOY_ENVIRONMENT: ${DEPLOY_ENVIRONMENT:-}
+      NUXT_DEMO_DATA_ENABLED: ${NUXT_DEMO_DATA_ENABLED:-true}
     command: [npm, run, db:deploy]
     depends_on:
       postgres: { condition: service_healthy }
@@ -42,6 +45,7 @@ services:
     environment:
       <<: [*database, *payments]
       NUXT_AUTH_SECRET: ${DOCKER_AUTH_SECRET:?Falta clave de autenticación}
+      NUXT_DEMO_DATA_ENABLED: ${NUXT_DEMO_DATA_ENABLED:-true}
       NUXT_PUBLIC_CONTACT_EMAIL: ${NUXT_PUBLIC_CONTACT_EMAIL:-}
       NUXT_PUBLIC_CONTACT_PHONE: ${NUXT_PUBLIC_CONTACT_PHONE:-}
       NUXT_PUBLIC_SERVICE_HOURS: ${NUXT_PUBLIC_SERVICE_HOURS:-}
@@ -52,7 +56,7 @@ services:
     volumes:
       - catalog_uploads:/app/catalog-uploads
     ports:
-      - '127.0.0.1:3001:3000'
+      - '127.0.0.1:${APP_PORT:-3001}:3000'
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 5s
@@ -72,6 +76,7 @@ services:
       app: { condition: service_healthy }
     logging: *logging
   proxy:
+    profiles: [legacy-edge]
     image: nginx:stable-alpine@sha256:970364228b1e4f932abc22d321932816782cca8a20b85a77552a7cfe9acfb3b5
     restart: unless-stopped
     ports: ['80:80', '443:443']
@@ -89,6 +94,6 @@ services:
 
 volumes:
   postgres_data:
-    name: fitness-stuff-ec2-postgres
+    name: ${POSTGRES_VOLUME:-fitness-stuff-ec2-postgres}
   catalog_uploads:
-    name: fitness-stuff-ec2-uploads
+    name: ${UPLOADS_VOLUME:-fitness-stuff-ec2-uploads}

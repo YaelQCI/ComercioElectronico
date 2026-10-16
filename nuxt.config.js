@@ -7,6 +7,7 @@ export default defineNuxtConfig({
   vite: { plugins: [tailwindcss()] },
   runtimeConfig: {
     authSecret: '',
+    demoDataEnabled: true,
     catalogAssetDirectory: '',
     catalogUploadDirectory: '',
     restockTokenSecret: '',

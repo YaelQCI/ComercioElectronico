@@ -10,7 +10,9 @@ export async function administrationRequest(event, action) {
   const reading = ['users', 'products', 'inventory', 'categories', 'lotVariants'].includes(action)
   if (!reading) requireCartOrigin(event)
   try {
-    const identity = await accountIdentity(event), service = createStoreAdministration(getDatabase()), input = reading ? null : await readBody(event), target = getRouterParam(event, 'id')
+    const identity = await accountIdentity(event), config = useRuntimeConfig(event)
+    const service = createStoreAdministration(getDatabase(), { demoDataEnabled: config.demoDataEnabled !== false && config.demoDataEnabled !== 'false' })
+    const input = reading ? null : await readBody(event), target = getRouterParam(event, 'id')
     if (action === 'products' || action === 'inventory') return await service.overview(identity.user.id, action, Number(getQuery(event).page ?? 1))
     if (action === 'lot') return await service.createLot(identity.user.id, input)
     if (action === 'lotVariants') return await service.searchLotVariants(identity.user.id, getQuery(event).q)

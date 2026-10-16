@@ -14,8 +14,21 @@ export DEPLOY_ROOT="$root"
 exec 9>"$root/deploy.lock"
 flock -w 600 9 || { echo 'Hay otro despliegue en curso.' >&2; exit 1; }
 compose=(docker compose --env-file "$root/shared/.env" --env-file "$release/release.env" -f "$release/compose.ec2.yaml")
+setting() { sed -n "s/^$1=//p" "$root/shared/.env" | tr -d '\r'; }
+shared_gateway=$(setting SHARED_GATEWAY)
+environment=$(setting DEPLOY_ENVIRONMENT)
+if [[ "$environment" = production ]]; then
+  [[ "$(setting NUXT_STRIPE_ENVIRONMENT)" = live && "$(setting NUXT_DEMO_DATA_ENABLED)" = false ]] || { echo 'Producción exige entorno Stripe live y datos DEMO deshabilitados.' >&2; exit 1; }
+  if [[ "$(setting NUXT_STRIPE_ENABLED)" = true ]]; then
+    grep -Eq '^NUXT_STRIPE_SECRET_KEY=sk_live_[A-Za-z0-9]+\r?$' "$root/shared/.env" || { echo 'Producción requiere clave live.' >&2; exit 1; }
+  fi
+elif [[ "$environment" = staging ]]; then
+  [[ "$(setting NUXT_STRIPE_ENVIRONMENT)" = test ]] || { echo 'Staging solo permite Stripe test.' >&2; exit 1; }
+fi
 "${compose[@]}" config --quiet
-"${compose[@]}" pull app migrate postgres proxy
+images=(app migrate postgres)
+[[ "$shared_gateway" = true ]] || images+=(proxy)
+"${compose[@]}" pull "${images[@]}"
 "${compose[@]}" up -d --wait --wait-timeout 180 postgres
 
 # El dump se completa y valida antes de aplicar cualquier migración.
@@ -27,12 +40,26 @@ mv "$backup.partial" "$backup"
 
 # Mantiene la aplicación anterior si la migración falla. No revierte esquema automáticamente.
 "${compose[@]}" run --rm --no-deps migrate
+if [[ "$environment" = production ]]; then
+  "${compose[@]}" run --rm --no-deps migrate node scripts/hide-production-demo.mjs
+fi
 "${compose[@]}" up -d --no-deps --wait --wait-timeout 180 app
-"${compose[@]}" run --rm --no-deps proxy nginx -t
-"${compose[@]}" up -d --no-deps --force-recreate --wait --wait-timeout 90 proxy
-curl --fail --silent --show-error --retry 6 --retry-connrefused --retry-all-errors --retry-delay 2 \
-  --cacert "$root/shared/tls/fullchain.pem" "https://$public_host/api/health" --resolve "$public_host:443:127.0.0.1" \
-  --connect-timeout 10 --max-time 15 > /dev/null
+if [[ "$shared_gateway" = true ]]; then
+  app_port=$(setting APP_PORT)
+  [[ "$app_port" = 3001 || "$app_port" = 3002 ]] || { echo 'Puerto de entorno inválido.' >&2; exit 1; }
+  curl --fail --silent --show-error --retry 6 --retry-connrefused --retry-all-errors --retry-delay 2 \
+    "http://127.0.0.1:$app_port/api/health" --connect-timeout 10 --max-time 15 > /dev/null
+else
+  "${compose[@]}" run --rm --no-deps proxy nginx -t
+  "${compose[@]}" up -d --no-deps --force-recreate --wait --wait-timeout 90 proxy
+fi
+if [[ "$shared_gateway" != true || "$(setting PUBLIC_HTTPS_READY)" = true ]]; then
+  tls_options=()
+  [[ "$(setting PUBLIC_CERT_TRUSTED)" = true ]] || tls_options=(--cacert "$root/shared/tls/fullchain.pem")
+  curl --fail --silent --show-error --retry 6 --retry-connrefused --retry-all-errors --retry-delay 2 \
+    "${tls_options[@]}" "https://$public_host/api/health" --resolve "$public_host:443:127.0.0.1" \
+    --connect-timeout 10 --max-time 15 > /dev/null
+fi
 
 # Activación explícita desde la configuración privada, sin ejecutar el .env como código.
 if grep -Eq '^NUXT_STRIPE_ENABLED=(true|"true")\r?$' "$root/shared/.env"; then

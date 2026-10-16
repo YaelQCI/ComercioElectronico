@@ -55,7 +55,7 @@ async function assignCategories(tx, productId, categoryIds) {
   await tx.productCategory.deleteMany({ where: { productId } })
   for (const [position, categoryId] of categoryIds.entries()) await tx.productCategory.create({ data: { productId, categoryId, isPrimary: position === 0 } })
 }
-export function createStoreAdministration(db) {
+export function createStoreAdministration(db, { demoDataEnabled = true } = {}) {
   return {
     async searchLotVariants(adminId, query) {
       let q
@@ -150,8 +150,10 @@ export function createStoreAdministration(db) {
         const current = await tx.warehouse.findUnique({ where: { singletonKey: 1 } })
         if (current) throw new AccountError(409, 'El almacén ya está configurado; su modificación requiere revisar las cotizaciones existentes.')
         const saved = await tx.warehouse.create({ data })
-        await initializeDemoStock(tx)
-        await initializeDemoHistory(tx)
+        if (demoDataEnabled) {
+          await initializeDemoStock(tx)
+          await initializeDemoHistory(tx)
+        }
         await audit(tx, adminId, 'Warehouse', saved.id, 'CONFIGURE_WAREHOUSE', reason, undefined, { name: saved.name })
         return { id: saved.id }
       })
