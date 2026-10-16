@@ -8,6 +8,7 @@ gateway=/opt/fitness-stuff-gateway
 [[ -s "$gateway/ip" && -f "$gateway/render-gateway.py" ]]
 exec 9>"$gateway/domains.lock"
 flock -w 120 9
+chmod 755 "$gateway/acme" "$gateway/acme/.well-known" "$gateway/acme/.well-known/acme-challenge"
 python3 - "$production" "$staging" "$(cat "$gateway/ip")" <<'PY'
 import ipaddress, re, socket, sys
 production, staging, expected = sys.argv[1:]

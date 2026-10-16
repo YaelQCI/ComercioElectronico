@@ -20,6 +20,7 @@ backup="$staging/shared/backups/before-two-environments-$(date -u +%Y%m%dT%H%M%S
 mv "$backup.partial" "$backup"
 sudo install -d -m 700 -o "$(id -un)" -g "$(id -gn)" "$production" "$gateway"
 mkdir -p "$gateway/conf.d" "$gateway/acme/.well-known/acme-challenge"
+chmod 755 "$gateway/acme" "$gateway/acme/.well-known" "$gateway/acme/.well-known/acme-challenge"
 sudo install -d -m 755 /etc/letsencrypt
 DEPLOY_ROOT="$production" bash "$source_root/deploy/prepare-server.sh" production.pending.invalid
 python3 - <<'PY'
