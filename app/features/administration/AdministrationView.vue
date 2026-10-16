@@ -3,9 +3,10 @@ import ProductsAdministration from './ProductsAdministration.vue'
 import InventoryAdministration from './InventoryAdministration.vue'
 import UsersAdministration from './UsersAdministration.vue'
 import OrdersAdministration from './OrdersAdministration.vue'
+import PolicyAdministration from '../policies/PolicyAdministration.vue'
 const { data, status, error, refresh } = await useFetch('/api/account/session', { key: 'account-session' })
 const section = ref('products')
-const sections = [{ value: 'products', label: 'Productos' }, { value: 'inventory', label: 'Inventario' }, { value: 'users', label: 'Usuarios' }, { value: 'orders', label: 'Pedidos' }]
+const sections = [{ value: 'products', label: 'Productos' }, { value: 'inventory', label: 'Inventario' }, { value: 'users', label: 'Usuarios' }, { value: 'orders', label: 'Pedidos' }, { value: 'policies', label: 'Políticas' }]
 useHead({ title: 'Administración · The Fitness Stuff', meta: [{ name: 'robots', content: 'noindex, nofollow' }] })
 </script>
 <template>
@@ -24,7 +25,8 @@ useHead({ title: 'Administración · The Fitness Stuff', meta: [{ name: 'robots'
       <ProductsAdministration v-if="section === 'products'" />
       <InventoryAdministration v-else-if="section === 'inventory'" />
       <UsersAdministration v-else-if="section === 'users'" :current-user-id="data.user.id" />
-      <OrdersAdministration v-else />
+      <OrdersAdministration v-else-if="section === 'orders'" />
+      <PolicyAdministration v-else />
     </template>
   </section>
 </template>

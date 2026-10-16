@@ -1,5 +1,15 @@
 # Guía para explicar y demostrar la plataforma
 
+## Bloqueo al confirmar por políticas no publicadas
+
+La consulta de solo lectura al entorno local confirmó que no existen registros para `privacidad`, `terminos` y `devoluciones` en `ContentPage`. Confirmar el pedido exige las tres políticas publicadas y guarda su contenido/versión como evidencia de lo aceptado. Marcar la casilla del checkout no crea ni publica esas políticas. El rechazo ocurre dentro de la transacción, antes de registrar el pedido.
+
+En **Administración → Políticas** aparecen las tres políticas, con estado, versión y fecha de publicación. **Agregar contenido** o **Revisar y editar** abre un modal con título, texto, vista previa segura, motivo y aprobación explícita. **Publicar política** solo se habilita tras aprobar el contenido; editar título o texto vuelve a desmarcar la aprobación. La confirmación es un toast; los errores permanecen dentro del modal, conservando lo escrito. Cerrar sin publicar descarta los cambios; no existe guardado de borradores persistentes. **Ver política publicada** abre la página pública.
+
+`GET /api/admin/policies` exige administrador vigente y devuelve las tres entradas, incluyendo las todavía ausentes con versión 0 y texto vacío. La publicación reutiliza `POST /api/policies/:slug` con sesión ADMIN, origen propio, título, contenido, versión esperada y `approved: true`; conserva el bloqueo por política, rechazo de cambios concurrentes y auditoría de contenido/versión y motivo. No requiere migración. El propietario debe proporcionar o aprobar el contenido antes de publicarlo; no se insertaron textos legales inventados ni se desactivó la validación. Después de publicar las tres, volver a revisar y aceptar las políticas y confirmar el pedido con una cotización vigente.
+
+Verificación: compilación Docker correcta, suite unitaria y 88 pruebas PostgreSQL aprobadas. La prueba de políticas cubre listado administrativo, rechazo a clientes, contenido faltante/vigente, aprobación, motivo, versión, publicaciones concurrentes y auditoría. Salud HTTP 200 y listado administrativo anónimo HTTP 401. No se publicaron políticas en la tienda durante la comprobación. Revisión visual de los modales pendiente.
+
 ## Compra en pasos: datos, confirmación y pago
 
 En el carrito, **Continuar con la compra** abre `/checkout`. El indicador accesible muestra tres pasos: **Datos de compra**, **Confirmar pedido** y **Pago**. Navegar a esa página todavía no crea el pedido. El primer paso valida los campos obligatorios y el correo antes de mostrar el resumen; usa el selector compartido de estados. El segundo muestra productos, cantidades, precios unitarios, dirección, servicio de envío, subtotal después de descuentos, envío y total. Permite volver a editar y requiere aceptar las políticas antes de confirmar.
