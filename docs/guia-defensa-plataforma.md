@@ -823,6 +823,10 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 **Frase para exponer:** “El catálogo permite buscar por nombre, SKU o categoría y combinar filtros de disponibilidad, presentación y precio. Los criterios se conservan en la URL y solo se muestran productos publicados y activos.”
 
+## Recuperar una reseña para editar
+
+En la página de un producto, abre Publicar o editar mi reseña. Ir a mi cuenta permite iniciar sesión y Recuperar mi reseña para editar consulta `/api/reviews/products/:id/mine` para llenar la calificación, título y texto con la reseña existente. Recuperarla no guarda cambios: hay que pulsar Guardar reseña. Para una primera reseña se completa directamente el formulario; publicar requiere una compra entregada del producto. Los botones tienen separación y se ajustan al ancho disponible. La recuperación muestra un estado de carga y evita solicitudes simultáneas de consulta y guardado.
+
 ## Acceso directo a administración
 
 El encabezado de la plataforma muestra un enlace directo a `/admin` junto a Mi cuenta cuando la sesión corresponde al rol ADMIN. `SiteHeader.vue` comparte la consulta `account-session` con la cuenta, de modo que el enlace se actualiza al iniciar o cerrar sesión. La visibilidad del enlace complementa la autorización del servidor; los endpoints administrativos siguen verificando el rol.
