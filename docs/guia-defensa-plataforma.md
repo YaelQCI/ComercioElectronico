@@ -1,5 +1,17 @@
 # Guía para explicar y demostrar la plataforma
 
+## Compra en pasos: datos, confirmación y pago
+
+En el carrito, **Continuar con la compra** abre `/checkout`. El indicador accesible muestra tres pasos: **Datos de compra**, **Confirmar pedido** y **Pago**. Navegar a esa página todavía no crea el pedido. El primer paso valida los campos obligatorios y el correo antes de mostrar el resumen; usa el selector compartido de estados. El segundo muestra productos, cantidades, precios unitarios, dirección, servicio de envío, subtotal después de descuentos, envío y total. Permite volver a editar y requiere aceptar las políticas antes de confirmar.
+
+**Confirmar pedido y continuar al pago** llama a `/api/checkout/prepare`, que revalida carrito, existencias, empaque, dirección, tarifa aceptada vigente (máximo diez minutos) y total, además de las tres políticas publicadas. Solo después de una respuesta correcta se avanza al paso Pago. Los errores conservan el formulario y la confirmación; los reintentos con los mismos datos conservan la clave de idempotencia y los datos modificados generan otra clave. No se permite saltar desde el indicador de pasos. El título de cada paso recibe foco para facilitar la navegación con teclado y lectores de pantalla.
+
+Si las validaciones pasan, registra el pedido como `PENDING_PAYMENT`, conserva una copia de productos, precios, dirección, envío y políticas, y muestra su número. No cobra, no reserva stock, no vacía el carrito ni genera una guía. En el tercer paso se muestra **Ir a pagar con Stripe** únicamente cuando los pagos están habilitados; de lo contrario se indica que el pedido sigue pendiente y el pago aún no está disponible. No se habilitó Stripe como parte de este cambio. La confirmación de compra pagada depende de verificar el pago, no de llegar a ese paso.
+
+Demostración: aceptar una tarifa en el carrito, pulsar **Continuar con la compra**, completar los datos, revisar el resumen, volver con **Editar datos**, avanzar de nuevo, aceptar las políticas y confirmar. Comprobar número, estado pendiente de pago y disponibilidad del pago. Si se cambia la dirección, volver al carrito y recotizar. No se crearon pedidos ni se iniciaron cobros reales para implementar la interfaz.
+
+Verificación: compilación Docker correcta, 78 pruebas unitarias y 88 PostgreSQL aprobadas. `/checkout` responde HTTP 200 y renderiza el título y los tres pasos. Esto comprueba compilación, renderizado SSR y reglas existentes del servidor; la interacción visual del formulario en navegador sigue pendiente.
+
 ## Fallo de tarifa con Afimex en pruebas
 
 Después de registrar las cajas, el diagnóstico seleccionó CAJA-CHICA, 250 × 200 × 200 mm y 1300 g. La cotización con la paquetería configurada `afimex` devolvió HTTP 200, `meta: error`, código 1126: no se pudo obtener el precio. Este rechazo no confirma que la dirección sea inválida ni que las cajas sigan fallando. La integración ahora muestra un aviso específico con el código 1126 y permite reintentar. No se expone texto arbitrario de la respuesta.
