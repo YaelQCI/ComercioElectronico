@@ -1,5 +1,17 @@
 # Guía para explicar y demostrar la plataforma
 
+## Políticas base mediante migración
+
+La migración `20261016030000_initial_policy_drafts` incorpora textos originales de privacidad, términos y devoluciones basados en el funcionamiento documentado del proyecto. Se registran como borradores (`publishedAt = NULL`), sin crear cuentas ficticias ni atribuir una aprobación inexistente. El contenido marca los datos que debe completar el propietario: identidad y domicilio del responsable/proveedor, contactos, procedimientos de privacidad, conservación, logística y devoluciones. La propuesta comercial del proyecto contempla treinta días para solicitar devoluciones y envío gratuito desde $1,499 MXN según la base configurada; no se inventaron plazos bancarios ni fechas de entrega.
+
+`ContentPage.updatedById` admite nulo solo para contenido no publicado; la restricción `ContentPage_published_author` exige un responsable identificado cuando existe fecha de publicación. La publicación administrativa sigue exigiendo sesión ADMIN, aprobación, versión y auditoría. La migración conserva por slug todo contenido existente; el plugin de inicio crea únicamente las políticas ausentes, sin sobrescribir ediciones ni volver a publicar nada.
+
+Demostración: **Administración → Políticas → Revisar y editar**. Leer el borrador y su vista previa, completar pendientes y aprobar/publicar cada política. Hasta publicar las tres, confirmar pedidos sigue bloqueado: contar con texto inicial no equivale a aprobarlo. Los textos fuente están en `server/features/policies/initial-policies.js` y los datos iniciales quedan fijados en la migración. Si se cambia el modelo base en el futuro, crear otra migración; no editar una ya aplicada.
+
+Referencias para la revisión: [ley de datos personales, artículo 15](https://www.ordenjuridico.gob.mx/Documentos/Federal/html/wo125102.html), que exige identificar al responsable y describir finalidades y medios para ejercer derechos, y [Monitoreo de Tiendas Virtuales de Profeco](https://burocomercial.profeco.gob.mx/tiendasvirtuales/), que contempla información de proveedor, precios, privacidad, entrega y devoluciones. Los borradores no certifican cumplimiento legal ni sustituyen completar la información real del proyecto.
+
+Verificación: compilación Docker y suite correctas, incluidas 90 pruebas PostgreSQL. Se probó la migración en base aislada, reposición de faltantes, ejecución repetida, conservación exacta de ediciones y publicaciones, y rechazo en base de una publicación sin autor. Se aplicó al entorno Docker local y se comprobó la presencia de las tres políticas y salud HTTP 200. No se publicaron automáticamente; la revisión visual sigue pendiente.
+
 ## Bloqueo al confirmar por políticas no publicadas
 
 La consulta de solo lectura al entorno local confirmó que no existen registros para `privacidad`, `terminos` y `devoluciones` en `ContentPage`. Confirmar el pedido exige las tres políticas publicadas y guarda su contenido/versión como evidencia de lo aceptado. Marcar la casilla del checkout no crea ni publica esas políticas. El rechazo ocurre dentro de la transacción, antes de registrar el pedido.

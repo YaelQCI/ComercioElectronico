@@ -16,7 +16,7 @@ test('prepara snapshot sin cobro/reserva, idempotencia concurrente, total y acce
   const email=`${randomUUID()}@example.invalid`,admin=await db.user.create({data:{email,emailNormalized:email,passwordHash:'fixture',displayName:'Fixture',role:'ADMIN'}}),f=await deliveredFixture(db,admin.id)
   await db.productVariant.update({where:{id:f.variant.id},data:{priceCents:1000n}})
   await createStoreAdministration(db).adjustStock(admin.id,{lotId:f.lot.id,delta:3,reason:'Fixture',idempotencyKey:randomUUID()})
-  for(const slug of ['privacidad','terminos','devoluciones'])await db.contentPage.upsert({where:{slug},create:{slug,title:'Fixture',content:'Solo pruebas, no política comercial',publishedAt:new Date(),updatedById:admin.id},update:{}})
+  for(const slug of ['privacidad','terminos','devoluciones'])await db.contentPage.upsert({where:{slug},create:{slug,title:'Fixture',content:'Solo pruebas, no política comercial',publishedAt:new Date(),updatedById:admin.id},update:{publishedAt:new Date(),updatedById:admin.id}})
   const warehouse=await db.warehouse.findFirst();await db.warehouse.update({where:{id:warehouse.id},data:{state:'CX'}})
   await db.packageType.create({data:{code:`FIXTURE-${randomUUID()}`,innerLengthMm:300,innerWidthMm:300,innerHeightMm:300,outerLengthMm:310,outerWidthMm:310,outerHeightMm:310,tareWeightGrams:100,maxGrossWeightGrams:3000}})
   const owner=randomBytes(32).toString('hex'),cartService=createCartRepository(db),cart=await cartService.add(owner,{variantId:f.variant.id,quantity:2,version:1})
