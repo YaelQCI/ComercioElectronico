@@ -33,6 +33,9 @@ services:
       NUXT_STRIPE_ENABLED: 'false'
       NUXT_STRIPE_ENVIRONMENT: test
       NUXT_CATALOG_UPLOAD_DIRECTORY: /app/catalog-uploads
+      NUXT_ENVIA_TOKEN: ${NUXT_ENVIA_TOKEN:-}
+      NUXT_ENVIA_ENVIRONMENT: ${NUXT_ENVIA_ENVIRONMENT:-test}
+      NUXT_ENVIA_CARRIER: ${NUXT_ENVIA_CARRIER:-}
     volumes:
       - catalog_images:/app/catalog-uploads
     ports:

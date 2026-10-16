@@ -1,5 +1,15 @@
 # Guía para explicar y demostrar la plataforma
 
+## Mensaje «Cotización no configurada»
+
+Para obtener la configuración, crear primero una cuenta de [sandbox](https://accounts-sandbox.envia.com/signup), entrar al [panel de desarrolladores de pruebas](https://shipping-test.envia.com/settings/developers), abrir Desarrolladores → Acceso de API / API Keys y generar el token con Agregar. El token solo funciona en el entorno donde se generó ([autenticación oficial](https://docs.envia.com/docs/authentication)). Para la paquetería, consultar `GET https://queries.test.envia.com/carrier?country_code=MX` con `Authorization: Bearer <token>` y usar el valor exacto de `name` de una paquetería disponible como `NUXT_ENVIA_CARRIER`, no su descripción ([referencia oficial](https://docs.envia.com/reference/carriers-by-country)). Mantener `NUXT_ENVIA_ENVIRONMENT=test` para ese token. Configurar los valores en `.env.docker` y recrear app; no se necesita subirlos a Git ni compartirlos en el chat. La disponibilidad real depende del entorno, la cuenta y la ruta.
+
+Este mensaje indica que la integración de Envia.com no tiene token, paquetería o entorno válido; se produce antes de consultar al proveedor y no significa que la dirección capturada sea incorrecta. `createEnviaRates` requiere `NUXT_ENVIA_TOKEN`, `NUXT_ENVIA_CARRIER` y `NUXT_ENVIA_ENVIRONMENT` (`test` o `production`). No se inventan tarifas ni se sustituyen por un costo ficticio.
+
+En Docker local, configurar esas variables en el archivo privado `.env.docker` y ejecutar `docker compose --env-file .env.docker -f compose.docker.yaml up -d --force-recreate app`. Compose ya las pasa al servicio app; el entorno predeterminado es `test`. Se necesita un token válido para ese entorno y el código de paquetería correspondiente. No guardar credenciales en Git ni enviarlas en evidencias. Completar el almacén y seleccionar una dirección son requisitos separados de la conexión al proveedor.
+
+Verificación del entorno actual: después de configurar el archivo privado y recrear app, se confirmó que el contenedor recibió token y paquetería, que utiliza el entorno `test` y que la aplicación responde HTTP 200. Se verificó únicamente su presencia, sin mostrar valores sensibles. Sigue pendiente comprobar una cotización con el proveedor desde el carrito.
+
 ## Usar direcciones de la cuenta para cotizar
 
 El selector de direcciones guardadas ocupa toda la fila del formulario. **Cotizar servicios** aparece en una fila propia, debajo de los campos y alineado a la izquierda. Ajuste de distribución verificado con compilación; revisión visual pendiente.
