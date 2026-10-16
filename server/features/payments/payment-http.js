@@ -1,5 +1,6 @@
 import { getDatabase } from '../../utils/database.js'
-import { createStripeClient, PaymentError } from './stripe-client.js'
+import { PaymentError } from './stripe-client.js'
+import { configuredStripeClient } from './stripe-configuration.js'
 import { createOrderPayments } from './order-payments.js'
 import { receiveStripeEvent } from './stripe-events.js'
 import { createEnviaRates } from '../shipping/envia-rates.js'
@@ -8,7 +9,7 @@ import { AccountError } from '../accounts/credentials.js'
 import { guestCartHash, requireCartOrigin } from '../cart/cart-http.js'
 import { limitRequest, RequestLimitError } from '../../utils/request-limit.js'
 export function configuredPayments(db,config) {
-  const stripe=createStripeClient({secretKey:config.stripeSecretKey,environment:config.stripeEnvironment,siteUrl:config.stripeSiteUrl})
+  const stripe=configuredStripeClient(config)
   const shipping={quote:input=>createEnviaRates({token:config.enviaToken,environment:config.enviaEnvironment,carrier:config.enviaCarrier}).quote(input)}
   return createOrderPayments(db,stripe,shipping,{minimumCents:config.stripeMinimumCents})
 }

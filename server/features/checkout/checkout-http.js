@@ -6,6 +6,7 @@ import { guestCartHash, requireCartOrigin } from '../cart/cart-http.js'
 import { CartError } from '../cart/cart-repository.js'
 import { ShippingError } from '../shipping/shipping-quotes.js'
 import { limitRequest, RequestLimitError } from '../../utils/request-limit.js'
+import { stripePaymentReady } from '../payments/stripe-configuration.js'
 export async function checkoutRequest(event, guest = false) {
   setHeader(event,'Cache-Control','no-store'); requireCartOrigin(event)
   try {
@@ -14,6 +15,6 @@ export async function checkoutRequest(event, guest = false) {
     const hash=guestCartHash(event),identity=await accountIdentity(event,false)
     await limitRequest(db,`checkout:${hash??getRequestIP(event,{xForwardedFor:false})}`,5)
     const result=await service.prepare(hash,identity?.user.id,input),config=useRuntimeConfig(event)
-    return {...result,paymentEnabled:config.stripeEnabled===true||config.stripeEnabled==='true'}
+    return {...result,paymentEnabled:stripePaymentReady(config)}
   }catch(e){const known=e instanceof AccountError||e instanceof CartError||e instanceof ShippingError||e instanceof RequestLimitError;throw createError({statusCode:known?e.status:503,statusMessage:known?e.message:'No pudimos preparar el pedido. Conservamos tu carrito.'})}
 }

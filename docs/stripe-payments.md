@@ -4,6 +4,50 @@ Implementación del issue #30. Modalidad elegida: **Checkout alojado**, pago ún
 
 ## Configuración y activación
 
+### Webhook en producción
+
+Desplegar primero la aplicación con dominio público y HTTPS. En Stripe, completar la activación de la cuenta, seleccionar el modo activo y abrir Workbench → Webhooks → Crear destino. Elegir eventos de la propia cuenta, formato **Snapshot** y versión `2025-09-30.clover`, compatible con el cliente actual. Registrar `https://TU_DOMINIO/api/payments/stripe/webhook` y los eventos `checkout.session.completed`, `checkout.session.expired` y `payment_intent.payment_failed`. Revelar el secreto de firma de ese destino; no reutilizar el del sandbox o de Stripe CLI.
+
+Configurar en el gestor de secretos o entorno privado del servidor `NUXT_STRIPE_SECRET_KEY` con la clave `sk_live_…`, `NUXT_STRIPE_WEBHOOK_SECRET` con el `whsec_…` de ese destino, `NUXT_STRIPE_ENVIRONMENT=live`, `NUXT_STRIPE_SITE_URL=https://TU_DOMINIO` y habilitar con `NUXT_STRIPE_ENABLED=true` cuando las comprobaciones estén satisfechas. Mantener el reconciliador operativo y supervisado. No hacen falta túneles ni Stripe CLI en el servidor: Stripe entrega directamente los eventos por HTTPS. Se mantiene el cuerpo original para verificar firmas y la deduplicación del servidor evita aplicar dos veces un evento repetido.
+
+Validar antes el recorrido en sandbox y posteriormente, con autorización expresa del propietario, la operación real y sus entregas de webhook/estado de pedido. Esta explicación no activa live ni autoriza un cobro. Referencias oficiales: [registro y formato de webhook](https://docs.stripe.com/webhooks), [claves por entorno](https://docs.stripe.com/keys).
+
+### Docker local: primera conexión
+
+La aplicación recibe las variables privadas de Stripe desde `.env.docker`; Compose conserva `false` y `test` como valores por defecto. El botón del tercer paso solo se ofrece si están habilitados los pagos y la configuración incluye clave del entorno, secreto de webhook, URL de retorno válida y mínimo válido. Esta validación comprueba configuración, no confirma con Stripe que las credenciales tengan acceso.
+
+1. Crear la [cuenta de Stripe](https://dashboard.stripe.com/register), verificar el acceso y seleccionar un [sandbox](https://docs.stripe.com/sandboxes). En [Claves de API](https://dashboard.stripe.com/apikeys), obtener la clave secreta `sk_test_…` de ese sandbox. La integración actual usa Checkout alojado y no necesita la clave publicable.
+2. Instalar [Stripe CLI](https://docs.stripe.com/cli), ejecutar `stripe login` y seleccionar ese mismo sandbox. No activar modo live. Si la cuenta exige habilitar acceso CLI, seguir las indicaciones del Dashboard. Ejecutar en una terminal que permanezca abierta:
+
+```powershell
+stripe listen --events checkout.session.completed,checkout.session.expired,payment_intent.payment_failed --forward-to http://localhost:3001/api/payments/stripe/webhook
+```
+
+3. Copiar el secreto `whsec_…` que muestra ese proceso a `.env.docker`. El secreto de la CLI corresponde a ese listener, no al de otro endpoint del Dashboard. Configurar privadamente:
+
+```dotenv
+NUXT_STRIPE_ENABLED=true
+NUXT_STRIPE_ENVIRONMENT=test
+NUXT_STRIPE_SECRET_KEY=clave_secreta_del_sandbox
+NUXT_STRIPE_WEBHOOK_SECRET=secreto_del_listener
+NUXT_STRIPE_SITE_URL=http://localhost:3001
+NUXT_STRIPE_MINIMUM_CENTS=1000
+```
+
+4. Recrear la aplicación y arrancar el reconciliador, que revisa hasta veinte intentos por vuelta, espera un minuto entre vueltas y no superpone ejecuciones:
+
+```powershell
+docker compose --env-file .env.docker -f compose.docker.yaml --profile payments up -d --build app payment-reconciler
+```
+
+5. Con políticas publicadas y stock, recorrer envío → confirmar pedido → pago. En el Checkout alojado, usar únicamente una [tarjeta de prueba](https://docs.stripe.com/testing), por ejemplo `4242 4242 4242 4242`, fecha futura y CVC de prueba. Comprobar el webhook y el estado en `/pago`; el regreso por sí solo no confirma el cobro. No usar `stripe trigger` como sustituto de pagar la sesión real del pedido: los fixtures genéricos no tienen sus referencias.
+
+Para pausar revisiones: `docker compose --env-file .env.docker -f compose.docker.yaml --profile payments stop payment-reconciler`. Se debe mantener ese servicio durante las pruebas con intentos pendientes y comprobar su salida; no se configura automáticamente un servicio productivo ni alarmas. El listener local requiere Stripe CLI activo. En servidor se configura un endpoint HTTPS de webhook y su propio secreto.
+
+Estado al preparar esta conexión: el propietario todavía no tiene cuenta; las variables privadas quedaron preparadas, sin claves y con pagos deshabilitados. No se creó cuenta externa ni se inició una sesión/cobro/reembolso con Stripe. La prueba contractual sandbox queda pendiente de credenciales y listener. Referencias: [claves](https://docs.stripe.com/keys), [listener local](https://docs.stripe.com/cli/listen).
+
+Actualización local: el propietario obtuvo ambas claves y las guardó privadamente. Se habilitó el pago en `test` y se arrancaron app y `payment-reconciler`; salud HTTP 200 y primera vuelta con cero intentos. Solo se verificaron presencia/formato y carga de configuración; falta completar el Checkout de prueba y confirmar webhook/estado del pedido. El listener de Stripe CLI debe mantenerse abierto.
+
 La integración permanece deshabilitada por defecto. Configurar privadamente las variables de `.env.example`, sin modificar claves de un intento en curso:
 
 | Variable | Uso |

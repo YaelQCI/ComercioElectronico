@@ -1,5 +1,23 @@
 # Guía para explicar y demostrar la plataforma
 
+## Webhook de Stripe en producción
+
+Stripe se conecta directamente al endpoint público HTTPS `/api/payments/stripe/webhook`. Se registra en Workbench, modo activo, para la propia cuenta y con los tres eventos de Checkout/pago soportados. Esta integración utiliza eventos Snapshot y versión `2025-09-30.clover`. El secreto `whsec_…` de ese destino se configura en el servidor junto con la clave live, entorno `live` y URL pública de retorno. Los secretos de pruebas y CLI no se reutilizan.
+
+Para observarlo, revisar los intentos de entrega del destino en Workbench y el estado del pedido en la plataforma; una redirección exitosa no prueba el cobro. La firma, consulta de sesión, validación de importe/entorno y deduplicación siguen ejecutándose en servidor. No se requiere una terminal con Stripe CLI ni túnel para producción. Pasos en `docs/stripe-payments.md`, basados en la [documentación oficial](https://docs.stripe.com/webhooks). No se modificó el entorno ni se habilitaron cobros reales al documentar este flujo.
+
+## Conectar Stripe al paso de pago
+
+Activación local posterior: el propietario configuró ambas claves. Se comprobó en privado el prefijo de prueba y el secreto de webhook, se habilitó `NUXT_STRIPE_ENABLED=true` y se iniciaron app y reconciliador en entorno `test`. El contenedor confirmó las variables sin mostrar sus valores; salud HTTP 200 y primera revisión del reconciliador con cero intentos. Mantener el listener de Stripe CLI abierto. Esta comprobación no verifica todavía un pago ni una entrega de webhook de Stripe.
+
+El proyecto usa Checkout alojado: al pulsar **Ir a pagar con Stripe**, el servidor revalida importe, tarifa y existencias, registra el intento, reserva inventario y devuelve la URL de Stripe. Los datos de tarjeta se capturan allí; no en el formulario de la tienda. El webhook verifica firma y entorno, consulta la sesión y aplica el pago al pedido una sola vez. Volver a `/pago` no acredita por sí mismo un cobro. Los reintentos, expiraciones, cancelaciones y reembolsos utilizan los casos de uso ya implementados.
+
+Se conectaron a Docker `NUXT_STRIPE_ENABLED`, `NUXT_STRIPE_ENVIRONMENT`, `NUXT_STRIPE_SECRET_KEY`, `NUXT_STRIPE_WEBHOOK_SECRET`, `NUXT_STRIPE_SITE_URL` y `NUXT_STRIPE_MINIMUM_CENTS`. La configuración completa se exige antes de ofrecer pago, sin divulgar secretos al navegador. La clave publicable no es necesaria para este Checkout alojado. El perfil opcional `payments` incorpora `payment-reconciler` para revisar intentos cada minuto sin solapar vueltas; usa el mismo entorno y conserva intentos inciertos para revisión.
+
+Demostración pendiente: crear cuenta/sandbox, guardar la clave `sk_test_…` y secreto `whsec_…` en `.env.docker`, mantener Stripe CLI reenviando los eventos al webhook local y habilitar el pago. Los pasos y comandos están en `docs/stripe-payments.md`. El propietario indicó que aún no tiene cuenta; no se crearon cuentas ni se habilitaron cobros con claves ficticias. Las variables permanecen en `test` y pagos deshabilitados hasta completar esa configuración. [Documentación oficial de claves](https://docs.stripe.com/keys) y [webhooks locales](https://docs.stripe.com/cli/listen).
+
+Verificación: seis pruebas específicas de cliente, firma y configuración Stripe aprobadas; suite completa correcta, incluidas 90 pruebas PostgreSQL, y compilación Docker de app y reconciliador correcta. En el entorno local se comprobó `enabled=false`, entorno `test`, ausencia de claves, inicio de pago HTTP 503 y rechazo del reconciliador sin configuración. No se contactó a Stripe ni se movió dinero; falta prueba contractual con una cuenta sandbox y validación de redirecciones reales.
+
 ## Validación de envío antes de confirmar
 
 **Continuar a confirmar pedido** permanece deshabilitado hasta contar con una tarifa aceptada del carrito actual, con fecha válida, no futura, antigüedad máxima de diez minutos y sin vencimiento del proveedor. Cotizar sin pulsar **Aceptar esta tarifa** no lo habilita. Un texto asociado explica qué falta. Al vencer la tarifa, un temporizador actualiza el estado y vuelve a deshabilitarlo; cambiar la dirección o el carrito también invalida la selección. La función que avanza mantiene la comprobación defensiva y muestra error inline y en toast si recibe una selección inválida. Después se validan los campos del formulario.
