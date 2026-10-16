@@ -16,7 +16,6 @@ const productPath = computed(() => ({ path: `/producto/${props.product.id}`, que
   <article class="relative isolate flex h-full min-w-0 flex-col overflow-hidden rounded-sm border border-line bg-surface [overflow-wrap:anywhere]" data-product-card>
     <div class="relative">
       <CardPackshot :images="product.images" :variant-id="variant?.id" :to="productPath" :product-name="product.name" />
-      <span v-if="lot?.origin" class="pointer-events-none absolute left-3 top-3 z-20 max-w-[calc(100%-24px)] rounded-sm bg-accent-soft px-2 py-1 font-mono text-label font-semibold uppercase tracking-wider text-accent-text">{{ lot.importedOn ? 'Importado · ' : 'Origen · ' }}{{ lot.origin }}</span>
     </div>
     <div class="flex flex-1 flex-col p-4">
       <h3 class="font-display text-display-m font-bold uppercase leading-tight"><NuxtLink :to="productPath" class="after:absolute after:inset-0 hover:text-accent-text hover:underline focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-ink">{{ product.name }}</NuxtLink></h3>

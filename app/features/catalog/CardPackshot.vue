@@ -4,15 +4,22 @@ const props = defineProps({ images: { type: Array, required: true }, variantId: 
 const images = computed(() => imagesForVariant(props.images, props.variantId))
 const front = computed(() => images.value.find(i => i.kind === 'FRONT'))
 const back = computed(() => images.value.find(i => i.kind === 'NUTRITION'))
-const showBack = ref(false)
-const current = computed(() => showBack.value && back.value ? back.value : front.value)
-watch(() => props.variantId, () => { showBack.value = false })
-function focusPreview(event) { if (event.target.matches(':focus-visible')) showBack.value = true }
+const hovered = ref(false), focused = ref(false)
+const showBack = computed(() => !!back.value && (hovered.value || focused.value))
+watch(() => props.variantId, () => { hovered.value = false; focused.value = false })
+function focusPreview(event) { focused.value = event.target.matches(':focus-visible') }
 </script>
 <template>
-  <div class="relative z-10 aspect-[4/3] bg-packshot p-4" @pointerenter="event => { if (event.pointerType === 'mouse') showBack = true }" @pointerleave="event => { if (event.pointerType === 'mouse') showBack = false }">
-    <NuxtLink v-if="to" :to="to" :aria-label="`Ver ${productName || 'producto'}`" class="absolute inset-0 p-4 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-packshot-ink"><UiImage :src="current?.url" :alt="current?.alt ?? 'Producto'" /></NuxtLink>
-    <UiImage v-else :src="current?.url" :alt="current?.alt ?? 'Producto'" />
-    <button v-if="back" type="button" class="absolute bottom-2 left-2 z-10 min-h-11 rounded-sm border border-packshot-line bg-packshot px-3 py-2 text-body-s text-packshot-ink focus-visible:outline-packshot-ink" :aria-pressed="showBack" @focus="focusPreview" @blur="showBack = false" @click="showBack = !showBack">{{ showBack ? 'Ver frente' : 'Ver información nutrimental' }}</button>
+  <div class="relative z-10 aspect-[4/3] overflow-hidden bg-packshot" data-packshot :data-preview="showBack ? 'nutrition' : 'front'" @pointerenter="event => { if (event.pointerType === 'mouse') hovered = true }" @pointerleave="event => { if (event.pointerType === 'mouse') hovered = false }">
+    <div class="packshot-layer absolute inset-0 p-4" :class="{ 'packshot-hidden': showBack }" :aria-hidden="showBack"><UiImage :src="front?.url" :alt="front?.alt ?? productName ?? 'Producto'" /></div>
+    <div v-if="back" class="packshot-layer absolute inset-0 p-4" :class="{ 'packshot-hidden': !showBack }" :aria-hidden="!showBack"><UiImage :src="back.url" :alt="back.alt ?? 'Información nutrimental'" /></div>
+    <NuxtLink v-if="to" :to="to" :aria-label="`Ver ${productName || 'producto'}`" class="absolute inset-0 z-10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-packshot-ink" @focus="focusPreview" @blur="focused = false" />
   </div>
 </template>
+<style scoped>
+.packshot-layer { opacity:1; filter:blur(0); pointer-events:none; }
+.packshot-hidden { opacity:0; filter:blur(5px); }
+@media (prefers-reduced-motion:no-preference) {
+  .packshot-layer { transition:opacity 280ms ease,filter 280ms ease; }
+}
+</style>
