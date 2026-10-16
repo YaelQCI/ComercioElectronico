@@ -823,6 +823,10 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 **Frase para exponer:** “El catálogo permite buscar por nombre, SKU o categoría y combinar filtros de disponibilidad, presentación y precio. Los criterios se conservan en la URL y solo se muestran productos publicados y activos.”
 
+## Acciones de edición de productos
+
+En Administración → Productos → Gestionar, las acciones se organizan en tres filas: Cerrar edición, Descartar cambios y Guardar cambios; después Publicar y Retirar del catálogo con un indicador destacado de visibilidad; finalmente Activar o Desactivar según el estado actual. Los botones se ajustan al ancho disponible. Publicar guarda el formulario y exige sus validaciones; retirar pide un motivo en un modal y no guarda cambios pendientes. Activar conserva los datos y devuelve el producto a borrador. El cierre y descarte siguen disponibles cuando el producto está desactivado, mientras que guardar y publicar permanecen bloqueados.
+
 ## Recuperar una reseña para editar
 
 La sección incluye un resumen del promedio con estrellas, total de reseñas verificadas y barras para las calificaciones de cinco a una estrella. Cada porcentaje corresponde al número de reseñas visibles de esa calificación dividido entre el total, redondeado al entero más cercano; por redondeo, los porcentajes no necesariamente suman exactamente 100. No se inventan calificaciones cuando el producto no tiene reseñas.

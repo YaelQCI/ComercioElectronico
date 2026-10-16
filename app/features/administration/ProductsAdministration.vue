@@ -140,10 +140,6 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
       <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
 
       <h3 class="text-display-s font-bold">Editar {{ selected.name }}</h3>
-      <div v-if="selected.deactivated" class="my-4">
-        <p class="mb-3">Este producto está desactivado. Puedes reactivarlo como borrador para revisar sus datos antes de publicarlo.</p>
-        <UiButton :disabled="busy" @click="reactivationReason = ''; reactivating = true">Reactivar producto</UiButton>
-      </div>
       <UiModal :open="reactivating" title="Reactivar producto" :busy="busy" @close="reactivating = false">
         <p class="mb-4">{{ selected.name }} volverá a estar activo como borrador. Sus imágenes, precios e inventario se conservan; no se publica automáticamente.</p>
         <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
@@ -168,15 +164,34 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
           <UiField :id="`edit-${variant.id}-previous-price`" v-model="variant.compareAtPricePesos" label="Precio anterior en pesos (MXN, opcional)" hint="Si lo indicas, debe ser mayor que el precio vigente. Ejemplo: 180.00." inputmode="decimal" maxlength="24" pattern="[0-9]+([.,][0-9]{1,2})?" />
         </fieldset>
         <UiField id="edit-reason" v-model="edit.reason" label="Motivo de los cambios" hint="Obligatorio para guardar o publicar los datos revisados. El motivo de la carga de imágenes es independiente." required maxlength="500" />
-        <p v-if="publicationProblem" id="publication-requirements" role="status" class="text-body-s text-ink-2">{{ publicationProblem }}</p>
-        <div class="flex flex-wrap gap-3 md:col-span-2"><UiButton type="submit" :disabled="busy || selected.deactivated">Guardar cambios</UiButton><UiButton v-if="!selected.published" variant="secondary" :disabled="busy || !!publicationProblem" :aria-describedby="publicationProblem ? 'publication-requirements' : undefined" @click="update({ published: true })">Guardar y publicar</UiButton><UiButton variant="secondary" :disabled="busy || !edit.reason.trim() || selected.deactivated" @click="update({ deactivate: true, published: false })">Desactivar producto</UiButton></div>
         </fieldset>
+        <div class="mt-6 grid gap-4">
+          <div class="flex flex-wrap items-center gap-3" role="group" aria-label="Acciones del formulario">
+            <UiButton variant="secondary" :disabled="busy" @click="selected = null">Cerrar edición</UiButton>
+            <UiButton variant="secondary" :disabled="busy" @click="select(selected)">Descartar cambios</UiButton>
+            <UiButton type="submit" :disabled="busy || selected.deactivated">Guardar cambios</UiButton>
+          </div>
+          <section class="rounded-sm border border-border bg-surface-2 p-4" aria-label="Publicación en el catálogo">
+            <div class="mb-3 flex flex-wrap items-center gap-3">
+              <h4 class="font-semibold">Estado en el catálogo</h4>
+              <span class="rounded-sm border px-3 py-2 font-bold" :class="selected.published && !selected.deactivated ? 'border-ok bg-ok-soft text-ok' : 'border-warn bg-warn-soft text-warn'" role="status">{{ selected.published && !selected.deactivated ? 'Publicado · Visible para clientes' : 'Sin publicar · Oculto para clientes' }}</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <UiButton variant="secondary" :disabled="busy || selected.published || !!publicationProblem" :aria-describedby="publicationProblem ? 'publication-requirements' : undefined" @click="update({ published: true })">Publicar</UiButton>
+              <UiButton variant="secondary" :disabled="busy || !selected.published || selected.deactivated" @click="withdrawalReason = ''; withdrawing = true">Retirar del catálogo</UiButton>
+            </div>
+            <p v-if="publicationProblem" id="publication-requirements" class="mt-3 text-body-s text-ink-2">{{ publicationProblem }}</p>
+            <p v-else class="mt-3 text-body-s text-ink-2">{{ selected.published ? 'Guardar cambios conserva su publicación. Retirar del catálogo mantiene el producto activo.' : 'Publicar también guarda los cambios del formulario.' }}</p>
+          </section>
+          <section class="rounded-sm border border-border p-4" aria-label="Activación del producto">
+            <div class="mb-3 flex flex-wrap items-center gap-3"><h4 class="font-semibold">Estado del producto</h4><span class="font-bold" :class="selected.deactivated ? 'text-crit' : 'text-ok'">{{ selected.deactivated ? 'Desactivado' : 'Activo' }}</span></div>
+            <UiButton v-if="selected.deactivated" variant="secondary" :disabled="busy" @click="reactivationReason = ''; reactivating = true">Activar producto</UiButton>
+            <UiButton v-else variant="secondary" :disabled="busy || !edit.reason.trim()" @click="update({ deactivate: true, published: false })">Desactivar producto</UiButton>
+            <p class="mt-3 text-body-s text-ink-2">{{ selected.deactivated ? 'Activar conserva sus datos y lo devuelve a borrador; después podrás publicarlo.' : 'Desactivar retira el producto del catálogo. Escribe el motivo de los cambios para habilitar esta acción.' }}</p>
+          </section>
+        </div>
       </form>
-      <UiButton variant="secondary" class="mt-4" :disabled="busy" @click="select(selected)">Descartar cambios del formulario</UiButton>
-      <UiButton variant="secondary" class="mt-4 ml-3" :disabled="busy" @click="selected = null">Cerrar edición</UiButton>
-      <UiButton v-if="failure" variant="secondary" class="mt-4 ml-3" :disabled="busy" @click="reloadSelected">Actualizar producto y descartar cambios</UiButton>
-      <p v-if="selected.published" class="mt-4 text-body-s text-ink-2">Este producto está publicado. Guardar cambios conserva su publicación.</p>
-      <UiButton v-if="selected.published" variant="secondary" class="mt-4" :disabled="busy" @click="withdrawalReason = ''; withdrawing = true">Retirar del catálogo</UiButton>
+      <UiButton v-if="failure" variant="secondary" class="mt-4" :disabled="busy" @click="reloadSelected">Actualizar producto y descartar cambios</UiButton>
       <UiModal :open="withdrawing" title="Confirmar retiro del catálogo" :busy="busy" @close="withdrawing = false">
         <p class="mb-4">{{ selected.name }} dejará de ser visible para los clientes. Esta acción no guarda los cambios pendientes del formulario.</p>
         <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
