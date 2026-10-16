@@ -823,6 +823,14 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 **Frase para exponer:** “El catálogo permite buscar por nombre, SKU o categoría y combinar filtros de disponibilidad, presentación y precio. Los criterios se conservan en la URL y solo se muestran productos publicados y activos.”
 
+## Distribución del catálogo y sus filtros
+
+El catálogo presenta título y total de productos, una barra con el intervalo de resultados a la izquierda y ordenamiento a la derecha, y debajo un panel lateral de filtros con desplazamiento independiente. Las etiquetas de filtros activos aparecen sobre los resultados y permiten quitar cada condición o limpiar los filtros. En escritorio se muestran cuatro tarjetas por fila y la paginación queda centrada. En móvil el panel se puede plegar; al regresar al ancho de escritorio se abre nuevamente.
+
+Se conservan únicamente los filtros existentes: categorías, objetivos, disciplinas, disponibilidad, costo por porción, presentaciones y rango de precio. Los grupos sin opciones siguen ocultos. No se agregan marcas, garantías, plazos de entrega ni otras condiciones tomadas de la referencia. `useCatalogFilters.js` reúne el estado y las acciones que antes estaban en el componente lateral, para compartirlos con las etiquetas; mantiene los parámetros de URL, reinicio de página al filtrar y validaciones del rango.
+
+Para demostrarlo, abre Catálogo, selecciona una categoría, quita su etiqueta, aplica precios y cambia el orden. Al aplicar o quitar filtros se conserva la búsqueda y el orden actuales. `scripts/check-catalog-layout-browser.mjs` verifica estos flujos, paginación, precios inválidos, temas y anchos móvil/escritorio con respuestas simuladas. Pasaron 55 pruebas de catálogo, la compilación Docker y la prueba de navegador; se revisaron capturas de ambos temas y móvil.
+
 ## Diseño del inicio en claro y oscuro
 
 La página principal reproduce la composición de las referencias del propietario: franja de envío gratis desde $1,499, encabezado compacto, portada con colores invertidos, bloque Price Match con borde superior amarillo, cuadrícula de cuatro productos por fila en escritorio, beneficios, categorías con iconos y pie de cuatro columnas. Los tokens existentes determinan la variante clara y oscura. El orden de los enlaces administrativos y la configuración del tema dentro de la cuenta se conservan.
