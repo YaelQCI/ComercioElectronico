@@ -18,7 +18,7 @@ async function submit() {
 <template>
   <section class="my-6 rounded-sm border border-border bg-surface p-4 md:p-6" aria-label="Cajas de envío">
     <div class="flex flex-wrap items-center justify-between gap-4"><h3 class="text-display-s font-bold">Cajas de envío</h3><UiButton aria-haspopup="dialog" @click="edit()">Agregar caja</UiButton></div>
-    <p class="mt-3 text-body-s text-ink-2">Registra las medidas reales de tus cajas. Se selecciona una caja activa que pueda contener todo el pedido, incluyendo su peso.</p>
+    <p class="mt-3 text-body-s text-ink-2">Registra las medidas reales de tus cajas. Se selecciona una caja activa que pueda contener todo el pedido, incluyendo su peso. CAJA-CHICA, CAJA-MEDIANA y CAJA-GRANDE tienen valores iniciales de referencia: verifica sus medidas y resistencia con tus cajas físicas.</p>
     <UiLoading v-if="status === 'pending'" label="Cargando cajas" />
     <div v-else-if="error" role="alert" class="mt-4"><p>No pudimos cargar las cajas.</p><UiButton variant="secondary" @click="refresh">Reintentar</UiButton></div>
     <template v-else>

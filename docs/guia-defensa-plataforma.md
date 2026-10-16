@@ -1,5 +1,21 @@
 # Guía para explicar y demostrar la plataforma
 
+## Cajas de referencia al inicializar
+
+La migración `20261016020000_reference_shipping_packages` agrega tres cajas activas autorizadas como valores iniciales de referencia, no medidas físicas certificadas. Largo × ancho × alto, en milímetros:
+
+| Código | Interior (mm) | Exterior (mm) | Caja vacía (g) | Máximo bruto (g) |
+| --- | --- | --- | --- | --- |
+| CAJA-CHICA | 240 × 190 × 190 | 250 × 200 × 200 | 150 | 5000 |
+| CAJA-MEDIANA | 340 × 290 × 240 | 350 × 300 × 250 | 300 | 10000 |
+| CAJA-GRANDE | 440 × 340 × 290 | 450 × 350 × 300 | 500 | 20000 |
+
+El INSERT usa `ON CONFLICT (code) DO NOTHING`: conserva IDs, medidas, versiones y disponibilidad de cajas existentes. El plugin de inicio comprueba esos mismos códigos y crea únicamente los faltantes. No reactiva cajas desactivadas ni sobrescribe ajustes. Si se cambia el código de una caja base, se considera otra caja y el código base se vuelve a crear al reiniciar. Las demás cajas, incluida la caja registrada previamente, permanecen intactas.
+
+Verificación: migración aplicada al entorno local, compilación Docker correcta y suite aprobada con 88 pruebas PostgreSQL. La prueba específica comprueba valores iniciales desde la migración, reejecución del INSERT, inicio repetido, conservación de una caja editada/desactivada y reposición de una faltante. Revisión visual y nueva cotización con estas cajas pendientes.
+
+En **Administración → Inventario → Cajas de envío** se pueden ver y editar. Verificar medidas y resistencia con las cajas físicas antes de utilizarlas para envíos reales. Si una caja anterior de 90 cm sigue activa, puede seguir siendo elegida si las otras no admiten el pedido; corregirla o desactivarla explícitamente. El algoritmo elige la caja apta de menor volumen exterior, no por el nombre chica/mediana/grande.
+
 ## Error de caja apta al cotizar
 
 La consulta de solo lectura al entorno local confirmó que `PackageType` no tiene registros. Por eso `choosePackage`, en `shared/features/shipping/pack-order.js`, no encuentra una caja para el pedido y detiene la cotización antes de consultar Envia. No es un rechazo del token ni de la dirección del cliente.
