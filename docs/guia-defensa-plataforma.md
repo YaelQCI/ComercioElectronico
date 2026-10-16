@@ -1,5 +1,13 @@
 # Guía para explicar y demostrar la plataforma
 
+## Imágenes subidas en el carrito
+
+El carrito utiliza la misma conversión segura de imágenes del catálogo (`publicImage`): los archivos subidos al volumen se sirven mediante `/api/catalog/images/:assetId`, mientras las imágenes estáticas revisadas conservan `/images/catalog/...`. Antes, el carrito descartaba las rutas de almacenamiento `uploads/...` y mostraba «Imagen no disponible» aunque la foto existiera. Se prioriza la frontal de la variante y, si no existe, la frontal general del producto. No se muestran rutas internas ni se cambian las reglas de publicación del endpoint de imágenes.
+
+Para comprobarlo, añade al carrito un producto publicado con imagen frontal cargada desde el administrador y abre `/carrito`. La miniatura debe aparecer sin volver a subir la foto ni quitar/agregar el producto. El contenedor de miniatura conserva un tamaño de 112 × 112 px para que el componente de imagen no se extienda a toda la fila. `tests/database/cart.test.mjs` verifica imágenes estáticas, subidas, prioridad de variante y rechazo de rutas no públicas. La comprobación de código/HTTP no sustituye la revisión visual en navegador.
+
+Verificación de la corrección: build Docker, 72 pruebas unitarias y 85 PostgreSQL correctas. El carrito local existente devuelve la URL de imagen esperada y la descarga WebP responde HTTP 200 con contenido, sin alterar sus productos. Revisión visual pendiente.
+
 ## Abrir productos desde su tarjeta e imagen
 
 En el catálogo, inicio y recomendaciones que usan `ProductCard`, tanto la imagen como el título y la superficie de la tarjeta abren `/producto/:id`. `UiCard` extiende el enlace del título a su superficie; `CardPackshot` enlaza la imagen de forma independiente para conservar su vista nutrimental al pasar el cursor. Los botones de carrito, información nutrimental y formulario de reposición mantienen sus propias acciones sin estar anidados en enlaces. Los enlaces permiten teclado y abrir en otra pestaña. La verificación de compilación y HTML SSR no equivale a una prueba visual de clics.

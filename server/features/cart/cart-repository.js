@@ -1,6 +1,7 @@
 ﻿import { availableFromLots } from '../../../shared/features/inventory/availability.js'
 import { calculateCart } from '../../../shared/features/pricing/prices.js'
 import { publicBundle } from '../catalog/bundle-repository.js'
+import { publicImage } from '../catalog/catalog-repository.js'
 import { cartCouponInclude, evaluateCartCoupon } from '../coupons/cart-coupon.js'
 import { couponCode, CouponError } from '../../../shared/features/coupons/coupon-eligibility.js'
 
@@ -23,8 +24,9 @@ function snapshot(cart, items) {
     const line = describe(item, now)
     line.bundle = item.bundle ? publicBundle(item.bundle, now) : null
     const media = item.variant?.product.productMedia_product.find(m => m.kind === 'FRONT' && m.variantId === item.variantId) ?? item.variant?.product.productMedia_product.find(m => m.kind === 'FRONT' && !m.variantId)
-    const path = media?.asset.storageKey ?? item.bundle?.imageAsset?.storageKey
-    line.image = /^\/images\/catalog\/[a-zA-Z0-9/_-]+\.(?:webp|png|jpg|jpeg)$/.test(path ?? '') ? { url: path, alt: media?.altText ?? item.bundle.name } : null
+    const image = media ? publicImage(media) : null
+    const bundlePath = item.bundle?.imageAsset?.storageKey
+    line.image = image ? { url: image.url, alt: image.alt } : /^\/images\/catalog\/[a-zA-Z0-9/_-]+\.(?:webp|png|jpg|jpeg)$/.test(bundlePath ?? '') ? { url: bundlePath, alt: item.bundle.name } : null
     return line
   })
   const demand = new Map()

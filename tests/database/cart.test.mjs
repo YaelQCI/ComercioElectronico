@@ -33,6 +33,21 @@ test('consolida SKU, separa variantes, persiste, no reserva y aísla propietario
   await assert.rejects(repository.add(owner, { variantId: variants[0].id, quantity: 2, version: third.version }), /stock/)
   assert.equal((await repository.read(owner)).pieces, 12)
 })
+test('carrito resuelve imágenes subidas, prefiere la frontal de variante y conserva las estáticas', async () => {
+  const [variant] = await fixture(), owner = hash()
+  const first = await repository.add(owner, { variantId: variant.id, quantity: 1, version: 1 })
+  assert.equal(first.lines[0].image.url, '/images/catalog/cart-fixture.webp')
+  const front = await db.productMedia.findFirst({ where: { productId: variant.productId, kind: 'FRONT' } })
+  await db.mediaAsset.update({ where: { id: front.assetId }, data: { storageKey: `uploads/${randomUUID()}.webp` } })
+  const uploaded = await repository.read(owner)
+  assert.deepEqual(uploaded.lines[0].image, { url: `/api/catalog/images/${front.assetId}`, alt: 'Prueba' })
+  const asset = await db.mediaAsset.create({ data: { storageKey: `uploads/${randomUUID()}.webp`, mimeType: 'image/webp', byteSize: 100n, checksum: '1'.repeat(64) } })
+  await db.productMedia.create({ data: { productId: variant.productId, variantId: variant.id, assetId: asset.id, kind: 'FRONT', altText: 'Frontal de la variante' } })
+  assert.deepEqual((await repository.read(owner)).lines[0].image, { url: `/api/catalog/images/${asset.id}`, alt: 'Frontal de la variante' })
+  await db.mediaAsset.update({ where: { id: asset.id }, data: { storageKey: '/ruta-interna-no-publica.webp' } })
+  assert.equal((await repository.read(owner)).lines[0].image, null)
+})
+
 test('dos peticiones con misma versión solo agregan una vez; entradas inválidas no escriben', async () => {
   const [variant] = await fixture(), owner = hash()
   const results = await Promise.allSettled([1, 2].map(() => repository.add(owner, { variantId: variant.id, quantity: 1, version: 1 })))
