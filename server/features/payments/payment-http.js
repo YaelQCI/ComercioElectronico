@@ -1,3 +1,4 @@
+import { setCookie } from 'h3'
 import { getDatabase } from '../../utils/database.js'
 import { PaymentError } from './stripe-client.js'
 import { configuredStripeClient } from './stripe-configuration.js'
@@ -5,9 +6,9 @@ import { createOrderPayments } from './order-payments.js'
 import { receiveStripeEvent } from './stripe-events.js'
 import { createEnviaRates } from '../shipping/envia-rates.js'
 import { accountIdentity } from '../accounts/account-http.js'
-import { AccountError } from '../accounts/credentials.js'
 import { guestCartHash, requireCartOrigin } from '../cart/cart-http.js'
-import { limitRequest, RequestLimitError } from '../../utils/request-limit.js'
+import { limitRequest } from '../../utils/request-limit.js'
+import { paymentFailure, safePaymentDiagnostic } from './payment-failure.js'
 export function configuredPayments(db,config) {
   const stripe=configuredStripeClient(config)
   const shipping={quote:input=>createEnviaRates({token:config.enviaToken,environment:config.enviaEnvironment,carrier:config.enviaCarrier}).quote(input)}
@@ -35,5 +36,10 @@ export async function paymentRequest(event,action) {
       return result
     }
     return await payments.cancel(input?.orderId,owner)
-  }catch(e){const known=e instanceof PaymentError||e instanceof AccountError||e instanceof RequestLimitError;throw createError({statusCode:known?e.status:503,statusMessage:known?e.message:'No pudimos completar la operación de pago. Conservamos el intento para revisar su estado.'})}
+  } catch (error) {
+    const known = paymentFailure(error)
+    if (known) throw createError(known)
+    console.error('[payment-operation]', JSON.stringify(safePaymentDiagnostic(error, action)))
+    throw createError({ statusCode: 503, statusMessage: 'No pudimos completar la operación de pago. Conservamos el intento para revisar su estado.' })
+  }
 }

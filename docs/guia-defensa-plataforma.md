@@ -1,5 +1,13 @@
 # Guía para explicar y demostrar la plataforma
 
+## Error genérico al abrir Stripe después de crear la sesión
+
+El intento de prueba quedó con sesión `open`, pago `unpaid` y reserva activa, pero el endpoint devolvía HTTP 503. El diagnóstico HTTP mostró `ReferenceError`: `setCookie` se utilizaba para guardar `fitness_guest_order` después de abrir la sesión, pero no estaba importado en el módulo compilado. Se corrigió con una importación explícita desde `h3`. No fue un cobro rechazado ni requirió crear otra sesión.
+
+El manejo HTTP ahora conserva los errores específicos del carrito, inventario y proveedor de envío en lugar de convertirlos todos en error genérico. Para fallos inesperados registra únicamente operación, tipo de error y códigos técnicos permitidos; no guarda mensajes crudos, consultas, claves ni datos personales. Con autorización expresa del propietario se diagnosticó y reanudó únicamente el intento sandbox existente; no se completó un pago ni se generó otro intento. La revisión inicial se limitó a consultas de solo lectura hasta recibir esa autorización.
+
+Verificación: ocho pruebas de pagos aprobadas y compilación Docker correcta. El endpoint real, con el intento de prueba autorizado, pasó de HTTP 503 a HTTP 200 y devolvió una URL validada de `checkout.stripe.com`; emitió la cookie HttpOnly/Secure y conservó la misma referencia de sesión y cantidad de intentos. El pago siguió sin aplicarse al pedido. Falta que el propietario complete el Checkout de prueba para comprobar webhook y confirmación final.
+
 ## Webhook de Stripe en producción
 
 Stripe se conecta directamente al endpoint público HTTPS `/api/payments/stripe/webhook`. Se registra en Workbench, modo activo, para la propia cuenta y con los tres eventos de Checkout/pago soportados. Esta integración utiliza eventos Snapshot y versión `2025-09-30.clover`. El secreto `whsec_…` de ese destino se configura en el servidor junto con la clave live, entorno `live` y URL pública de retorno. Los secretos de pruebas y CLI no se reutilizan.
