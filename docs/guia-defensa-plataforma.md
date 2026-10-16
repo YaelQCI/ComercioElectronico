@@ -825,6 +825,10 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 ## Recuperar una reseña para editar
 
+La sección incluye un resumen del promedio con estrellas, total de reseñas verificadas y barras para las calificaciones de cinco a una estrella. Cada porcentaje corresponde al número de reseñas visibles de esa calificación dividido entre el total, redondeado al entero más cercano; por redondeo, los porcentajes no necesariamente suman exactamente 100. No se inventan calificaciones cuando el producto no tiene reseñas.
+
+El formulario utiliza `ReviewRatingPicker.vue`, con cinco opciones de radio representadas por estrellas que se llenan hasta la calificación seleccionada. Se puede elegir con clic o con las flechas del teclado y se sigue enviando un número de 1 a 5 al servidor. `ReviewStars.vue` presenta el promedio y las calificaciones individuales con nombres accesibles. Para demostrarlo, abre el formulario, pulsa la tercera estrella y observa tres estrellas llenas y el texto 3 de 5; también puedes cambiar la selección con las flechas. La prueba `scripts/check-review-stars-browser.mjs` utiliza respuestas simuladas para comprobar la distribución, selección y envío sin publicar reseñas reales.
+
 En la página de un producto, abre Publicar o editar mi reseña. Ir a mi cuenta permite iniciar sesión y Recuperar mi reseña para editar consulta `/api/reviews/products/:id/mine` para llenar la calificación, título y texto con la reseña existente. Recuperarla no guarda cambios: hay que pulsar Guardar reseña. Para una primera reseña se completa directamente el formulario; publicar requiere una compra entregada del producto. Los botones tienen separación y se ajustan al ancho disponible. La recuperación muestra un estado de carga y evita solicitudes simultáneas de consulta y guardado.
 
 ## Acceso directo a administración
