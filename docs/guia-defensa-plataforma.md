@@ -1,5 +1,9 @@
 # Guía para explicar y demostrar la plataforma
 
+## Abrir productos desde su tarjeta e imagen
+
+En el catálogo, inicio y recomendaciones que usan `ProductCard`, tanto la imagen como el título y la superficie de la tarjeta abren `/producto/:id`. `UiCard` extiende el enlace del título a su superficie; `CardPackshot` enlaza la imagen de forma independiente para conservar su vista nutrimental al pasar el cursor. Los botones de carrito, información nutrimental y formulario de reposición mantienen sus propias acciones sin estar anidados en enlaces. Los enlaces permiten teclado y abrir en otra pestaña. La verificación de compilación y HTML SSR no equivale a una prueba visual de clics.
+
 ## Abrir productos desde inventario
 
 En **Administrador → Inventario**, pulsa el nombre, las existencias o el espacio de una tarjeta de lote para abrir la página del producto con la variante seleccionada. **Ajustar lote** sigue abriendo el modal sin navegar. Se usa un enlace nativo extendido a la tarjeta con foco visible, sin anidar el botón dentro del enlace; permite Tab, Enter y abrir en otra pestaña. La consulta administrativa devuelve `productId`, `variantId` y nombre para construir el enlace. Las reglas de acceso público siguen vigentes: un producto sin publicación no queda expuesto por este enlace. Prueba de servidor: el DTO del lote conserva los IDs y el nombre correctos. Interacción visual en navegador pendiente.
