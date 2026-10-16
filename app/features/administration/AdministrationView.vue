@@ -4,6 +4,7 @@ import InventoryAdministration from './InventoryAdministration.vue'
 import UsersAdministration from './UsersAdministration.vue'
 import OrdersAdministration from './OrdersAdministration.vue'
 import PolicyAdministration from '../policies/PolicyAdministration.vue'
+import RegisterAdministrator from './RegisterAdministrator.vue'
 const { data, status, error, refresh } = await useFetch('/api/account/session', { key: 'account-session' })
 const section = ref('products')
 const sections = [{ value: 'products', label: 'Productos' }, { value: 'inventory', label: 'Inventario' }, { value: 'users', label: 'Usuarios' }, { value: 'orders', label: 'Pedidos' }, { value: 'policies', label: 'Políticas' }]
@@ -18,6 +19,7 @@ useHead({ title: 'Administración · The Fitness Stuff', meta: [{ name: 'robots'
     <div v-else-if="!data?.user" class="mt-6"><p>Inicia sesión con tu cuenta de administrador.</p><UiButton to="/cuenta" class="mt-4">Iniciar sesión</UiButton></div>
     <p v-else-if="data.user.role !== 'ADMIN'" role="alert" class="mt-6">Tu cuenta no tiene permisos de administración.</p>
     <template v-else>
+      <div class="mt-6 flex justify-end"><RegisterAdministrator /></div>
       <p class="mt-3 text-ink-2">Gestiona la tienda. Cada modificación requiere un motivo y conserva el historial.</p>
       <nav aria-label="Administración de la tienda" class="my-6 flex flex-wrap gap-3">
         <UiButton v-for="item in sections" :key="item.value" :variant="section === item.value ? 'primary' : 'secondary'" :aria-pressed="section === item.value" @click="section = item.value">{{ item.label }}</UiButton>

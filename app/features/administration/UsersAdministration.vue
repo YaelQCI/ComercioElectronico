@@ -2,7 +2,7 @@
 import { useAdministration } from './useAdministration.js'
 defineProps({ currentUserId: { type: String, required: true } })
 const page = ref(1)
-const { data, status, error, refresh } = await useFetch('/api/admin/users', { query: { page } })
+const { data, status, error, refresh } = await useFetch('/api/admin/users', { key: 'administration-users', query: { page } })
 const { busy, failure, message, save } = useAdministration(refresh)
 const selected = ref(null), reason = ref('')
 async function deactivate() {

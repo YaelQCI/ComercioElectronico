@@ -4,6 +4,7 @@ import { accountIdentity } from '../accounts/account-http.js'
 import { AccountError } from '../accounts/credentials.js'
 import { InventoryError } from '../../../shared/features/inventory/fefo.js'
 import { requireCartOrigin } from '../cart/cart-http.js'
+import { createAdministratorRegistration } from './register-administrator.js'
 export async function administrationRequest(event, action) {
   setHeader(event, 'Cache-Control', 'no-store')
   const reading = ['users', 'products', 'inventory', 'categories', 'lotVariants'].includes(action)
@@ -16,6 +17,7 @@ export async function administrationRequest(event, action) {
     if (action === 'warehouse') return await service.configureWarehouse(identity.user.id, input)
     if (action === 'updateWarehouse') return await service.updateWarehouse(identity.user.id, input)
     if (action === 'users') return { users: await service.users(identity.user.id, Number(getQuery(event).page ?? 1)) }
+    if (action === 'registerAdministrator') return await createAdministratorRegistration(getDatabase())(identity.user.id, input)
     if (action === 'create') return await service.createDraft(identity.user.id, input)
     if (action === 'check') return await service.checkDraftIdentifiers(identity.user.id, input)
     if (action === 'categories') return { categories: await service.categories(identity.user.id) }
