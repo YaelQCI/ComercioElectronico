@@ -1,6 +1,7 @@
 import { AccountError, accountText } from '../accounts/credentials.js'
 import { requireAdministrator } from '../../utils/authorization.js'
 import { requiredPolicies } from '../../../shared/features/policies/required-policies.js'
+import { policyContent } from '../../../shared/features/policies/policy-content.js'
 const slugs = new Set(requiredPolicies.map(policy => policy.slug))
 function validSlug(slug) { if (!slugs.has(slug)) throw new AccountError(404, 'Política no encontrada.'); return slug }
 export function createPolicies(db) {
@@ -23,7 +24,9 @@ export function createPolicies(db) {
     async publish(adminId, slug, input) {
       validSlug(slug)
       if (input?.approved !== true || !Number.isSafeInteger(input?.expectedVersion) || input.expectedVersion < 0) throw new AccountError(400, 'Se requiere aprobación explícita y versión esperada.')
-      const title = accountText(input.title, 'Título', 160), content = accountText(input.content, 'Contenido', 50000)
+      const title = accountText(input.title, 'Título', 160)
+      let content
+      try { content = policyContent(input.content) } catch (error) { throw new AccountError(400, error.message) }
       const reason = input.reason === undefined ? 'Contenido aprobado explícitamente' : accountText(input.reason, 'Motivo', 500)
       return db.$transaction(async tx => {
         await requireAdministrator(tx, adminId)

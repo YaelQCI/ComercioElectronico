@@ -1,5 +1,13 @@
 # Guía para explicar y demostrar la plataforma
 
+## Publicación de políticas con varios párrafos
+
+El error **Contenido inválido** se debía a reutilizar `accountText`, pensado para campos de una sola línea: rechazaba los saltos de línea de los borradores y del editor. El contenido ahora utiliza `policyContent`, una validación propia del dominio que permite párrafos y tabulaciones, convierte CRLF/CR a LF y conserva los límites de texto obligatorio y 50,000 caracteres. Sigue rechazando otros caracteres de control. Título y motivo mantienen su validación de una línea. El texto se muestra mediante interpolación segura, sin interpretar HTML.
+
+Demostración: **Administración → Políticas → Revisar y editar**, introducir varios párrafos, revisar y aprobar el contenido y pulsar **Publicar política**. La corrección no publica por sí sola los borradores ni altera su contenido guardado. Las pruebas comprueban los tres textos iniciales, límites, saltos de Windows, controles y persistencia/auditoría de una política sintética con varios párrafos en la base aislada.
+
+Verificación: las dos pruebas específicas del contenido y la suite completa aprobaron, incluidas 90 pruebas PostgreSQL; compilación Docker correcta. Se actualizó el contenedor local. No se publicaron políticas reales durante las pruebas.
+
 ## Errores también mediante toast
 
 Los errores visibles de cuenta, catálogo, carrito, checkout, pagos, administración, políticas y posventa se reflejan en un toast de error, conservando el mensaje original junto al formulario o la vista. `UiErrorNotifications` observa los mensajes semánticos `role="alert"` después de la hidratación, incluyendo respuestas renderizadas por SSR y errores de `UiField`. Para una nueva funcionalidad, declarar el error visible con ese rol; no usarlo para mensajes de éxito. No se intercepta cada fallo HTTP: las respuestas recuperadas por renovación de sesión o reintentos internos no generan avisos falsos.

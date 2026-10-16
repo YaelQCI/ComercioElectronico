@@ -11,7 +11,7 @@ test.after(() => db.$disconnect())
 test('publicación explícita, rol, concurrencia, versión y auditoría de texto', async () => {
   const email = `${randomUUID()}@example.invalid`, user = await db.user.create({ data: { email, emailNormalized: email, passwordHash: 'fixture', displayName: 'Fixture' } })
   const slug = 'privacidad', version = (await db.contentPage.findUnique({ where: { slug } }))?.version ?? 0
-  const input = { title: 'Política sintética de pruebas', content: 'No es una política comercial. <script>texto</script>', expectedVersion: version, approved: true, reason: 'Publicación sintética aislada' }
+  const input = { title: 'Política sintética de pruebas', content: 'No es una política comercial.\n\nSegundo párrafo.\n\t<script>texto</script>', expectedVersion: version, approved: true, reason: 'Publicación sintética aislada' }
   await assert.rejects(policies.publish(user.id, slug, input), e => e.status === 403)
   await assert.rejects(policies.administration(user.id), e => e.status === 403)
   await db.user.update({ where: { id: user.id }, data: { role: 'ADMIN' } })
