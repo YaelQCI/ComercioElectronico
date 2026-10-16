@@ -1,5 +1,21 @@
 # Guía para explicar y demostrar la plataforma
 
+## Usar direcciones de la cuenta para cotizar
+
+El selector de direcciones guardadas ocupa toda la fila del formulario. **Cotizar servicios** aparece en una fila propia, debajo de los campos y alineado a la izquierda. Ajuste de distribución verificado con compilación; revisión visual pendiente.
+
+En **Carrito → Cotizar envío**, una cuenta con sesión activa puede elegir **Usar una dirección de mi cuenta**. Se carga desde `/api/account/profile`, que devuelve únicamente las direcciones del usuario autenticado. Se propone la predeterminada (o la primera) cuando el formulario está vacío; no sobrescribe datos ya escritos ni una tarifa recuperada. Los invitados conservan la captura manual. Sin direcciones, se muestra un enlace para agregarlas en Mi cuenta; ante fallos de carga se permite reintentar.
+
+La selección completa destinatario, teléfono, calle/números, colonia, ciudad, estado y código postal. `saved-destination.js` convierte nombres reconocidos del estado o sus códigos al catálogo de Envia.com; un estado desconocido queda vacío para seleccionarlo explícitamente. Escribir otra dirección limpia los campos; editar lo completado solo modifica esta cotización, sin cambiar la dirección de la cuenta. Cualquier cambio invalida las tarifas anteriores. Al cerrar sesión o cambiar de cuenta se descarta la selección anterior y se ignoran respuestas de perfil obsoletas.
+
+Demostración: registrar una dirección y marcarla como predeterminada en `/cuenta`, regresar al carrito, comprobar sus datos, seleccionar otra dirección y volver a cotizar. La integración utiliza las mismas cookies y renovación automática de cuenta. Las pruebas de `saved-destination.test.mjs` verifican composición de dirección, conservación de datos, estados por nombre/código y estado desconocido. La compilación y las pruebas de datos no equivalen a una revisión visual ni a una cotización real con Envia.com.
+
+Verificación del cambio: build Docker y formulario Vue correctos; 11 pruebas pertinentes de direcciones, estados y envío aprobadas. Consulta HTTP autenticada al perfil correcta; la cuenta administrativa utilizada para esa comprobación no tenía direcciones, por lo que la conversión de direcciones guardadas se verificó con datos sintéticos. Revisión interactiva pendiente.
+
+## Selector de estado al cotizar envío
+
+En **Carrito → Cotizar envío**, el campo **Estado** utiliza el mismo `UiField` con opciones y el mismo catálogo `mexicanStates` que el formulario del almacén. El usuario selecciona el nombre de una de las 32 entidades; se envía su código de dos letras de Envia.com, sin tener que escribirlo. Por ejemplo, San Luis Potosí envía `SL` y Ciudad de México envía `CX`. Mantiene la selección de una cotización existente, campo obligatorio y bloqueo mientras se consulta; cambiar el estado invalida la tarifa seleccionada y obliga a recotizar. No se modificaron los datos de direcciones existentes ni se hicieron consultas reales al proveedor para esta comprobación.
+
 ## Existencias y cantidades en el carrito
 
 La etiqueta **Cantidad** va sobre el grupo completo de controles. El campo y los botones −, +, Actualizar y Quitar se alinean en una fila flexible; el máximo y los errores aparecen debajo para no desplazar los botones. El control conserva etiqueta, descripción accesible, límites y estados deshabilitados. Ajuste verificado mediante compilación; revisión visual pendiente.
