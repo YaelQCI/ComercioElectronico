@@ -823,6 +823,16 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 **Frase para exponer:** “El catálogo permite buscar por nombre, SKU o categoría y combinar filtros de disponibilidad, presentación y precio. Los criterios se conservan en la URL y solo se muestran productos publicados y activos.”
 
+## Diseño y selección en la página de producto
+
+La ficha reproduce la composición del diseño de referencia en ambos temas, con la modificación solicitada de colocar las miniaturas en una fila debajo de la imagen principal en todos los tamaños. Conserva flechas de navegación, panel de compra a la derecha, trazabilidad a todo lo ancho, acordeones, información nutrimental, comparación por porción, reseñas con resumen lateral y recomendaciones al final. En móvil la galería y la compra se apilan, las miniaturas se desplazan horizontalmente y permanece el resumen inferior de compra. No incluye fecha estimada de entrega ni el campo de código postal del prototipo.
+
+Para demostrarlo, abre un producto y cambia su presentación o sabor. Los botones de presentación conservan la variante en la URL; `selectedVariant`, `variantPricing`, `productQuantity` y `comparePresentations` siguen definiendo selección, precios, límites y comparación. La cantidad vuelve a uno al cambiar de variante, los botones menos/más respetan el stock, y tanto Agregar al carrito como Comprar ahora conservan los flujos existentes. Las imágenes específicas sustituyen las genéricas del mismo tipo; al cambiar de variante la galería vuelve a su frente. Las flechas, miniaturas y navegación con teclado permiten recorrer imágenes.
+
+`ProductInformation.vue`, `ProductNutrition.vue` y `ProductComparison.vue` presentan los acordeones y tablas. Descripción abre inicialmente y las demás secciones se pueden desplegar. Se muestran los nutrientes documentados en el formato actual: no se calculan valores por 100 gramos ni se inventan filas. Los campos de uso o ingredientes ausentes se identifican como pendientes; los certificados solo enlazan cuando hay un archivo disponible. Las recomendaciones siguen dependiendo de las relaciones registradas, sin productos de ejemplo como respaldo.
+
+La compilación Docker, 14 pruebas de selección/imágenes/precios y la prueba `scripts/check-product-layout-browser.mjs` verifican el cambio de sabor y presentación, imagen, precio, porciones, lote, stock, cantidad inválida y máxima, agotados, ambas acciones de compra, tablas y anchos móviles. La prueba de navegador simula los datos de producto, reseñas y carrito para evitar compras reales. Se revisan capturas completas en claro y oscuro y una captura móvil; los datos sintéticos no se guardan en el sistema.
+
 ## Distribución del catálogo y sus filtros
 
 El catálogo presenta título y total de productos, una barra con el intervalo de resultados a la izquierda y ordenamiento a la derecha, y debajo un panel lateral de filtros con desplazamiento independiente. Las etiquetas de filtros activos aparecen sobre los resultados y permiten quitar cada condición o limpiar los filtros. En escritorio se muestran cuatro tarjetas por fila y la paginación queda centrada. En móvil el panel se puede plegar; al regresar al ancho de escritorio se abre nuevamente.
