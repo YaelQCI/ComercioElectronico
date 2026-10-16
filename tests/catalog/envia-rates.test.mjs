@@ -22,7 +22,7 @@ test('sin cobertura devuelve lista vacía; errores, formatos, moneda y tarifas i
   assert.deepEqual(await empty.quote(input), [])
   for (const payload of [{ meta: 'error', data: [] }, { meta: 'rate', data: [{ ...rate, currency: 'USD' }] }, { meta: 'rate', data: [{ ...rate, totalPrice: '-1' }] }]) {
     const client = createEnviaRates({ token: 'test-double', carrier: 'fixture', fetchImpl: async () => new Response(JSON.stringify(payload)) })
-    await assert.rejects(client.quote(input), /No pudimos cotizar/)
+    await assert.rejects(client.quote(input), /No pudimos cotizar|El proveedor devolvió una tarifa inválida/)
   }
   const timeout = createEnviaRates({ token: 'test-double', carrier: 'fixture', fetchImpl: async () => { throw new Error('Timeout') } })
   await assert.rejects(timeout.quote(input), /No pudimos cotizar/)
@@ -31,4 +31,16 @@ test('sin cobertura devuelve lista vacía; errores, formatos, moneda y tarifas i
 test('precios se convierten sin redondeo flotante ni aceptar fracciones de centavo', () => {
   assert.equal(decimalRateCents('0.01'), '1'); assert.equal(decimalRateCents(125.5), '12550')
   for (const value of ['1.005', '-1', 'NaN', null]) assert.throws(() => decimalRateCents(value))
+})
+
+test('explica el límite de peso confirmado por el proveedor sin exponer mensajes arbitrarios', async () => {
+  const client = createEnviaRates({ token: 'test-double', carrier: 'fixture', fetchImpl: async () => new Response(JSON.stringify({ meta: 'error', error: { code: 1105, message: "Doesn't support more than 70kg for package unit" } })) })
+  await assert.rejects(client.quote(input), /70 kg.*volumétrico.*gramos.*milímetros/)
+  const unknown = createEnviaRates({ token: 'test-double', carrier: 'fixture', fetchImpl: async () => new Response(JSON.stringify({ meta: 'error', error: { code: 1105, message: 'Contenido privado del proveedor' } })) })
+  await assert.rejects(unknown.quote(input), error => /No pudimos cotizar/.test(error.message) && !error.message.includes('privado'))
+})
+
+test('distingue el fallo de obtención de tarifa sin culpar a la dirección', async () => {
+  const client = createEnviaRates({ token: 'test-double', carrier: 'fixture', fetchImpl: async () => new Response(JSON.stringify({ meta: 'error', error: { code: 1126, message: 'Contenido privado' } })) })
+  await assert.rejects(client.quote(input), error => /Envia 1126/.test(error.message) && !error.message.includes('Contenido privado'))
 })

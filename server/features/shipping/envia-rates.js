@@ -35,6 +35,8 @@ export function createEnviaRates({ token, environment = 'test', carrier, fetchIm
         let size = 0
         try { while (true) { const { done, value } = await reader.read(); if (done) break; size += value.byteLength; if (size > 1048576) { await reader.cancel(); throw new Error('Respuesta excesiva') } chunks.push(value) } } finally { reader.releaseLock() }
         const data = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+        if (data.meta === 'error' && data.error?.code === 1105 && data.error?.message === "Doesn't support more than 70kg for package unit") throw new ShippingProviderError('La paquetería reportó un límite de 70 kg para el paquete. Revisa el peso físico y volumétrico: pesos en gramos y medidas de la caja en milímetros.')
+        if (data.meta === 'error' && data.error?.code === 1126) throw new ShippingProviderError('La paquetería configurada no pudo obtener una tarifa para este envío (Envia 1126). Intenta más tarde o solicita revisar la paquetería configurada. No es una confirmación de dirección incorrecta.')
         if (data.meta !== 'rate' || !Array.isArray(data.data) || data.data.length > 100) throw new Error('Formato inesperado')
         const seen = new Set()
         return data.data.map(rate => {
@@ -44,7 +46,10 @@ export function createEnviaRates({ token, environment = 'test', carrier, fetchIm
           seen.add(key)
           return { carrierCode: rate.carrier, serviceCode: rate.service, serviceName: clean(rate.serviceDescription) ?? rate.service, quotedAmountCents: decimalRateCents(rate.totalPrice), currency: 'MXN', deliveryEstimate: clean(rate.deliveryEstimate) }
         })
-      } catch { throw new ShippingProviderError('No pudimos cotizar el envío. Revisa dirección y vuelve a intentar.') }
+      } catch (error) {
+        if (error instanceof ShippingProviderError) throw error
+        throw new ShippingProviderError('No pudimos cotizar el envío. Revisa dirección y vuelve a intentar.')
+      }
     },
   })
 }

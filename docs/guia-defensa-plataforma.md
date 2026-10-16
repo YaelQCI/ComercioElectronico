@@ -1,5 +1,13 @@
 # Guía para explicar y demostrar la plataforma
 
+## Fallo de tarifa con Afimex en pruebas
+
+Después de registrar las cajas, el diagnóstico seleccionó CAJA-CHICA, 250 × 200 × 200 mm y 1300 g. La cotización con la paquetería configurada `afimex` devolvió HTTP 200, `meta: error`, código 1126: no se pudo obtener el precio. Este rechazo no confirma que la dirección sea inválida ni que las cajas sigan fallando. La integración ahora muestra un aviso específico con el código 1126 y permite reintentar. No se expone texto arbitrario de la respuesta.
+
+Con autorización expresa del propietario, se comparó la misma solicitud en sandbox con DHL y Estafeta, sin generar guías, guardar cotizaciones ni cambiar la configuración. DHL devolvió cuatro tarifas válidas: 285.34, 272.09, 312.40 y 269.18 MXN. Estafeta devolvió dos: exprés 191.72 y terrestre 154.72 MXN. Ambos resultados pasaron la validación del cliente de la plataforma. Esto acota el fallo a la cotización con Afimex para esta solicitud/entorno; no demuestra una caída general ni permite asegurar su causa interna. Son tarifas de prueba observadas, no precios garantizados.
+
+Después de la comparación, el propietario autorizó configurar Estafeta. Se actualizó únicamente `NUXT_ENVIA_CARRIER=estafeta` en el archivo privado `.env.docker`, conservando el entorno `test`, y se recreó la aplicación. El contenedor confirmó la nueva paquetería, presencia del token y salud HTTP 200. Volver a cotizar desde el carrito para obtener y aceptar una tarifa vigente. Envia advierte que algunas paqueterías pueden faltar o comportarse distinto en el [ambiente de pruebas](https://help.envia.com/ambiente-pruebas).
+
 ## Cajas de referencia al inicializar
 
 La migración `20261016020000_reference_shipping_packages` agrega tres cajas activas autorizadas como valores iniciales de referencia, no medidas físicas certificadas. Largo × ancho × alto, en milímetros:
@@ -15,6 +23,12 @@ El INSERT usa `ON CONFLICT (code) DO NOTHING`: conserva IDs, medidas, versiones 
 Verificación: migración aplicada al entorno local, compilación Docker correcta y suite aprobada con 88 pruebas PostgreSQL. La prueba específica comprueba valores iniciales desde la migración, reejecución del INSERT, inicio repetido, conservación de una caja editada/desactivada y reposición de una faltante. Revisión visual y nueva cotización con estas cajas pendientes.
 
 En **Administración → Inventario → Cajas de envío** se pueden ver y editar. Verificar medidas y resistencia con las cajas físicas antes de utilizarlas para envíos reales. Si una caja anterior de 90 cm sigue activa, puede seguir siendo elegida si las otras no admiten el pedido; corregirla o desactivarla explícitamente. El algoritmo elige la caja apta de menor volumen exterior, no por el nombre chica/mediana/grande.
+
+## Rechazo de Envia por límite de peso
+
+El diagnóstico de cotización devolvió HTTP 200 con `meta: error`, código 1105 y rechazo de paquetes de más de 70 kg. HTTP 200 no garantiza una tarifa: también se valida el cuerpo de la respuesta. La caja local tenía medidas exteriores de 900 × 900 × 900 mm (90 cm por lado), mientras el peso físico del producto más la caja era 1160 g. Por ello, el peso volumétrico es la causa probable; el proveedor no especificó en esa respuesta cómo calculó el peso.
+
+Revisar **Administración → Inventario → Cajas de envío → Editar caja**, capturar medidas reales en milímetros y peso vacío en gramos, y volver a cotizar. Por ejemplo, 30 cm se capturan como 300 mm; esto explica la conversión y no prescribe medidas comerciales. No se modificaron los datos registrados automáticamente. La integración traduce este rechazo conocido a un aviso sobre peso físico, volumétrico y unidades; no expone mensajes arbitrarios del proveedor ni credenciales.
 
 ## Error de caja apta al cotizar
 
