@@ -823,6 +823,10 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 **Frase para exponer:** “El catálogo permite buscar por nombre, SKU o categoría y combinar filtros de disponibilidad, presentación y precio. Los criterios se conservan en la URL y solo se muestran productos publicados y activos.”
 
+## Portada de la página principal
+
+El primer bloque de `StoreHome.vue` presenta el título, descripción y botón Ver catálogo proporcionados por el propietario. Utiliza las fuentes y tokens de tema del proyecto, con una composición adaptable a escritorio y móvil. El botón dirige a `/catalogo` y el bloque aparece antes de Nuestra selección. El texto comercial es contenido editorial proporcionado por el propietario; no representa una validación automática de certificados, procedencia o condiciones fiscales de cada producto.
+
 ## Nuestra selección de productos en el inicio
 
 La selección se define en el campo opcional `Product.featuredPosition` de la base de datos. Un valor numérico marca al producto como destacado y determina su orden ascendente; `null` lo excluye. El caso `home()` de `server/features/catalog/catalog-repository.js` devuelve como máximo ocho productos destacados, publicados y activos, con alguna variante activa y marca activa si tienen marca. No se eligen automáticamente por ventas, reseñas o fecha de creación.

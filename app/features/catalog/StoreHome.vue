@@ -7,11 +7,10 @@ useHead({ title: 'The Fitness Stuff — Suplementos y accesorios' })
 </script>
 <template>
   <div>
-    <section class="bg-ink text-on-ink">
-      <div class="home-entrance mx-auto max-w-store px-4 py-16 md:px-8 md:py-24">
-        <p class="font-mono text-label uppercase tracking-widest text-on-ink-accent">The Fitness Stuff</p>
-        <h1 class="mt-4 max-w-2xl font-display text-display-xl font-bold uppercase">Tu entrenamiento.<br>Tu siguiente paso.</h1>
-        <p class="mt-6 max-w-xl text-body-l text-on-ink-2">Explora suplementos y accesorios para tu rutina. Revisa las presentaciones y compara el costo por porción.</p>
+    <section class="bg-ink text-on-ink" aria-labelledby="home-heading">
+      <div class="home-entrance mx-auto max-w-[960px] px-4 py-16 md:px-8 md:py-24">
+        <h1 id="home-heading" class="max-w-3xl font-display text-display-xl font-bold uppercase leading-[0.95]"><span class="block">Suplementos originales de</span><span class="block">EE. UU., al precio que ves</span></h1>
+        <p class="mt-6 max-w-xl text-body-l text-on-ink-2">Cada producto llega con su número de lote, caducidad y certificado de análisis. El precio del catálogo ya incluye impuestos y aduana: no pagas nada extra cuando el paquete toca tu puerta.</p>
         <UiButton to="/catalogo" class="mt-8 focus-visible:outline-on-ink-accent">Ver catálogo</UiButton>
       </div>
     </section>
