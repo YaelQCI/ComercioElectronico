@@ -1,7 +1,10 @@
 <script setup>
 import { storeCategories } from '~/utils/navigation'
 import { useCart } from '~/features/cart/useCart.js'
+import { useAccountLogout } from '~/features/accounts/useAccountLogout.js'
 const cart = await useCart()
+const { data: account } = await useFetch('/api/account/session', { key: 'account-session' })
+const { busy: loggingOut, logout } = useAccountLogout()
 const route = useRoute()
 const menuOpen = ref(false)
 const menuButton = ref(null)
@@ -32,12 +35,14 @@ function search() {
           <span class="mt-1 block h-1 w-12 bg-accent" aria-hidden="true" />
         </NuxtLink>
         <nav aria-label="Secciones principales" class="flex flex-wrap items-center justify-end gap-4 text-body-s">
-          <NuxtLink to="/cuenta" class="inline-flex min-h-11 items-center hover:underline">Mi cuenta</NuxtLink>
           <NuxtLink to="/catalogo" class="inline-flex min-h-11 items-center hover:underline">Catálogo</NuxtLink>
           <NuxtLink to="/carrito" class="inline-flex min-h-11 items-center gap-2 hover:underline"><UiIcon name="cart" /><span>Carrito<span v-if="cart.data.value"> · {{ cart.data.value.pieces }} piezas</span></span></NuxtLink>
+          <NuxtLink v-if="account?.user?.role === 'ADMIN'" to="/admin" class="inline-flex min-h-11 items-center hover:underline">Panel de administrador</NuxtLink>
+          <NuxtLink to="/cuenta" class="inline-flex min-h-11 items-center hover:underline">Mi cuenta</NuxtLink>
           <button ref="menuButton" type="button" :aria-expanded="menuOpen" aria-controls="mobile-categories" class="inline-flex min-h-11 items-center gap-2 rounded-sm border border-border px-3 lg:hidden" @click="menuOpen = !menuOpen">
             <UiIcon :name="menuOpen ? 'close' : 'menu'" /><span>Menú</span>
           </button>
+          <button v-if="account?.user" type="button" aria-label="Cerrar sesión" title="Cerrar sesión" :disabled="loggingOut" :aria-busy="loggingOut" class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50" @click="logout"><UiIcon name="logout" /></button>
         </nav>
       </div>
       <div class="flex flex-wrap items-center gap-4 pb-3">

@@ -3,6 +3,7 @@ defineProps({ name: { type: String, required: true } })
 const paths = {
   menu: 'M3 6h18M3 12h18M3 18h18',
   close: 'M6 6l12 12M18 6 6 18',
+  logout: 'M9 4H4v16h5M9 12h12M16 7l5 5-5 5',
   cart: 'M3 4h3l2.2 10.5h10L21 7H7M9 20h.01M17 20h.01',
   search: 'M15.5 15.5 21 21',
 }

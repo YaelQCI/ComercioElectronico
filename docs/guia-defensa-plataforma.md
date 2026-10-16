@@ -823,6 +823,14 @@ La búsqueda se ejecuta en PostgreSQL; los filtros y la paginación se calculan 
 
 **Frase para exponer:** “El catálogo permite buscar por nombre, SKU o categoría y combinar filtros de disponibilidad, presentación y precio. Los criterios se conservan en la URL y solo se muestran productos publicados y activos.”
 
+## Acceso directo a administración
+
+El encabezado de la plataforma muestra un enlace directo a `/admin` junto a Mi cuenta cuando la sesión corresponde al rol ADMIN. `SiteHeader.vue` comparte la consulta `account-session` con la cuenta, de modo que el enlace se actualiza al iniciar o cerrar sesión. La visibilidad del enlace complementa la autorización del servidor; los endpoints administrativos siguen verificando el rol.
+
+Para verlo, inicia sesión con una cuenta administradora y utiliza Panel de administrador en el encabezado. Las cuentas de cliente y los visitantes no muestran ese enlace.
+
+El orden de navegación es Catálogo, Carrito, Panel de administrador y Mi cuenta. Al final aparece un icono con nombre accesible Cerrar sesión para usuarios autenticados. Invoca el endpoint de cierre de sesión, actualiza los datos compartidos y lleva a Mi cuenta; muestra la confirmación o el error mediante un toast.
+
 ## Paginación de cajas de envío
 
 La vista de Inventario mantiene los lotes visibles y agrupa Información del almacén y Cajas de envío en dos acordeones inicialmente cerrados. Se pueden abrir independientemente mediante clic o con Enter/Espacio al enfocar su encabezado. Se utilizan los elementos nativos `details` y `summary` en `InventoryAdministration.vue`; los formularios continúan en modales y las cajas conservan su paginación.
