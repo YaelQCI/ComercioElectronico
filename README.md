@@ -59,14 +59,14 @@ Este checkout solo contenía README.md: los HTML/CSS/images mencionados en los i
 
 ## Modelo y migraciones (#33)
 
-El esquema y la primera migración integral de [#33](https://github.com/YaelQCI/ComercioElectronico/issues/33) están preparados: 57 tablas con restricciones PostgreSQL y pruebas de integración. Procedimiento y alcance en [docs/database-migrations.md](docs/database-migrations.md). `db:seed` falla explícitamente hasta disponer del catálogo/almacén/cajas documentados; generar cliente o arrancar la aplicación no migra automáticamente la base.
+El esquema y la primera migración integral de [#33](https://github.com/YaelQCI/ComercioElectronico/issues/33) están preparados: 57 tablas con restricciones PostgreSQL y pruebas de integración. Procedimiento y alcance en [docs/database-migrations.md](docs/database-migrations.md). Las migraciones posteriores incluyen categorías, cajas de referencia, políticas en borrador y [28 artículos de demostración publicados con imágenes locales](docs/catalogo-demostracion.md). `db:seed` no duplica estos datos. Generar cliente o arrancar la aplicación fuera de Docker no migra automáticamente la base; Docker usa el servicio `migrate`.
 
 Para aplicar la migración inicial en una base propia vacía: `npm run db:deploy`. Para cambios posteriores:
 
 1. Editar `prisma/schema.prisma` según #33 y ejecutar `npm run db:validate` y `npm run db:generate`.
 2. En una base de desarrollo aislada: `npm run db:migration:create -- --name nombre_del_cambio`.
 3. Revisar el SQL y agregar CHECK, índices parciales y restricciones de pertenencia que Prisma no represente. Revisar antes de aplicar.
-4. Aplicar en desarrollo con `npm run db:migrate`; implementar y ejecutar `npm run db:seed` explícitamente (Prisma 7 no lo ejecuta automáticamente).
+4. Aplicar migraciones existentes con `npm run db:deploy`; para desarrollar cambios de esquema usa `npm run db:migrate`. El catálogo de demostración se instala desde migraciones y no requiere un seed adicional. Almacén, existencias y datos comerciales se registran explícitamente desde Administración.
 5. Versionar esquema y SQL en el mismo cambio; validar lectura/escritura sobre una entidad real y escenarios de #33.
 6. En despliegue: respaldar la base, ejecutar `npm run db:deploy` y luego arrancar el build. No usar `migrate dev`, `db push` ni resets en producción. No reescribir migraciones aplicadas.
 

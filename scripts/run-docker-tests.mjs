@@ -10,6 +10,8 @@ const {PrismaPg}=await import('@prisma/adapter-pg')
 const db=new PrismaClient({adapter:new PrismaPg({connectionString:url,options:'-c timezone=UTC'})})
 try{
   await db.warehouse.upsert({where:{singletonKey:1},update:{},create:{name:'Almacén sintético Docker; no comercial',recipientName:'Fixture',contactName:'Fixture',phone:'0000000000',postalCode:'01000',state:'CX',city:'Fixture',district:'Fixture',street:'Fixture',exteriorNumber:'1'}})
+  await db.$queryRaw`SELECT initialize_demo_catalog_stock()`
+  await db.$queryRaw`SELECT initialize_demo_customers_orders_reviews()`
 }finally{await db.$disconnect()}
 for(const [command,args] of [
   ['node',['--test','tests/catalog/*.test.mjs','tests/pricing/*.test.mjs','tests/payments/*.test.mjs','tests/accounts/*.test.mjs','tests/appearance/*.test.mjs']],

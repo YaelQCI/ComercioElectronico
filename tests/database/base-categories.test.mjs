@@ -26,7 +26,10 @@ test('migración registra las siete categorías y el inicio recupera faltantes s
     const product = await tx.product.create({ data: { name: 'Vínculo sintético', slug: randomUUID(), description: 'Solo pruebas' } })
     await tx.productCategory.create({ data: { productId: product.id, categoryId: protein.id } })
     await tx.category.update({ where: { id: protein.id }, data: { name: 'Nombre alterado de prueba', isActive: false } })
-    await tx.category.delete({ where: { slug: 'creatina' } })
+    // Libera el slug dentro de la transacción sin borrar vínculos del catálogo inicial.
+    const creatine = existing.find(category => category.slug === 'creatina')
+    const linkedCreatine = await tx.productCategory.count({ where: { categoryId: creatine.id } })
+    await tx.category.update({ where: { id: creatine.id }, data: { slug: `temporal-${randomUUID()}` } })
     const custom = await tx.category.create({ data: { slug: randomUUID(), name: 'Otra categoría sintética' } })
     const scoped = { $transaction: callback => callback(tx) }
     await ensureSupplementCategories(scoped)
@@ -41,6 +44,7 @@ test('migración registra las siete categorías y el inicio recupera faltantes s
       assert.equal(saved.name, expected.name); assert.equal(saved.isActive, true)
     }
     assert.equal(await tx.productCategory.count({ where: { productId: product.id, categoryId: protein.id } }), 1)
+    assert.equal(await tx.productCategory.count({ where: { categoryId: creatine.id } }), linkedCreatine)
     assert.equal((await tx.category.findUnique({ where: { id: custom.id } })).name, custom.name)
     // El SQL versionado también debe poder ejecutarse de nuevo sin duplicar ni modificar IDs.
     const sql = (await readFile(new URL('../../prisma/migrations/20261016010000_required_supplement_categories/migration.sql', import.meta.url), 'utf8')).replace(/^BEGIN;\s*/, '').replace(/COMMIT;\s*$/, '')

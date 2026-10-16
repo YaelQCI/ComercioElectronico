@@ -1,2 +1,1 @@
-console.error('Semilla comercial pendiente del catálogo documentado (#3/#33), almacén y cajas reales. No se insertaron datos. Las pruebas usan fixtures explícitas en una base aislada.')
-process.exitCode = 1
+console.log('El catálogo académico de demostración (28 artículos publicados) y las cajas de referencia se instalan mediante prisma migrate deploy. Este comando no reinserta ni sobrescribe productos. Los datos comerciales, fotografías y existencias reales se registran desde Administración.')

@@ -9,6 +9,8 @@ import { searchQuery, searchPattern } from '../../../shared/features/catalog/sea
 import { variantData } from '../catalog/variant-input.js'
 import { variantDetails, assignProductDetails } from '../catalog/manage-product-details.js'
 import { lotTraceability } from '../../../shared/features/inventory/lot-traceability.js'
+import { initializeDemoStock } from '../inventory/initialize-demo-stock.js'
+import { initializeDemoHistory } from '../orders/initialize-demo-history.js'
 import { featuredPosition } from '../catalog/featured-selection.js'
 const id = value => { if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value ?? '')) throw new AccountError(400, 'Identificador inválido.'); return value }
 const cents = value => { if (typeof value !== 'string' || !/^(0|[1-9]\d{0,14})$/.test(value)) throw new AccountError(400, 'Precio inválido; utiliza centavos como texto.'); return BigInt(value) }
@@ -148,6 +150,8 @@ export function createStoreAdministration(db) {
         const current = await tx.warehouse.findUnique({ where: { singletonKey: 1 } })
         if (current) throw new AccountError(409, 'El almacén ya está configurado; su modificación requiere revisar las cotizaciones existentes.')
         const saved = await tx.warehouse.create({ data })
+        await initializeDemoStock(tx)
+        await initializeDemoHistory(tx)
         await audit(tx, adminId, 'Warehouse', saved.id, 'CONFIGURE_WAREHOUSE', reason, undefined, { name: saved.name })
         return { id: saved.id }
       })
