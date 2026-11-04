@@ -107,13 +107,18 @@ export function createStoreAdministration(db, { demoDataEnabled = true } = {}) {
         return { slugExists: !!product, skuExists: !!variant }
       })
     },
-    async overview(adminId, section, page = 1) {
+    async overview(adminId, section, page = 1, query = '') {
       if (!['products', 'inventory'].includes(section) || !Number.isSafeInteger(page) || page < 1 || page > 100000) throw new AccountError(400, 'Consulta inválida.')
+      let term = ''
+      if (section === 'products') {
+        try { term = searchQuery(query) } catch { throw new AccountError(400, 'Búsqueda inválida: máximo 120 caracteres.') }
+      }
       return db.$transaction(async tx => {
         await requireAdministrator(tx, adminId)
         if (section === 'products') {
-          const total = await tx.product.count()
-          const products = await tx.product.findMany({ skip: (page-1)*20, take: 20, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], include: { brand: true, productRelation_sourceProduct: { include: { targetProduct: { select: { id: true, name: true, deletedAt: true } } }, orderBy: [{ position: 'asc' }, { targetProductId: 'asc' }] }, productVariant_product: { orderBy: { sku: 'asc' } }, productMedia_product: { include: { asset: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }] }, productCategory_product: { include: { category: true }, orderBy: [{ isPrimary: 'desc' }, { categoryId: 'asc' }] } } })
+          const where = term ? { OR: [{ name: { contains: term, mode: 'insensitive' } }, { productVariant_product: { some: { sku: { contains: term, mode: 'insensitive' } } } }] } : {}
+          const total = await tx.product.count({ where })
+          const products = await tx.product.findMany({ where, skip: (page-1)*20, take: 20, orderBy: [{ createdAt: 'desc' }, { id: 'asc' }], include: { brand: true, productRelation_sourceProduct: { include: { targetProduct: { select: { id: true, name: true, deletedAt: true } } }, orderBy: [{ position: 'asc' }, { targetProductId: 'asc' }] }, productVariant_product: { orderBy: { sku: 'asc' } }, productMedia_product: { include: { asset: true }, orderBy: [{ position: 'asc' }, { id: 'asc' }] }, productCategory_product: { include: { category: true }, orderBy: [{ isPrimary: 'desc' }, { categoryId: 'asc' }] } } })
           const creationEvents = await tx.auditEvent.findMany({ where: { action: 'CREATE_DRAFT_PRODUCT', entityType: 'Product', entityId: { in: products.map(product => product.id) } }, select: { entityId: true, reason: true } })
           return { total, page, pages: Math.ceil(total/20), products: products.map(p => ({ id: p.id, name: p.name, slug: p.slug, description: p.description, ingredients: p.ingredients, usageInstructions: p.usageInstructions, allergenInformation: p.allergenInformation, brandId: p.brandId, brand: p.brand ? { id: p.brand.id, name: p.brand.name, isActive: p.brand.isActive } : null, recommendations: p.productRelation_sourceProduct.map(link => ({ id: link.targetProductId, name: link.targetProduct.name, kind: link.kind, deactivated: !!link.targetProduct.deletedAt })), featuredPosition: p.featuredPosition, updatedAt: p.updatedAt.toISOString(), creationReason: creationEvents.find(event => event.entityId === p.id)?.reason ?? null, categories: p.productCategory_product.map(link => ({ id: link.categoryId, name: link.category.name, isPrimary: link.isPrimary, isActive: link.category.isActive })), published: !!p.publishedAt, deactivated: !!p.deletedAt, images: p.productMedia_product.map(publicImage).filter(Boolean), variants: p.productVariant_product.map(v => ({ id: v.id, sku: v.sku, flavor: v.flavor, presentationLabel: v.presentationLabel, contentAmount: v.contentAmount.toString(), contentUnit: v.contentUnit, servings: v.servings?.toString() ?? null, servingAmount: v.servingAmount?.toString() ?? null, servingUnit: v.servingUnit, nutritionData: v.nutritionData, weightGrams: v.weightGrams, lengthMm: v.lengthMm, widthMm: v.widthMm, heightMm: v.heightMm, priceCents: v.priceCents.toString(), compareAtPriceCents: v.compareAtPriceCents?.toString() ?? null, priceVersion: v.priceVersion, deactivated: !!v.deletedAt })) })) }
         }

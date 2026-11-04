@@ -12,7 +12,10 @@ import AddProductVariant from '../catalog/AddProductVariant.vue'
 import ProductTextFields from '../catalog/ProductTextFields.vue'
 import ProductPublicationGuide from './ProductPublicationGuide.vue'
 const page = ref(1)
-const { data, status, error, refresh } = await useFetch('/api/admin/catalog', { query: { page } })
+const searchInput = ref(''), search = ref('')
+function searchProducts() { page.value = 1; search.value = searchInput.value.trim() }
+function clearSearch() { searchInput.value = ''; searchProducts() }
+const { data, status, error, refresh } = await useFetch('/api/admin/catalog', { query: { page, q: search } })
 const { busy, failure, message, save } = useAdministration(refresh)
 const { data: classification, error: classificationError, refresh: refreshCategories } = await useFetch('/api/admin/categories')
 const draftCategoryIds = ref([])
@@ -148,10 +151,17 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
         </fieldset>
       </form>
     </UiModal>
+    <form role="search" aria-label="Buscar productos en administración" aria-describedby="admin-product-search-hint" class="my-4 flex flex-wrap items-end gap-3" @submit.prevent="searchProducts">
+      <div class="min-w-0 flex-1 basis-64"><UiField id="admin-product-search" v-model="searchInput" class="h-12" label="Buscar productos" type="search" maxlength="120" placeholder="Nombre o SKU" /></div>
+      <UiButton class="h-12" type="submit">Buscar</UiButton>
+      <UiButton v-if="search || searchInput" class="h-12" variant="secondary" @click="clearSearch">Limpiar búsqueda</UiButton>
+      <p id="admin-product-search-hint" class="w-full text-body-s text-ink-2">Busca en todos los productos, incluidos borradores y desactivados.</p>
+    </form>
     <UiLoading v-if="status === 'pending'" label="Cargando productos" />
-    <div v-else-if="error" role="alert"><p>No se pudieron cargar los productos.</p><UiButton @click="refresh">Reintentar</UiButton></div>
+    <div v-else-if="error" role="alert"><p>No se pudieron cargar los productos.</p><UiButton @click="refresh()">Reintentar</UiButton></div>
     <template v-else>
-      <p v-if="!data?.products.length" class="my-6">No hay productos registrados.</p>
+      <p v-if="search" role="status" class="my-3 text-body-s text-ink-2">{{ data?.total || 0 }} resultados para «{{ search }}».</p>
+      <p v-if="!data?.products.length" class="my-6">{{ search ? 'No se encontraron productos con esa búsqueda. Prueba otro nombre o SKU.' : 'No hay productos registrados.' }}</p>
       <ul class="grid gap-4">
         <li v-for="product in data?.products" :key="product.id" class="rounded-sm border border-border bg-surface p-4">
           <div class="flex flex-wrap items-center justify-between gap-3">
