@@ -120,6 +120,7 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
     <UiModal :open="creatingOpen" title="Crear producto en borrador" :busy="busy || creating" @close="creatingOpen = false">
       <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
       <p class="my-3 text-ink-2">Ingresa información comercial documentada. Se crea con una variante; después usa Gestionar para agregar sus imágenes y publicarlo.</p>
+      <p class="mb-4 text-body-s text-ink-2">Los campos marcados con <span class="font-semibold text-crit">*</span> son obligatorios.</p>
       <form @submit.prevent="create">
         <fieldset :disabled="busy || creating" class="grid min-w-0 gap-4 md:grid-cols-2">
         <legend class="sr-only">Datos del producto en borrador</legend>
