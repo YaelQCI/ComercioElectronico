@@ -40,7 +40,7 @@ function snapshot(cart, items) {
     coupon = { id: cart.selectedCoupon.id, code: cart.selectedCoupon.code, version: cart.selectedCoupon.version, ...result }
   } catch (error) { if (error instanceof CouponError) couponError = error.message; else throw error }
   const eligibility = new Map(coupon?.lines.map(l => [l.id, l.eligibleCents]) ?? [])
-  const totals = lines.length ? calculateCart({ lines: lines.map(line => ({ id: line.id, unitPriceCents: line.unitPriceCents, quantity: line.quantity, eligibleAmountCents: eligibility.get(line.id) ?? '0' })), coupon: coupon ? { kind: 'FIXED', amountCents: coupon.discountCents } : null, shippingQuotedCents: '0' }) : null
+  const totals = lines.length ? calculateCart({ lines: lines.map(line => ({ id: line.id, unitPriceCents: line.unitPriceCents, quantity: line.quantity, eligibleAmountCents: eligibility.get(line.id) ?? '0' })), coupon: coupon ? { kind: 'FIXED', amountCents: coupon.discountCents, freeShipping: coupon.freeShipping } : null, shippingQuotedCents: '0' }) : null
   return { version: cart?.version ?? 1, lines, saved, coupon, couponError, pieces: [...demand.values()].reduce((sum, q) => sum + q, 0), products: lines.length, totals, provisional: true }
 }
 export const emptyCart = () => snapshot(null, [])
@@ -58,10 +58,10 @@ export async function shippingCart(tx, hash) {
   if (!cart) throw new CartError(404, 'Carrito no disponible.')
   const items = await tx.cartItem.findMany({ where: { cartId: cart.id, state: 'ACTIVE' }, include: itemInclude, orderBy: { id: 'asc' } })
   const current = snapshot(cart, items)
-  if (!current.lines.length || current.lines.some(l => !l.stockSufficient)) throw new CartError(409, 'Revisa productos y existencias antes de cotizar.')
+  if (current.couponError || !current.lines.length || current.lines.some(l => !l.stockSufficient)) throw new CartError(409, 'Revisa productos, existencias y cupón antes de cotizar.')
   const units = items.flatMap(item => (item.variant ? [{ variant: item.variant, quantity: 1 }] : item.bundle.bundleComponent_bundle).map(c => ({ variantId: c.variant.id, quantity: c.quantity * item.quantity, weightGrams: c.variant.weightGrams, lengthMm: c.variant.lengthMm, widthMm: c.variant.widthMm, heightMm: c.variant.heightMm })))
   units.sort((a,b) => a.variantId.localeCompare(b.variantId))
-  return { cartId: cart.id, version: cart.version, baseCents: current.totals.goodsAfterCouponCents, lines: current.lines.map(l => ({ id: l.id, variantId: l.variantId, bundleId: l.bundleId, quantity: l.quantity, unitPriceCents: l.unitPriceCents, bundleVersion: l.bundle?.compositionVersion ?? null })), units, content: current.lines.map(l => l.name).join(', ').slice(0, 250) }
+  return { cartId: cart.id, version: cart.version, freeShipping: current.coupon?.freeShipping === true, coupon: current.coupon ? { id: current.coupon.id, version: current.coupon.version, freeShipping: current.coupon.freeShipping } : null, baseCents: current.totals.goodsAfterCouponCents, lines: current.lines.map(l => ({ id: l.id, variantId: l.variantId, bundleId: l.bundleId, quantity: l.quantity, unitPriceCents: l.unitPriceCents, bundleVersion: l.bundle?.compositionVersion ?? null })), units, content: current.lines.map(l => l.name).join(', ').slice(0, 250) }
 }
 export function createCartRepository(db) {
   async function items(tx, id) { return tx.cartItem.findMany({ where: { cartId: id }, include: itemInclude, orderBy: [{ position: 'asc' }, { id: 'asc' }] }) }

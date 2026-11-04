@@ -11,3 +11,11 @@ Verificación: prueba PostgreSQL aislado de preparación concurrente/idempotente
 Actualización #30: [pagos Stripe](stripe-payments.md) añade recotización antes de iniciar, reserva conjunta, idempotencia de intento, confirmación total cero/por proveedor, retiro selectivo del carrito y página de estado/recuperación (cuenta o credencial invitada). Integración deshabilitada por defecto y validada con dobles; no se realizó cobro real.
 
 Pendiente para cerrar: canje y direcciones guardadas en interfaz, publicación/configuración comercial y proveedores reales, validación visual/compra completa y recuperación de anomalías del proveedor. Un borrador no constituye venta ni asegura precio/stock futuro.
+
+## Cotizaciones conservadas durante la navegación
+
+El cotizador conserva en memoria de Nuxt las tarifas, dirección y versión del carrito al salir del checkout y regresar dentro de la misma navegación. La selección se recupera del servidor. No se guardan estos datos en localStorage ni se solicita otra cotización solo por volver a un paso anterior. Cambiar la dirección, la cuenta o la versión del carrito descarta las tarifas anteriores.
+
+Cada tarjeta muestra su tiempo restante: hasta diez minutos desde `quotedAt`, o el vencimiento anterior indicado por el proveedor. Volver al formulario o elegir otro servicio no reinicia ese plazo. El reloj se actualiza cada segundo y al volver a la pestaña. Una tarifa vencida queda deshabilitada; al vencer todas se solicita volver a cotizar y se impide continuar con una selección caducada. El servidor sigue revalidando cobertura, vigencia e importes antes del pago.
+
+La comprobación de navegador `scripts/check-checkout-steps-browser.mjs` cubre conservación de dos tarifas y la selección al volver desde el carrito sin nuevas consultas, cambio de servicio, vencimiento con reloj simulado, bloqueo y nueva cotización. Utiliza APIs simuladas, sin cobros ni solicitudes reales al proveedor.

@@ -5,6 +5,9 @@ const input = { code: ' VERANO_10 ', kind: 'PERCENTAGE', percentageBasisPoints: 
 test('normaliza códigos y conserva precisión monetaria y porcentajes', () => {
   assert.equal(couponInput(input).data.codeNormalized, 'verano_10')
   assert.equal(couponInput(input).data.percentageBasisPoints, 1000)
+  assert.equal(couponInput(input).data.freeShipping, false)
+  assert.equal(couponInput({ ...input, freeShipping: true }).data.freeShipping, true)
+  for (const freeShipping of ['true', 1, null]) assert.throws(() => couponInput({ ...input, freeShipping }), error => error.status === 400)
   const fixed = couponInput({ ...input, kind: 'FIXED', fixedAmountCents: '999999999999999', minimumEligibleCents: '12345' }).data
   assert.equal(fixed.fixedAmountCents, 999999999999999n)
   assert.equal(fixed.minimumEligibleCents, 12345n)

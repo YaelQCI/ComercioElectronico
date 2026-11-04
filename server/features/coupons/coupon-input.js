@@ -28,13 +28,14 @@ export function couponInput(input) {
   if (!['FIXED', 'PERCENTAGE'].includes(input.kind)) fail('Selecciona el tipo de descuento.')
   if (!['CATALOG', 'PRODUCTS', 'CATEGORIES'].includes(input.scope)) fail('Selecciona dónde aplica el cupón.')
   for (const key of ['isActive', 'allowOffers', 'allowBundles']) if (typeof input[key] !== 'boolean') fail('Revisa las opciones del cupón.')
+  if (input.freeShipping !== undefined && typeof input.freeShipping !== 'boolean') fail('Revisa la opción de envío gratis.')
   const startsAt = date(input.startsAt), endsAt = date(input.endsAt)
   if (startsAt && endsAt && startsAt >= endsAt) fail('El fin debe ser posterior al inicio.')
   const productIds = ids(input.productIds ?? []), categoryIds = ids(input.categoryIds ?? [])
   if (input.scope === 'PRODUCTS' && !productIds.length || input.scope === 'CATEGORIES' && !categoryIds.length) fail('Selecciona al menos un elemento para el alcance del cupón.')
   if (input.kind === 'PERCENTAGE' && (!Number.isInteger(input.percentageBasisPoints) || input.percentageBasisPoints < 1 || input.percentageBasisPoints > 10000)) fail('El porcentaje debe estar entre 0.01 y 100 %.')
   return {
-    data: { code: input.code.trim(), codeNormalized, kind: input.kind, fixedAmountCents: input.kind === 'FIXED' ? amount(input.fixedAmountCents, 'Descuento', true) : null, percentageBasisPoints: input.kind === 'PERCENTAGE' ? input.percentageBasisPoints : null, minimumEligibleCents: amount(input.minimumEligibleCents, 'Compra mínima'), startsAt, endsAt, maxUses: limit(input.maxUses), maxUsesPerCustomer: limit(input.maxUsesPerCustomer), scope: input.scope, isActive: input.isActive, allowOffers: input.allowOffers, allowBundles: input.allowBundles },
+    data: { code: input.code.trim(), codeNormalized, kind: input.kind, fixedAmountCents: input.kind === 'FIXED' ? amount(input.fixedAmountCents, 'Descuento', true) : null, percentageBasisPoints: input.kind === 'PERCENTAGE' ? input.percentageBasisPoints : null, minimumEligibleCents: amount(input.minimumEligibleCents, 'Compra mínima'), startsAt, endsAt, maxUses: limit(input.maxUses), maxUsesPerCustomer: limit(input.maxUsesPerCustomer), scope: input.scope, isActive: input.isActive, allowOffers: input.allowOffers, allowBundles: input.allowBundles, freeShipping: input.freeShipping ?? false },
     productIds: input.scope === 'PRODUCTS' ? productIds : [], categoryIds: input.scope === 'CATEGORIES' ? categoryIds : [], reason: accountText(input.reason, 'Motivo', 500),
   }
 }

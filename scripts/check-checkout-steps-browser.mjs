@@ -49,7 +49,7 @@ try {
   const user = { id: '00000000-0000-4000-8000-000000000001', email: 'fixture@example.invalid', role: 'CUSTOMER', displayName: 'Fixture', themePreference: 'system' }
   const address = { id: '00000000-0000-4000-8000-000000000002', label: 'Prueba aislada', recipientName: 'Destinatario sintético', phone: '5555555555', countryCode: 'MX', postalCode: '01000', state: 'CX', city: 'Ciudad sintética', district: 'Colonia sintética', street: 'Calle sintética', exteriorNumber: '1', interiorNumber: '', isDefault: true }
   const cart = { version: 1, pieces: 1, products: 1, saved: [], coupon: null, totals: { goodsMoneyCents: '10000', goodsAfterCouponCents: '10000', goodsBeforeCouponCents: '10000', couponDiscountCents: '0' }, lines: [{ id: '00000000-0000-4000-8000-000000000003', variantId: '00000000-0000-4000-8000-000000000004', productId: '00000000-0000-4000-8000-000000000005', name: 'Producto sintético', presentation: 'Presentación sintética', sku: 'FIXTURE', quantity: 1, unitPriceCents: '10000', valid: true, stockSufficient: true, availableQty: 2, maxQuantity: 2 }] }
-  let quote = null, prepareCount = 0, selectionCount = 0, quotedDestination, preparedBody
+  let quote = null, prepareCount = 0, selectionCount = 0, quoteCount = 0, quotedDestination, preparedBody
   const previousOnMessage = socket.onmessage
   socket.onmessage = event => {
     previousOnMessage(event)
@@ -62,11 +62,14 @@ try {
     else if (path === '/api/account/profile') response = { addresses: [address] }
     else if (path === '/api/shipping/selected' && request.method === 'GET') response = { selected: quote }
     else if (path === '/api/shipping/quotes') {
+      quoteCount++
       quotedDestination = JSON.parse(request.postData).destination
-      response = { cartVersion: 1, quotes: [{ id: '00000000-0000-4000-8000-000000000006', carrierCode: 'fixture', serviceName: 'Envío sintético', chargedAmountCents: '5000', quotedAmountCents: '5000', eligible: false }] }
+      const validity = { cartVersion: 1, quotedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 600000).toISOString() }
+      response = { cartVersion: 1, quotes: [{ ...validity, id: '00000000-0000-4000-8000-000000000006', carrierCode: 'fixture', serviceName: 'Envío sintético', chargedAmountCents: '5000', quotedAmountCents: '5000', eligible: false }, { ...validity, id: '00000000-0000-4000-8000-000000000008', carrierCode: 'fixture', serviceName: 'Otro envío sintético', chargedAmountCents: '5000', quotedAmountCents: '5000', eligible: false }] }
     } else if (path === '/api/shipping/selected') {
       selectionCount++
-      quote = { id: '00000000-0000-4000-8000-000000000006', cartVersion: 1, carrierCode: 'fixture', serviceName: 'Envío sintético', chargedAmountCents: '5000', quotedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + (selectionCount === 1 ? 1200 : 600000)).toISOString(), destination: JSON.parse(request.postData).destination }
+      const body = JSON.parse(request.postData)
+      quote = { id: body.quoteId, cartVersion: 1, carrierCode: 'fixture', serviceName: body.quoteId.endsWith('8') ? 'Otro envío sintético' : 'Envío sintético', chargedAmountCents: '5000', quotedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + (selectionCount === 1 ? 1200 : 600000)).toISOString(), destination: body.destination }
       response = { selected: quote }
     } else if (path === '/api/checkout/prepare') {
       prepareCount++; preparedBody = JSON.parse(request.postData)
@@ -105,6 +108,30 @@ try {
   assert.equal(await continueDisabled(), true)
   await click('Cotizar servicios')
   await until(() => evaluate(`[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Aceptar esta tarifa')`))
+  await click('Aceptar esta tarifa')
+  await until(async () => !(await continueDisabled()))
+  const selectedCards = () => evaluate(`[...document.querySelectorAll('li')].filter(li=>li.querySelector('button[aria-pressed="true"]')).map(li=>({ name:li.querySelector('h3').textContent, highlighted:li.classList.contains('ring-2') && li.classList.contains('bg-accent-soft'), badge:li.textContent.includes('Seleccionado') }))`)
+  assert.deepEqual(await selectedCards(), [{ name: 'Envío sintético · fixture', highlighted: true, badge: true }])
+  await click('Aceptar esta tarifa')
+  await until(() => evaluate(`document.querySelector('button[aria-pressed="true"]')?.closest('li')?.querySelector('h3')?.textContent.includes('Otro envío')`))
+  assert.deepEqual(await selectedCards(), [{ name: 'Otro envío sintético · fixture', highlighted: true, badge: true }])
+  assert.equal(await evaluate(`document.querySelectorAll('li.ring-2').length`), 1)
+  await click('Aceptar esta tarifa')
+  await until(() => evaluate(`document.querySelector('button[aria-pressed="true"]')?.closest('li')?.querySelector('h3')?.textContent === 'Envío sintético · fixture'`))
+  const queriesBeforeReturn = quoteCount
+  await evaluate(`document.querySelector('a[href="/carrito"]').click()`)
+  await until(() => evaluate(`location.pathname === '/carrito' && document.body.textContent.includes('Producto sintético')`))
+  await evaluate(`[...document.querySelectorAll('a')].find(el=>el.textContent.trim()==='Continuar con la compra').click()`)
+  await until(() => evaluate(`location.pathname === '/checkout' && !!document.querySelector('#shipping-name') && document.querySelectorAll('li button[aria-pressed]').length === 2`))
+  assert.equal(quoteCount, queriesBeforeReturn)
+  assert.deepEqual(await selectedCards(), [{ name: 'Envío sintético · fixture', highlighted: true, badge: true }])
+  await evaluate(`window.originalQuoteClock = Date.now; Date.now = () => window.originalQuoteClock() + 600001`)
+  await until(() => evaluate(`document.body.textContent.includes('Estas cotizaciones ya no son válidas')`))
+  assert.equal(await evaluate(`[...document.querySelectorAll('li button[aria-pressed]')].every(button => button.disabled)`), true)
+  assert.equal(await continueDisabled(), true)
+  await evaluate(`Date.now = window.originalQuoteClock; delete window.originalQuoteClock`)
+  await click('Cotizar servicios')
+  await until(() => evaluate(`document.querySelectorAll('li button[aria-pressed="false"]:not(:disabled)').length === 2`))
   await click('Aceptar esta tarifa')
   await until(async () => !(await continueDisabled()))
   await click('Continuar a confirmar pedido')

@@ -3,7 +3,7 @@ import StartPayment from '~/features/payments/StartPayment.vue'
 import ShippingCalculator from '~/features/shipping/ShippingCalculator.vue'
 import { formatMXN } from '~~/shared/features/pricing/prices.js'
 import { mexicanStates } from '~~/shared/features/shipping/mexican-states.js'
-import { hasCurrentShippingQuote } from './shipping-selection.js'
+import { hasCurrentShippingQuote } from '~~/shared/features/shipping/quote-validity.js'
 const { data: cart, error, refresh } = await useFetch('/api/cart', { key: 'store-cart' })
 const selectedQuote = useState('cart-selected-quote', () => null)
 const quote = computed(() => selectedQuote.value?.cartVersion === cart.value?.version ? selectedQuote.value : null)

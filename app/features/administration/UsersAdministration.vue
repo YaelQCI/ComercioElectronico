@@ -1,5 +1,6 @@
 <script setup>
 import { useAdministration } from './useAdministration.js'
+import RegisterAdministrator from './RegisterAdministrator.vue'
 defineProps({ currentUserId: { type: String, required: true } })
 const page = ref(1)
 const { data, status, error, refresh } = await useFetch('/api/admin/users', { key: 'administration-users', query: { page } })
@@ -11,7 +12,11 @@ async function deactivate() {
 </script>
 <template>
   <div>
-    <h2 class="text-display-m font-bold">Usuarios</h2><p class="mt-3 text-ink-2">La desactivación cierra sus sesiones y conserva el historial de compras.</p>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 class="text-display-m font-bold">Usuarios</h2>
+      <RegisterAdministrator />
+    </div>
+    <p class="mt-3 text-ink-2">La desactivación cierra sus sesiones y conserva el historial de compras.</p>
     <p v-if="failure" role="alert" class="my-4 text-crit">{{ failure }}</p>
     <UiLoading v-if="status === 'pending'" label="Cargando usuarios" />
     <div v-else-if="error" role="alert"><p>No se pudieron cargar los usuarios.</p><UiButton @click="refresh">Reintentar</UiButton></div>

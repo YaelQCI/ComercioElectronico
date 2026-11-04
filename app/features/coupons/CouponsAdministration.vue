@@ -13,7 +13,7 @@ function localDate(value) {
 }
 function start(coupon = null) {
   editing.value = coupon
-  Object.assign(form, { code: coupon?.code ?? '', kind: coupon?.kind ?? 'PERCENTAGE', amount: coupon ? coupon.kind === 'FIXED' ? centsToPesos(coupon.fixedAmountCents) : centsToPesos(String(coupon.percentageBasisPoints)) : '10', minimum: centsToPesos(coupon?.minimumEligibleCents), startsAt: localDate(coupon?.startsAt), endsAt: localDate(coupon?.endsAt), maxUses: coupon?.maxUses ?? '', maxUsesPerCustomer: coupon?.maxUsesPerCustomer ?? '', scope: coupon?.scope ?? 'CATALOG', isActive: coupon?.isActive ?? true, allowOffers: coupon?.allowOffers ?? false, allowBundles: coupon?.allowBundles ?? false, reason: '' })
+  Object.assign(form, { code: coupon?.code ?? '', kind: coupon?.kind ?? 'PERCENTAGE', amount: coupon ? coupon.kind === 'FIXED' ? centsToPesos(coupon.fixedAmountCents) : centsToPesos(String(coupon.percentageBasisPoints)) : '10', minimum: centsToPesos(coupon?.minimumEligibleCents), startsAt: localDate(coupon?.startsAt), endsAt: localDate(coupon?.endsAt), maxUses: coupon?.maxUses ?? '', maxUsesPerCustomer: coupon?.maxUsesPerCustomer ?? '', scope: coupon?.scope ?? 'CATALOG', isActive: coupon?.isActive ?? true, allowOffers: coupon?.allowOffers ?? false, allowBundles: coupon?.allowBundles ?? false, freeShipping: coupon?.freeShipping ?? false, reason: '' })
   selected.value = coupon ? [...(coupon.scope === 'PRODUCTS' ? coupon.products : coupon.categories)] : []
   search.value = ''; failure.value = ''; localError.value = ''; open.value = true
   loadOptions()
@@ -38,7 +38,7 @@ async function submit() {
       startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : null, endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : null,
       maxUses: form.maxUses === '' ? null : Number(form.maxUses), maxUsesPerCustomer: form.maxUsesPerCustomer === '' ? null : Number(form.maxUsesPerCustomer),
       scope: form.scope, productIds: form.scope === 'PRODUCTS' ? selected.value.map(p => p.id) : [], categoryIds: form.scope === 'CATEGORIES' ? selected.value.map(c => c.id) : [],
-      isActive: form.isActive, allowOffers: form.allowOffers, allowBundles: form.allowBundles, reason: form.reason, expectedVersion: editing.value?.version,
+      isActive: form.isActive, allowOffers: form.allowOffers, allowBundles: form.allowBundles, freeShipping: form.freeShipping, reason: form.reason, expectedVersion: editing.value?.version,
     }, editing.value ? 'PATCH' : 'POST')
     if (result) open.value = false
   } catch { localError.value = 'Revisa los importes y las fechas. Usa hasta dos decimales en el descuento y la compra mínima.' }
@@ -55,7 +55,7 @@ const dateLabel = value => value ? new Date(value).toLocaleString('es-MX') : 'Si
 <template>
   <section aria-labelledby="coupons-title">
     <div class="flex flex-wrap items-center justify-between gap-4"><h2 id="coupons-title" class="text-display-m font-bold">Cupones de descuento</h2><UiButton @click="start()">Crear cupón</UiButton></div>
-    <p class="mt-3 text-ink-2">Un cupón por carrito. El descuento aplica a productos elegibles; el envío no se descuenta. Los usos reservados también ocupan el límite.</p>
+    <p class="mt-3 text-ink-2">Un cupón por carrito. El descuento aplica a productos elegibles y puede incluir envío gratis. Los usos reservados también ocupan el límite.</p>
     <p v-if="message" role="status" class="mt-4">{{ message }}</p>
     <UiLoading v-if="status === 'pending'" label="Cargando cupones" />
     <div v-else-if="error" role="alert" class="mt-4"><p>No pudimos cargar los cupones.</p><UiButton @click="refresh()">Reintentar</UiButton></div>
@@ -65,6 +65,7 @@ const dateLabel = value => value ? new Date(value).toLocaleString('es-MX') : 'Si
         <li v-for="coupon in data.coupons" :key="coupon.id" class="border border-border bg-surface p-5">
           <div class="flex flex-wrap items-center justify-between gap-3"><h3 class="break-all text-body-l font-bold">{{ coupon.code }}</h3><strong class="border border-border px-3 py-1">{{ state(coupon) }}</strong></div>
           <p class="mt-3 font-semibold">{{ coupon.kind === 'FIXED' ? `${formatMXN(coupon.fixedAmountCents)} MXN de descuento` : `${coupon.percentageBasisPoints / 100} % de descuento` }}</p>
+          <p v-if="coupon.freeShipping" class="mt-2 font-semibold text-ok">Incluye envío gratis</p>
           <p class="text-ink-2">{{ coupon.scope === 'CATALOG' ? 'Todo el catálogo' : coupon.scope === 'PRODUCTS' ? `${coupon.products.length} productos seleccionados` : `${coupon.categories.length} categorías seleccionadas` }} · Mínimo: {{ coupon.minimumEligibleCents ? formatMXN(coupon.minimumEligibleCents) : 'Sin mínimo' }}</p>
           <p class="mt-2 text-body-s">Inicio: {{ dateLabel(coupon.startsAt) }} · Fin: {{ dateLabel(coupon.endsAt) }}</p>
           <p class="mt-2 text-body-s">Consumidos: {{ coupon.uses.CONSUMED }} · Reservados: {{ coupon.uses.RESERVED }} · Liberados: {{ coupon.uses.RELEASED }}</p>
@@ -87,7 +88,7 @@ const dateLabel = value => value ? new Date(value).toLocaleString('es-MX') : 'Si
           <UiField id="coupon-limit" v-model="form.maxUses" label="Límite global de usos (opcional)" type="number" min="1" max="2147483647" step="1" />
           <UiField id="coupon-customer-limit" v-model="form.maxUsesPerCustomer" label="Usos por cliente (opcional)" type="number" min="1" max="2147483647" step="1" />
           <UiField id="coupon-scope" v-model="form.scope" label="Aplicar a" :options="[{ value: 'CATALOG', label: 'Todo el catálogo' }, { value: 'PRODUCTS', label: 'Productos seleccionados' }, { value: 'CATEGORIES', label: 'Categorías seleccionadas' }]" @change="selected = []" />
-          <div class="flex flex-col justify-center gap-3"><label><input v-model="form.isActive" type="checkbox"> Cupón activo</label><label><input v-model="form.allowOffers" type="checkbox"> Permitir productos en oferta</label><label><input v-model="form.allowBundles" type="checkbox"> Permitir paquetes</label></div>
+          <div class="flex flex-col justify-center gap-3"><label><input v-model="form.isActive" type="checkbox"> Cupón activo</label><label><input v-model="form.allowOffers" type="checkbox"> Permitir productos en oferta</label><label><input v-model="form.allowBundles" type="checkbox"> Permitir paquetes</label><label><input id="coupon-free-shipping" v-model="form.freeShipping" type="checkbox" aria-describedby="coupon-free-shipping-hint"> Incluir envío gratis</label><p id="coupon-free-shipping-hint" class="text-body-s text-ink-2">Bonifica todo el envío del pedido cuando el cupón sea válido y haya productos elegibles. La tienda absorbe el costo; se sigue requiriendo cotizar y aceptar un servicio con cobertura.</p></div>
           <div v-if="form.scope !== 'CATALOG'" class="sm:col-span-2">
             <div v-if="form.scope === 'PRODUCTS'" class="flex flex-wrap items-end gap-3"><UiField id="coupon-search" v-model="search" label="Buscar productos por nombre" class="grow" /><UiButton variant="secondary" :disabled="optionsBusy" @click="loadOptions">Buscar</UiButton></div>
             <p v-if="optionsError" role="alert" class="mt-3 text-crit">{{ optionsError }}</p>

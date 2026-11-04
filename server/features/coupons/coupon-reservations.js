@@ -1,6 +1,7 @@
 import { inventoryTransaction } from '../inventory/inventory-transaction.js'
 import { evaluateCoupon, CouponError } from '../../../shared/features/coupons/coupon-eligibility.js'
 import { couponDefinition, cartCouponInclude } from './cart-coupon.js'
+import { shippingProgress } from '../../../shared/features/shipping/shipping-policy.js'
 
 async function lock(context, id) {
   const tx = inventoryTransaction(context)
@@ -35,6 +36,9 @@ export async function reserveCoupon(context, id) {
     return { id: c.id, productId: c.productSnapshot.id, categoryIds: c.productSnapshot.categoryIds, referencePriceCents: c.referenceUnitPriceCents.toString(), compareAtPriceCents: c.variantSnapshot.compareAtPriceCents ?? null, allocatedBaseCents: c.allocatedBaseCents.toString() }
   }) }))
   const result = evaluateCoupon(couponDefinition(coupon), lines, { now, globalUses: coupon._count.couponUsage_coupon, customerUses })
+  if (result.freeShipping !== (order.couponSnapshot?.freeShipping === true)) throw new CouponError('La condición de envío gratis cambió. Requiere nueva aceptación del checkout.')
+  const shipping = shippingProgress(order.goodsAfterCouponCents.toString(), order.shippingQuotedCents.toString(), result.freeShipping)
+  if (BigInt(shipping.chargedAmountCents) !== order.shippingChargedCents) throw new CouponError('El envío del pedido no coincide con el cupón vigente.')
   if (BigInt(result.discountCents) !== order.couponDiscountCents) throw new CouponError('Descuento del pedido no coincide con cupón vigente.')
   for (const line of savedLines) {
     const expected = result.lines.find(l => l.id === line.id)

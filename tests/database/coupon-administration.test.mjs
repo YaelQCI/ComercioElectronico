@@ -11,12 +11,14 @@ test.after(() => db.$disconnect())
 async function user(role = 'ADMIN') { const email = `${randomUUID()}@example.invalid`; return db.user.create({ data: { email, emailNormalized: email, passwordHash: 'fixture', displayName: 'Fixture', role } }) }
 const input = () => ({ code: `TEST-${randomUUID()}`, kind: 'PERCENTAGE', percentageBasisPoints: 1500, scope: 'CATALOG', isActive: true, allowOffers: false, allowBundles: false, reason: 'Prueba aislada' })
 test('cupones: permisos, normalización única, auditoría y edición concurrente', async () => {
-  const actor = await user(), customer = await user('CUSTOMER'), original = input()
+  const actor = await user(), customer = await user('CUSTOMER'), original = { ...input(), freeShipping: true }
   await assert.rejects(service.save(customer.id, original), error => error.status === 403)
   await assert.rejects(service.list(customer.id), error => error.status === 403)
   await assert.rejects(service.options(customer.id), error => error.status === 403)
   const { coupon } = await service.save(actor.id, original)
   assert.equal(coupon.version, 1)
+  assert.equal(coupon.freeShipping, true)
+  assert.equal((await db.auditEvent.findFirst({ where: { entityId: coupon.id } })).safeAfter.freeShipping, true)
   await assert.rejects(service.save(actor.id, { ...original, code: original.code.toLowerCase() }), error => error.code === 'P2002')
   const update = { ...original, expectedVersion: 1, isActive: false }
   const results = await Promise.allSettled([service.save(actor.id, update, coupon.id), service.save(actor.id, update, coupon.id)])

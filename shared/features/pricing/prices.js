@@ -104,7 +104,7 @@ export function calculateCart({ lines, coupon = null, requestedPointsTenths = '0
   const requested = money(requestedPointsTenths), available = money(availablePointsTenths)
   if (requested > available || requested > afterCoupon) throw new RangeError('Canje de puntos superior al saldo o al importe de productos.')
   const pointsAllocation = new Map(allocateCents(requested, items.map(i => ({ id: i.id, weightCents: (i.base - (couponAllocation.get(i.id) ?? 0n)).toString() }))).map(i => [i.id, money(i.cents)]))
-  const quote = money(shippingQuotedCents), shipping = afterCoupon >= 149900n ? 0n : quote
+  const quote = money(shippingQuotedCents), shipping = afterCoupon >= 149900n || coupon?.freeShipping === true ? 0n : quote
   const goodsMoney = afterCoupon - requested
   return {
     goodsBeforeCouponCents: subtotal.toString(), listSavingCents: items.reduce((s, i) => s + i.saving, 0n).toString(), couponDiscountCents: discount.toString(), goodsAfterCouponCents: afterCoupon.toString(), pointsAppliedTenths: requested.toString(), goodsMoneyCents: goodsMoney.toString(), shippingQuotedCents: quote.toString(), shippingChargedCents: shipping.toString(), shippingSubsidyCents: (quote - shipping).toString(), totalMoneyCents: (goodsMoney + shipping).toString(),

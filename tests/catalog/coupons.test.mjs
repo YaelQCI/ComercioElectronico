@@ -2,8 +2,25 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { couponCode, evaluateCoupon } from '../../shared/features/coupons/coupon-eligibility.js'
 import { calculateCart } from '../../shared/features/pricing/prices.js'
+import { shippingProgress } from '../../shared/features/shipping/shipping-policy.js'
 const coupon = (overrides = {}) => ({ isActive: true, kind: 'PERCENTAGE', percentageBasisPoints: 1000, scope: 'CATALOG', allowOffers: false, allowBundles: false, ...overrides })
 const line = (overrides = {}) => ({ id: 'a', baseCents: '3000', isBundle: false, components: [{ id: 'c1', productId: 'p1', categoryIds: ['category'], referencePriceCents: '1000', allocatedBaseCents: '1000' }, { id: 'c2', productId: 'p2', categoryIds: [], referencePriceCents: '2000', allocatedBaseCents: '2000' }], ...overrides })
+
+test('envío gratis requiere cupón válido y no altera descuentos de productos ni cotización', () => {
+  const definition = coupon({ freeShipping: true, kind: 'FIXED', fixedAmountCents: '2000' })
+  const applied = evaluateCoupon(definition, [line()])
+  assert.equal(applied.freeShipping, true)
+  const input = { lines: [{ id: 'a', unitPriceCents: '3000', quantity: 1, couponEligible: true }], coupon: { kind: 'FIXED', amountCents: applied.discountCents, freeShipping: applied.freeShipping }, shippingQuotedCents: '15000' }
+  const totals = calculateCart(input)
+  assert.equal(totals.totalMoneyCents, '1000')
+  assert.equal(totals.couponDiscountCents, '2000')
+  assert.equal(totals.shippingSubsidyCents, '15000')
+  assert.equal(shippingProgress('1000', '15000', true).chargedAmountCents, '0')
+  assert.equal(shippingProgress('1000', null, true).chargedAmountCents, null)
+  assert.equal(calculateCart({ ...input, coupon: { ...input.coupon, freeShipping: false } }).totalMoneyCents, '16000')
+  assert.equal(evaluateCoupon(coupon(), [line()]).freeShipping, false)
+  for (const patch of [{ isActive: false }, { endsAt: '2020-01-01' }, { scope: 'PRODUCTS', productIds: ['other'] }, { minimumEligibleCents: '3001' }]) assert.throws(() => evaluateCoupon({ ...definition, ...patch }, [line()]))
+})
 test('código, vigencia, mínimo y límites se validan; identidad pendiente no se inventa', () => {
   assert.equal(couponCode(' SAVE_10 '), 'save_10')
   assert.throws(() => couponCode(''))

@@ -14,11 +14,11 @@ export async function prepareShipping(tx, hash, input) {
   const origin = rateAddress({ name: warehouse.recipientName, phone: warehouse.phone, street: `${warehouse.street} ${warehouse.exteriorNumber}${warehouse.interiorNumber ? ` int. ${warehouse.interiorNumber}` : ''}`, city: warehouse.city, state: warehouse.state, country: warehouse.countryCode, postalCode: warehouse.postalCode })
   const boxes = await tx.packageType.findMany({ where: { isActive: true } })
   const parcel = choosePackage(cart.units, boxes)
-  const fingerprint = createHash('sha256').update(JSON.stringify({ cart: { id: cart.cartId, version: cart.version, baseCents: cart.baseCents, lines: cart.lines, units: cart.units }, origin: { id: warehouse.id, version: warehouse.configurationVersion, ...origin }, destination, parcel })).digest('hex')
+  const fingerprint = createHash('sha256').update(JSON.stringify({ cart: { id: cart.cartId, version: cart.version, coupon: cart.coupon, baseCents: cart.baseCents, lines: cart.lines, units: cart.units }, origin: { id: warehouse.id, version: warehouse.configurationVersion, ...origin }, destination, parcel })).digest('hex')
   return { ...cart, origin, destination, parcel, fingerprint }
 }
 function dto(quote, prepared) {
-  return { id: quote.id, cartVersion: prepared.version, carrierCode: quote.carrierCode, serviceCode: quote.serviceCode, serviceName: quote.serviceName, currency: quote.currency, quotedAt: quote.quotedAt.toISOString(), expiresAt: quote.expiresAt?.toISOString() ?? null, deliveryEstimate: quote.sanitizedResponse.deliveryEstimate ?? null, destination: quote.destinationSnapshot, ...shippingProgress(prepared.baseCents, quote.quotedAmountCents.toString()) }
+  return { id: quote.id, cartVersion: prepared.version, carrierCode: quote.carrierCode, serviceCode: quote.serviceCode, serviceName: quote.serviceName, currency: quote.currency, quotedAt: quote.quotedAt.toISOString(), expiresAt: quote.expiresAt?.toISOString() ?? null, deliveryEstimate: quote.sanitizedResponse.deliveryEstimate ?? null, destination: quote.destinationSnapshot, ...shippingProgress(prepared.baseCents, quote.quotedAmountCents.toString(), prepared.freeShipping) }
 }
 export function createShippingQuotes(db, provider) {
   return {
@@ -32,7 +32,7 @@ export function createShippingQuotes(db, provider) {
         await tx.shippingQuote.updateMany({ where: { cartId: prepared.cartId, status: { in: ['AVAILABLE', 'ACCEPTED'] } }, data: { status: 'INVALIDATED' } })
         const quotes = []
         for (const rate of rates) {
-          const saved = await tx.shippingQuote.create({ data: { cartId: prepared.cartId, requestFingerprint: prepared.fingerprint, provider: 'ENVIA', carrierCode: rate.carrierCode, serviceCode: rate.serviceCode, serviceName: rate.serviceName, quotedAmountCents: BigInt(rate.quotedAmountCents), currency: rate.currency, originSnapshot: prepared.origin, destinationSnapshot: prepared.destination, packageSnapshot: prepared.parcel, sanitizedResponse: { deliveryEstimate: rate.deliveryEstimate, baseCents: prepared.baseCents, chargedAmountCents: shippingProgress(prepared.baseCents, rate.quotedAmountCents).chargedAmountCents } } })
+          const saved = await tx.shippingQuote.create({ data: { cartId: prepared.cartId, requestFingerprint: prepared.fingerprint, provider: 'ENVIA', carrierCode: rate.carrierCode, serviceCode: rate.serviceCode, serviceName: rate.serviceName, quotedAmountCents: BigInt(rate.quotedAmountCents), currency: rate.currency, originSnapshot: prepared.origin, destinationSnapshot: prepared.destination, packageSnapshot: prepared.parcel, sanitizedResponse: { deliveryEstimate: rate.deliveryEstimate, baseCents: prepared.baseCents, chargedAmountCents: shippingProgress(prepared.baseCents, rate.quotedAmountCents, prepared.freeShipping).chargedAmountCents } } })
           quotes.push(dto(saved, prepared))
         }
         return { cartVersion: prepared.version, quotes }

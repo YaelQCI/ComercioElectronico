@@ -49,7 +49,7 @@ function update(line) {
         </form>
       </li></ul>
       <div class="mt-4 flex flex-wrap gap-2"><UiButton v-for="line in data.lines" :key="line.id" variant="secondary" :disabled="busy" @click="move(line.id, 'SAVE')">Guardar {{ line.name }} · {{ line.presentation }} para después</UiButton></div>
-      <ShippingProgress :base-cents="data.totals.goodsAfterCouponCents" />
+      <ShippingProgress :base-cents="data.totals.goodsAfterCouponCents" :free-shipping="data.coupon?.freeShipping" />
       <form class="mt-6 flex flex-wrap items-end gap-3" @submit.prevent="applyCoupon(code)"><UiField id="cart-coupon" v-model="code" label="Código de cupón" maxlength="60" autocomplete="off" :disabled="busy" /><UiButton type="submit" variant="secondary" :disabled="busy">Aplicar cupón</UiButton><UiButton v-if="data.coupon || data.couponError" variant="secondary" :disabled="busy" @click="applyCoupon('', true)">Retirar cupón</UiButton></form>
       <p v-if="data.coupon" class="mt-3 text-body-s text-ok">{{ data.coupon.code }} · Descuento {{ formatMXN(data.totals.couponDiscountCents) }}<span v-if="data.coupon.customerLimitPending"> · Límite por cliente pendiente de validar con correo al iniciar pago.</span></p><p v-if="data.couponError" role="alert" class="mt-3 text-body-s text-crit">{{ data.couponError }} No se aplicó descuento; revisa tu total.</p>
       <UiButton v-if="!data.lines.some(l => !l.stockSufficient)" class="mt-4" to="/checkout">Continuar con la compra</UiButton>

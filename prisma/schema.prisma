@@ -1004,6 +1004,7 @@ model Coupon {
   maxUsesPerCustomer    Int?
   allowOffers           Boolean          @default(false)
   allowBundles          Boolean          @default(false)
+  freeShipping          Boolean          @default(false)
   scope                 CouponScope      @default(CATALOG)
   isActive              Boolean          @default(true)
   version               Int              @default(1)

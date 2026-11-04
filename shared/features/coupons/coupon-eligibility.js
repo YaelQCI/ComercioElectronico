@@ -33,5 +33,5 @@ export function evaluateCoupon(coupon, lines, { now = new Date(), globalUses = 0
   else throw new CouponError('Configuración de cupón inválida.')
   if (discount > total) discount = total
   const allocation = new Map(allocateCents(discount, eligible.map(l => ({ id: l.id, weightCents: l.eligibleCents }))).map(l => [l.id, l.cents]))
-  return { eligibleCents: total.toString(), discountCents: discount.toString(), customerLimitPending: coupon.maxUsesPerCustomer != null && customerUses == null, lines: eligible.map(l => ({ ...l, discountCents: allocation.get(l.id), components: allocateCents(allocation.get(l.id), l.components.map(c => ({ id: c.id, weightCents: c.eligibleCents }))) })) }
+  return { freeShipping: coupon.freeShipping === true, eligibleCents: total.toString(), discountCents: discount.toString(), customerLimitPending: coupon.maxUsesPerCustomer != null && customerUses == null, lines: eligible.map(l => ({ ...l, discountCents: allocation.get(l.id), components: allocateCents(allocation.get(l.id), l.components.map(c => ({ id: c.id, weightCents: c.eligibleCents }))) })) }
 }

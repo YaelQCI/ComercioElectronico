@@ -4,7 +4,7 @@ import{createCartRepository}from'../../server/features/cart/cart-repository.js'
 import{createShippingQuotes}from'../../server/features/shipping/shipping-quotes.js'
 import{createCheckout}from'../../server/features/checkout/prepare-order.js'
 import{createStoreAdministration}from'../../server/features/administration/manage-store.js'
-export async function paymentFixture(db,{priceCents='1000',shippingCents='500',coupon=false}={}){
+export async function paymentFixture(db,{priceCents='1000',shippingCents='500',coupon=false,quantity=2}={}){
   const email=`${randomUUID()}@example.invalid`,admin=await db.user.create({data:{email,emailNormalized:email,passwordHash:'fixture',displayName:'Fixture',role:'ADMIN'}}),f=await deliveredFixture(db,admin.id)
   await db.productVariant.update({where:{id:f.variant.id},data:{priceCents:BigInt(priceCents)}})
   await createStoreAdministration(db).adjustStock(admin.id,{lotId:f.lot.id,delta:5,reason:'Fixture',idempotencyKey:randomUUID()})
@@ -12,8 +12,8 @@ export async function paymentFixture(db,{priceCents='1000',shippingCents='500',c
   const warehouse=await db.warehouse.findFirst();await db.warehouse.update({where:{id:warehouse.id},data:{state:'CX'}})
   await db.packageType.create({data:{code:`FIXTURE-${randomUUID()}`,innerLengthMm:300,innerWidthMm:300,innerHeightMm:300,outerLengthMm:310,outerWidthMm:310,outerHeightMm:310,tareWeightGrams:100,maxGrossWeightGrams:3000}})
   const owner=randomBytes(32).toString('hex'),cartService=createCartRepository(db)
-  let cart=await cartService.add(owner,{variantId:f.variant.id,quantity:2,version:1})
-  if(coupon){const code=`FIXTURE-${randomUUID()}`.toUpperCase();await db.coupon.create({data:{code,codeNormalized:code.toLowerCase(),kind:'FIXED',fixedAmountCents:500n,maxUses:1,maxUsesPerCustomer:1}});cart=await cartService.coupon(owner,{code,version:cart.version})}
+  let cart=await cartService.add(owner,{variantId:f.variant.id,quantity,version:1})
+  if(coupon){const code=`FIXTURE-${randomUUID()}`.toUpperCase();await db.coupon.create({data:{code,codeNormalized:code.toLowerCase(),kind:'FIXED',fixedAmountCents:500n,maxUses:1,maxUsesPerCustomer:1,...(typeof coupon==='object'?coupon:{})}});cart=await cartService.coupon(owner,{code,version:cart.version})}
   const destination={country:'MX',name:'Fixture',phone:'5555555555',street:'Calle sintética 1',city:'Ciudad sintética',state:'CX',postalCode:'01234'}
   const rate={carrierCode:'fixture',serviceCode:'ground',serviceName:'Fixture',quotedAmountCents:shippingCents,currency:'MXN',deliveryEstimate:'Fixture'}
   const shipping={quote:async()=>[rate]},quotes=createShippingQuotes(db,shipping)
