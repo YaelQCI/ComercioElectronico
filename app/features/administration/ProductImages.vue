@@ -35,7 +35,7 @@ async function upload() {
     if (variantId.value) form.append('variantId', variantId.value)
     await $fetch(`/api/admin/catalog/${productId}/images`, { method: 'POST', body: form })
     clearPreview(); file.value = null; if (fileInput.value) fileInput.value.value = ''; alt.value = ''; reason.value = ''
-    message.value = 'Imagen guardada. Si es la frontal, ya puedes publicar el producto.'
+    message.value = 'Imagen guardada. Revisa los requisitos de publicación en Gestionar para completar los pasos pendientes.'
     open.value = false
     emit('updated', productId)
   } catch (error) { failure.value = error.data?.statusMessage ?? 'No pudimos cargar la imagen. Conservamos los datos para reintentar.' }

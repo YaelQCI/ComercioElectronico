@@ -10,6 +10,7 @@ import BrandSelection from '../catalog/BrandSelection.vue'
 import ProductRecommendationsFields from '../catalog/ProductRecommendationsFields.vue'
 import AddProductVariant from '../catalog/AddProductVariant.vue'
 import ProductTextFields from '../catalog/ProductTextFields.vue'
+import ProductPublicationGuide from './ProductPublicationGuide.vue'
 const page = ref(1)
 const { data, status, error, refresh } = await useFetch('/api/admin/catalog', { query: { page } })
 const { busy, failure, message, save } = useAdministration(refresh)
@@ -40,14 +41,19 @@ async function withdraw() {
     if (fresh) select(fresh)
   }
 }
-const publicationProblem = computed(() => {
+const publicationRequirements = computed(() => {
   const product = selected.value
-  if (!product) return ''
-  if (product.deactivated) return 'Este producto está desactivado y no se puede publicar.'
-  if (!product.published && !edit.reason.trim()) return 'Escribe el motivo de los cambios para habilitar Publicar. El motivo de las imágenes es independiente.'
-  if (!product.published && !product.images?.some(image => image.kind === 'FRONT')) return 'Agrega y guarda una imagen de tipo Imagen frontal en la sección Imágenes para publicar.'
-  if (!product.published && !product.variants.some(variant => !variant.deactivated)) return 'El producto necesita al menos una variante activa para publicarse.'
-  return ''
+  if (!product) return []
+  return [
+    { key: 'active', complete: !product.deactivated, instruction: 'Activa el producto en Estado del producto.' },
+    { key: 'reason', complete: !!edit.reason.trim(), instruction: 'Escribe el Motivo de los cambios. El motivo de la carga de imágenes es independiente.' },
+    { key: 'image', complete: !!product.images?.some(image => image.kind === 'FRONT'), instruction: 'En Imágenes, agrega y guarda una imagen de tipo Imagen frontal.' },
+    { key: 'variant', complete: product.variants.some(variant => !variant.deactivated), instruction: 'Mantén al menos una variante activa; puedes crear otra con Agregar presentación en Presentaciones adicionales.' },
+  ]
+})
+const publicationProblem = computed(() => {
+  if (!selected.value || selected.value.published && !selected.value.deactivated) return ''
+  return publicationRequirements.value.find(requirement => !requirement.complete)?.instruction || ''
 })
 function select(product) {
   selected.value = product
@@ -148,7 +154,16 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
       <p v-if="!data?.products.length" class="my-6">No hay productos registrados.</p>
       <ul class="grid gap-4">
         <li v-for="product in data?.products" :key="product.id" class="rounded-sm border border-border bg-surface p-4">
-          <div class="flex flex-wrap items-center justify-between gap-3"><div><h3 class="font-semibold">{{ product.name }}</h3><p class="text-body-s text-ink-2">{{ product.deactivated ? 'Desactivado' : product.published ? 'Publicado' : 'Borrador' }} · {{ product.slug }}</p></div><UiButton variant="secondary" :disabled="busy" @click="select(product)">Gestionar {{ product.name }}</UiButton></div>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="flex flex-wrap items-center gap-3">
+                <h3 class="font-semibold">{{ product.name }}</h3>
+                <span class="rounded-sm border px-3 py-1 text-body-s font-semibold" :class="product.published && !product.deactivated ? 'border-ok bg-ok-soft text-ok' : 'border-warn bg-warn-soft text-warn'">{{ product.published && !product.deactivated ? 'Publicado' : 'Sin publicar' }}</span>
+              </div>
+              <p class="mt-2 text-body-s text-ink-2">{{ product.deactivated ? 'Desactivado' : product.published ? 'Activo' : 'Borrador' }} · {{ product.slug }}</p>
+            </div>
+            <UiButton variant="secondary" :disabled="busy" @click="select(product)">Gestionar {{ product.name }}</UiButton>
+          </div>
           <p v-if="product.featuredPosition != null" class="mt-2 text-body-s font-semibold text-accent-text">Nuestra selección · Prioridad {{ product.featuredPosition }}{{ product.deactivated || !product.published ? ' · Pendiente de activación y publicación' : '' }}</p>
           <p v-for="variant in product.variants" :key="variant.id" class="mt-2 text-body-s">{{ variant.sku }} · {{ variant.flavor }} · {{ variant.presentationLabel }} · {{ money(variant.priceCents) }}</p>
         </li>
@@ -159,6 +174,7 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
       <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
 
       <h3 class="text-display-s font-bold">Editar {{ selected.name }}</h3>
+      <ProductPublicationGuide :key="selected.id" :product="selected" :requirements="publicationRequirements" />
       <UiModal :open="reactivating" title="Reactivar producto" :busy="busy" @close="reactivating = false">
         <p class="mb-4">{{ selected.name }} volverá a estar activo como borrador. Sus imágenes, precios e inventario se conservan; no se publica automáticamente.</p>
         <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
