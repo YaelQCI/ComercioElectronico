@@ -36,7 +36,7 @@ export function stripeSession(data, environment) {
   return { id:data.id, orderId:data.metadata?.orderId ?? null, attemptId:data.metadata?.attemptId ?? null, amountCents:String(data.amount_total), currency:'MXN', status:data.status, paymentStatus:data.payment_status, paymentIntentId:intent, expiresAt:new Date(data.expires_at*1000), url }
 }
 export function createStripeClient({ secretKey, environment = 'test', siteUrl, fetchImpl = fetch }) {
-  if (!['test','live'].includes(environment) || typeof secretKey !== 'string' || !secretKey.startsWith(`sk_${environment}_`) || /\s/.test(secretKey)) throw new PaymentError(503, 'Stripe pendiente de configurar para este entorno.')
+  if (!['test','live'].includes(environment) || typeof secretKey !== 'string' || !new RegExp(`^(?:sk|rk)_${environment}_[A-Za-z0-9_]+$`).test(secretKey) || /\s/.test(secretKey)) throw new PaymentError(503, 'Stripe pendiente de configurar para este entorno.')
   const origin = siteOrigin(siteUrl,environment)
   async function request(path, method = 'GET', fields, key) {
     // Fixed host and allowlisted methods; never accept a URL from the browser or provider.

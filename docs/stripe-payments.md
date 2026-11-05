@@ -4,6 +4,10 @@ Implementación del issue #30. Modalidad elegida: **Checkout alojado**, pago ún
 
 ## Configuración y activación
 
+La aplicación y el despliegue admiten claves secretas `sk_test_`/`sk_live_` y restringidas `rk_test_`/`rk_live_`, conservando la separación de entornos. Para una clave restringida de esta integración, asignar escritura a Checkout Sessions y Charges and Refunds; la escritura incluye lectura. No habilitar otros recursos sin una operación que los necesite. Validar los permisos en sandbox antes de acreditar el recorrido completo en producción. La clave restringida se guarda en `NUXT_STRIPE_SECRET_KEY`, igual que la secreta.
+
+Verificación del ajuste (5 de noviembre de 2026): once pruebas de pagos aprobadas y protocolo de despliegue probado con comandos simulados, incluyendo aceptación de `sk_live_`/`rk_live_` y rechazo de claves test, públicas o vacías antes del respaldo/migración. La compilación Nuxt y el despliegue manual con Stripe deshabilitado pasaron; consultas de lectura de Checkout/reembolsos con la clave restringida devolvieron HTTP 200. No acredita permisos de escritura, entrega del webhook, compra real ni revisión visual. La activación live y la prueba del recorrido completo siguen pendientes de autorización y validación.
+
 ### Webhook en producción
 
 Desplegar primero la aplicación con dominio público y HTTPS. En Stripe, completar la activación de la cuenta, seleccionar el modo activo y abrir Workbench → Webhooks → Crear destino. Elegir eventos de la propia cuenta, formato **Snapshot** y versión `2025-09-30.clover`, compatible con el cliente actual. Registrar `https://TU_DOMINIO/api/payments/stripe/webhook` y los eventos `checkout.session.completed`, `checkout.session.expired` y `payment_intent.payment_failed`. Revelar el secreto de firma de ese destino; no reutilizar el del sandbox o de Stripe CLI.

@@ -20,7 +20,7 @@ environment=$(setting DEPLOY_ENVIRONMENT)
 if [[ "$environment" = production ]]; then
   [[ "$(setting NUXT_STRIPE_ENVIRONMENT)" = live && "$(setting NUXT_DEMO_DATA_ENABLED)" = false ]] || { echo 'Producción exige entorno Stripe live y datos DEMO deshabilitados.' >&2; exit 1; }
   if [[ "$(setting NUXT_STRIPE_ENABLED)" = true ]]; then
-    grep -Eq '^NUXT_STRIPE_SECRET_KEY=sk_live_[A-Za-z0-9]+\r?$' "$root/shared/.env" || { echo 'Producción requiere clave live.' >&2; exit 1; }
+    grep -Eq '^NUXT_STRIPE_SECRET_KEY=(sk|rk)_live_[A-Za-z0-9]+\r?$' "$root/shared/.env" || { echo 'Producción requiere clave live.' >&2; exit 1; }
   fi
 elif [[ "$environment" = staging ]]; then
   [[ "$(setting NUXT_STRIPE_ENVIRONMENT)" = test ]] || { echo 'Staging solo permite Stripe test.' >&2; exit 1; }

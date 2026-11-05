@@ -61,6 +61,18 @@ printf 'PUBLIC_HOST=production.pending.invalid\nNUXT_STRIPE_ENABLED=false\nNUXT_
 bash "$source_root/deploy/deploy.sh" "$revision" > /dev/null
 grep -q 'hide-production-demo.mjs' "$DEPLOY_TEST_LOG"
 ! grep -q 'run --rm --no-deps proxy\|force-recreate.*proxy' "$DEPLOY_TEST_LOG"
+for production_key in sk_live_fixture rk_live_fixture; do
+  prepare "production-$production_key"
+  printf 'PUBLIC_HOST=production.pending.invalid\nNUXT_STRIPE_ENABLED=true\nNUXT_STRIPE_ENVIRONMENT=live\nNUXT_DEMO_DATA_ENABLED=false\nDEPLOY_ENVIRONMENT=production\nSHARED_GATEWAY=true\nAPP_PORT=3002\nPUBLIC_HTTPS_READY=false\nNUXT_STRIPE_SECRET_KEY=%s\n' "$production_key" > "$DEPLOY_ROOT/shared/.env"
+  bash "$source_root/deploy/deploy.sh" "$revision" > /dev/null
+  grep -q 'up -d --no-deps payment-reconciler' "$DEPLOY_TEST_LOG"
+done
+for invalid_key in rk_test_fixture pk_live_fixture rk_live_; do
+  prepare "invalid-$invalid_key"
+  printf 'PUBLIC_HOST=production.pending.invalid\nNUXT_STRIPE_ENABLED=true\nNUXT_STRIPE_ENVIRONMENT=live\nNUXT_DEMO_DATA_ENABLED=false\nDEPLOY_ENVIRONMENT=production\nNUXT_STRIPE_SECRET_KEY=%s\n' "$invalid_key" > "$DEPLOY_ROOT/shared/.env"
+  if bash "$source_root/deploy/deploy.sh" "$revision" > /dev/null 2>&1; then echo 'Producción aceptó una clave inválida' >&2; exit 1; fi
+  ! grep -q 'pg_dump\|run --rm --no-deps migrate' "$DEPLOY_TEST_LOG"
+done
 prepare unsafe-production
 printf 'PUBLIC_HOST=production.pending.invalid\nDEPLOY_ENVIRONMENT=production\nNUXT_STRIPE_ENVIRONMENT=test\n' > "$DEPLOY_ROOT/shared/.env"
 if bash "$source_root/deploy/deploy.sh" "$revision" >/dev/null 2>&1; then echo 'Producción aceptó Stripe test' >&2; exit 1; fi
