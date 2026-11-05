@@ -38,7 +38,7 @@ async function perform(action, body = {}) {
     if (result.user) { displayName.value = result.user.displayName; phone.value = result.user.phone ?? '' }
     await refresh(); await loadProfile()
     message.value = action === 'logout' ? 'Sesión cerrada.' : action === 'password' ? 'Contraseña cambiada. Inicia sesión de nuevo.' : action === 'deactivate' ? 'Cuenta desactivada; el historial se conserva.' : 'Cambios guardados.'
-  } catch (e) { failure.value = e.data?.statusMessage ?? 'No pudimos completar la operación.' }
+  } catch (e) { failure.value = e.data?.statusMessage ?? (action === 'register' ? 'No pudimos conectar con el servicio para crear tu cuenta. Revisa tu conexión e intenta de nuevo.' : 'No pudimos completar la operación.') }
   finally { busy.value = false }
 }
 async function loadProfile() {

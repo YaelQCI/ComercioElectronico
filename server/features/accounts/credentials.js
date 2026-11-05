@@ -5,7 +5,9 @@ const derive = promisify(scrypt)
 const parameters = { N: 131072, r: 8, p: 1, maxmem: 256 * 1024 * 1024 }
 export class AccountError extends Error { constructor(status, message) { super(message); this.status = status } }
 export function emailAddress(value) {
-  if (typeof value !== 'string' || value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) throw new AccountError(400, 'Correo inválido.')
+  if (typeof value !== 'string' || !value.trim()) throw new AccountError(400, 'Escribe tu correo electrónico.')
+  if (value.length > 254) throw new AccountError(400, 'El correo electrónico no puede superar los 254 caracteres.')
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) throw new AccountError(400, 'El correo electrónico no tiene un formato válido. Usa un formato como nombre@dominio.com.')
   return value.trim().toLowerCase()
 }
 export function accountText(value, label, max = 120) {
@@ -13,7 +15,9 @@ export function accountText(value, label, max = 120) {
   return value.trim()
 }
 export function validPassword(value) {
-  if (typeof value !== 'string' || value.length < 12 || Buffer.byteLength(value) > 256) throw new AccountError(400, 'La contraseña debe tener al menos 12 caracteres y hasta 256 bytes.')
+  if (typeof value !== 'string' || !value.length) throw new AccountError(400, 'Escribe una contraseña para tu cuenta.')
+  if (value.length < 12) throw new AccountError(400, 'La contraseña es demasiado corta. Debe tener al menos 12 caracteres.')
+  if (Buffer.byteLength(value) > 256) throw new AccountError(400, 'La contraseña es demasiado larga. El máximo es de 256 bytes; las letras con acentos y los emojis pueden ocupar varios bytes. Usa una contraseña más corta.')
   return value
 }
 export async function hashPassword(password) {

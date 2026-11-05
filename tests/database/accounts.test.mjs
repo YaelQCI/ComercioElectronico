@@ -40,7 +40,7 @@ test('registro rechaza confirmación ausente o distinta sin crear usuario', asyn
 test('registro cliente, duplicado normalizado, login inválido, perfil y aislamiento de direcciones', async () => {
   const input = fixture(), registered = await accounts.register({ ...input, role: 'ADMIN' })
   assert.equal(registered.user.role, 'CUSTOMER'); assert.ok(!('passwordHash' in registered.user))
-  await assert.rejects(accounts.register({ ...input, email: input.email.toUpperCase() }), /registrar/)
+  await assert.rejects(accounts.register({ ...input, email: input.email.toUpperCase() }), e => e.status === 409 && /Ya existe una cuenta con ese correo/.test(e.message))
   await assert.rejects(accounts.login({ ...input, password: 'incorrecta' }), /incorrectos/)
   const identity = await accounts.authenticate(registered.access)
   assert.equal(identity.user.id, registered.user.id)
@@ -77,5 +77,5 @@ test('soft delete revoca sesiones y conserva unicidad del correo', async () => {
   await accounts.password(original.user.id, { currentPassword: input.password }, true)
   assert.equal(await accounts.authenticate(original.access), null)
   await assert.rejects(accounts.login(input), /incorrectos/)
-  await assert.rejects(accounts.register(input), /registrar/)
+  await assert.rejects(accounts.register(input), e => e.status === 409 && /Ya existe una cuenta con ese correo/.test(e.message))
 })
