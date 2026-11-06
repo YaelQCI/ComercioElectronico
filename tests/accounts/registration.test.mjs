@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { passwordConfirmationError } from '../../shared/features/accounts/registration.js'
 import { emailAddress, validPassword } from '../../server/features/accounts/credentials.js'
 import { createAccounts } from '../../server/features/accounts/account-repository.js'
+import { normalizeEmail } from '../../shared/features/notifications/email.js'
 
 test('registro explica los errores de correo y los límites reales de contraseña', () => {
   for (const [value, message] of [['', /Escribe tu correo/], ['sin-arroba', /formato válido/], [`${'a'.repeat(250)}@example.invalid`, /254 caracteres/]]) {
@@ -30,4 +31,12 @@ test('confirmación obligatoria y coincidencia exacta sin normalizar contraseña
   assert.equal(passwordConfirmationError('Contraseña segura 123', 'Contraseña segura 123'), '')
   for (const confirmation of [undefined, null, '', 123]) assert.equal(passwordConfirmationError('Contraseña segura 123', confirmation), 'Confirma tu contraseña.')
   for (const confirmation of ['contraseña segura 123', 'Contraseña segura 123 ', 'Otra contraseña']) assert.equal(passwordConfirmationError('Contraseña segura 123', confirmation), 'Las contraseñas no coinciden.')
+})
+
+test('cuentas y avisos comparten formato de correo y conservan puntos y etiquetas válidas', () => {
+  for (const invalid of ['usuario', 'usuario@dominio', '@dominio.com', 'usuario@@dominio.com', 'a b@dominio.com', '.usuario@dominio.com', 'usuario.@dominio.com', 'a..b@dominio.com', 'a@dominio..com', 'a@-dominio.com', 'a@dominio-.com']) {
+    assert.throws(() => emailAddress(invalid), error => error.status === 400 && /formato válido/.test(error.message))
+    assert.throws(() => normalizeEmail(invalid))
+  }
+  for (const valid of ['nombre@dominio.com', '181914@upslp.edu.mx', ' A.B+tag@Example.Invalid ']) assert.equal(emailAddress(valid), normalizeEmail(valid))
 })

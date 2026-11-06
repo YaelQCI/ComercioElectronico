@@ -10,6 +10,7 @@ import ProductComparison from './ProductComparison.vue'
 import RestockForm from '../restock/RestockForm.vue'
 import ConfiguredRecommendations from './ConfiguredRecommendations.vue'
 import { useCart } from '../cart/useCart.js'
+import { guardNumericEntry, numericValueError } from '../../components/numeric-input.js'
 const cart = await useCart()
 const props = defineProps({ id: { type: String, required: true } })
 const { data, status, error, refresh } = await useFetch(() => `/api/catalog/products/${props.id}`)
@@ -19,16 +20,23 @@ const route = useRoute()
 const variant = computed(() => selectedVariant(product.value, route.query.variante))
 const variantId = computed(() => variant.value?.id ?? '')
 const quantity = ref('1')
-watch(variantId, () => { quantity.value = '1' })
+const quantityEntryFailure = ref('')
+function guardQuantity(event) {
+  const message = guardNumericEntry(event)
+  if (message) quantityEntryFailure.value = `Cantidad: ${message}`
+}
+function validateQuantity(event) { quantityEntryFailure.value = numericValueError(event.target) ? `Cantidad: ${numericValueError(event.target)}` : '' }
+watch(variantId, () => { quantity.value = '1'; quantityEntryFailure.value = '' })
 function chooseVariant(id) { navigateTo({ path: route.path, query: { ...route.query, variante: id } }) }
 const flavors = computed(() => [...new Set(product.value?.variants.map(v => v.flavor) ?? [])].map(value => ({ value, label: value })))
 const flavor = computed({ get: () => variant.value?.flavor ?? '', set: value => { const candidates = product.value?.variants.filter(v => v.flavor === value) ?? []; const next = candidates.find(v => v.presentationLabel === variant.value?.presentationLabel) ?? candidates[0]; if (next) chooseVariant(next.id) } })
 const presentations = computed(() => product.value?.variants.filter(v => v.flavor === flavor.value).map(v => ({ ...v, pricing: variantPricing(v) })) ?? [])
 function adjustQuantity(delta) {
+  quantityEntryFailure.value = ''
   const current = Number(quantity.value)
   quantity.value = String(Math.max(1, Math.min(variant.value?.availableQty || 1, (Number.isSafeInteger(current) && current > 0 ? current : 1) + delta)))
 }
-const quantityError = computed(() => { if (!variant.value?.availableQty) return ''; try { productQuantity(quantity.value, variant.value.availableQty); return '' } catch { return 'Usa una cantidad entera entre 1 y las piezas disponibles.' } })
+const quantityError = computed(() => { if (quantityEntryFailure.value) return quantityEntryFailure.value; if (!variant.value?.availableQty) return ''; try { productQuantity(quantity.value, variant.value.availableQty); return '' } catch { return 'Usa una cantidad entera entre 1 y las piezas disponibles.' } })
 const pricing = computed(() => variant.value ? variantPricing(variant.value) : null)
 const category = computed(() => product.value?.categories.find(item => item.isPrimary) ?? product.value?.categories[0])
 const crumbs = computed(() => [{ label: 'Catálogo', to: '/catalogo' }, ...(product.value?.categories.find(c => c.isPrimary) ? [{ label: product.value.categories.find(c => c.isPrimary).name, to: { path: '/catalogo', query: { categoria: product.value.categories.find(c => c.isPrimary).slug } } }] : []), { label: product.value?.name ?? 'Producto' }])
@@ -53,7 +61,7 @@ useHead(() => ({ title: `${product.value?.name ?? 'Producto'} — The Fitness St
             <p class="mt-4 flex items-center gap-2 rounded-pill px-3 py-1 text-body-s font-semibold" :class="variant.availableQty ? 'bg-ok-soft text-ok' : 'bg-off-soft text-off'"><span class="h-2 w-2 rounded-full bg-current" aria-hidden="true" />{{ variant.availableQty === 0 ? 'Agotado por el momento' : variant.availableQty <= 5 ? `En stock · Últimas ${variant.availableQty} piezas` : `En stock · ${variant.availableQty} piezas disponibles` }}</p>
             <UiField v-if="flavors.length > 1" id="flavor" v-model="flavor" label="Sabor" class="mt-5" :options="flavors" />
             <fieldset class="mt-5" aria-label="Presentación del producto"><legend class="mb-2 font-mono text-label uppercase tracking-widest text-ink-2">Presentación</legend><div class="flex flex-wrap gap-2"><button v-for="item in presentations" :key="item.id" type="button" :aria-pressed="item.id === variantId" class="min-h-16 min-w-24 rounded-sm border px-3 py-2 text-left" :class="item.id === variantId ? 'border-accent bg-accent-soft' : 'border-border bg-surface'" @click="chooseVariant(item.id)"><span class="block font-display text-display-m font-bold uppercase">{{ item.presentationLabel }}</span><span class="mt-1 block font-mono text-label text-ink-2">{{ (item.pricing.servingCostLabel ?? item.pricing.priceLabel).replace(' MXN', '') }}</span></button></div></fieldset>
-            <div class="mt-5"><label for="product-quantity" class="mb-2 block font-mono text-label uppercase tracking-widest text-ink-2">Cantidad</label><div class="inline-flex items-stretch"><UiButton variant="secondary" aria-label="Disminuir cantidad" :disabled="cart.busy.value || !variant.availableQty || Number(quantity) <= 1" @click="adjustQuantity(-1)">−</UiButton><input id="product-quantity" v-model="quantity" type="number" min="1" step="1" :max="Math.max(1, variant.availableQty)" :disabled="cart.busy.value || !variant.availableQty" :aria-invalid="!!quantityError" :aria-describedby="quantityError ? 'product-quantity-error' : undefined" class="min-h-11 w-16 min-w-0 border-y border-border bg-surface px-2 text-center font-mono text-body-s"><UiButton variant="secondary" aria-label="Aumentar cantidad" :disabled="cart.busy.value || !variant.availableQty || Number(quantity) >= variant.availableQty" @click="adjustQuantity(1)">+</UiButton></div><p v-if="quantityError" id="product-quantity-error" role="alert" class="mt-2 text-body-s text-crit">{{ quantityError }}</p></div>
+            <div class="mt-5"><label for="product-quantity" class="mb-2 block font-mono text-label uppercase tracking-widest text-ink-2">Cantidad</label><div class="inline-flex items-stretch"><UiButton variant="secondary" aria-label="Disminuir cantidad" :disabled="cart.busy.value || !variant.availableQty || Number(quantity) <= 1" @click="adjustQuantity(-1)">−</UiButton><input @beforeinput="guardQuantity" @paste="guardQuantity" @input="validateQuantity" id="product-quantity" v-model="quantity" type="number" min="1" step="1" :max="Math.max(1, variant.availableQty)" :disabled="cart.busy.value || !variant.availableQty" :aria-invalid="!!quantityError" :aria-describedby="quantityError ? 'product-quantity-error' : undefined" class="min-h-11 w-16 min-w-0 border-y border-border bg-surface px-2 text-center font-mono text-body-s"><UiButton variant="secondary" aria-label="Aumentar cantidad" :disabled="cart.busy.value || !variant.availableQty || Number(quantity) >= variant.availableQty" @click="adjustQuantity(1)">+</UiButton></div><p v-if="quantityError" id="product-quantity-error" role="alert" class="mt-2 text-body-s text-crit">{{ quantityError }}</p></div>
           </template>
           <div class="mt-5 grid gap-3" role="group" aria-label="Acciones de compra"><UiButton :disabled="cart.busy.value || !variant?.availableQty || !!quantityError" @click="cart.add(variantId, quantity)">Agregar al carrito</UiButton><UiButton variant="secondary" :disabled="cart.busy.value || !variant?.availableQty || !!quantityError" @click="cart.add(variantId, quantity, true)">Comprar ahora</UiButton></div>
           <RestockForm v-if="variant && variant.availableQty === 0" :key="variant.id" :variant-id="variant.id" :sku="variant.sku" :presentation="`${variant.presentationLabel} · ${variant.flavor}`" />

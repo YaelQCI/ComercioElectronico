@@ -5,10 +5,12 @@ import { prepareShipping } from '../shipping/shipping-quotes.js'
 import { cartCouponLines } from '../coupons/cart-coupon.js'
 import { allocateCents } from '../../../shared/features/pricing/prices.js'
 import { shippingProgress } from '../../../shared/features/shipping/shipping-policy.js'
+import { phoneFormatError } from '../../../shared/features/accounts/phone.js'
 const hash = value => createHash('sha256').update(value).digest('hex')
 export function checkoutContact(input) {
   const email = emailAddress(input?.email), address = { countryCode: 'MX' }
   for (const key of ['recipientName','phone','postalCode','state','city','district','street','exteriorNumber']) address[key] = accountText(input?.address?.[key], key, 200)
+  if (phoneFormatError(address.phone)) throw new AccountError(400, `Teléfono: ${phoneFormatError(address.phone)}`)
   if (!/^\d{5}$/.test(address.postalCode) || !/^[A-Z]{2}$/.test(address.state)) throw new AccountError(400, 'Código postal o código estatal inválido.')
   for (const key of ['interiorNumber','references']) address[key] = input.address[key] ? accountText(input.address[key], key, 250) : null
   return { email, address }

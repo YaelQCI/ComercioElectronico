@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { passwordConfirmationError } from '../../../shared/features/accounts/registration.js'
 import { validThemePreference } from '../../../shared/features/accounts/theme-preference.js'
+import { phoneFormatError } from '../../../shared/features/accounts/phone.js'
 import { AccountError, emailAddress, accountText, hashPassword, verifyPassword, opaqueToken, secretHash, issueAccess, verifyAccess } from './credentials.js'
 
 const addressFieldLabels = { recipientName: 'Destinatario', phone: 'Teléfono', postalCode: 'Código postal', state: 'Estado', city: 'Ciudad', district: 'Colonia', street: 'Calle', exteriorNumber: 'Número exterior', interiorNumber: 'Número interior', label: 'Etiqueta de dirección', references: 'Referencias de entrega', name: 'Nombre', contactName: 'Persona de contacto', description: 'Descripción' }
@@ -77,6 +78,7 @@ export function createAccounts(db, secret) {
     },
     async updateProfile(userId, input) {
       const displayName = accountText(input?.displayName, 'Nombre'), phone = input?.phone ? accountText(input.phone, 'Teléfono', 25) : null
+      if (phoneFormatError(phone)) throw new AccountError(400, `Teléfono: ${phoneFormatError(phone)}`)
       return db.$transaction(async tx => { await lockedUser(tx, userId); return publicAccount(await tx.user.update({ where: { id: userId }, data: { displayName, phone } })) })
     },
     async updateTheme(userId, input) {
@@ -101,6 +103,7 @@ export function createAccounts(db, secret) {
     async saveAddress(userId, input) {
       const data = { countryCode: 'MX' }
       for (const key of ['recipientName', 'phone', 'postalCode', 'state', 'city', 'district', 'street', 'exteriorNumber']) data[key] = accountText(input?.[key], addressFieldLabels[key], key === 'phone' ? 25 : 120)
+      if (phoneFormatError(data.phone)) throw new AccountError(400, `Teléfono: ${phoneFormatError(data.phone)}`)
       if (!/^\d{5}$/.test(data.postalCode)) throw new AccountError(400, 'Código postal: escribe exactamente cinco dígitos, por ejemplo 01000.')
       for (const key of ['label', 'interiorNumber', 'references']) data[key] = input?.[key] ? accountText(input[key], addressFieldLabels[key], 250) : null
       if (input?.id && !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(input.id)) throw new AccountError(400, 'Dirección inválida.')

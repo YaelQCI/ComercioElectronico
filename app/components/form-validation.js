@@ -1,4 +1,5 @@
 // Mensajes de interfaz: las reglas de negocio siguen comprobándose en el servidor.
+import { numericValueError } from './numeric-input.js'
 export function controlLabel(control) {
   const groupLabel = control.type === 'radio' ? control.closest?.('fieldset')?.querySelector('legend')?.textContent : ''
   return (groupLabel || control.labels?.[0]?.textContent || control.getAttribute?.('aria-label') || control.name || 'Campo')
@@ -19,12 +20,15 @@ export function controlError(control) {
   }
   if (!value) return ''
   if (v.typeMismatch) return fail(control.type === 'email' ? 'escribe un correo válido, por ejemplo nombre@dominio.com.' : 'escribe una URL completa, por ejemplo https://ejemplo.com.')
+  if (control.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) return fail('escribe un correo con usuario, @ y dominio completo, por ejemplo nombre@dominio.com.')
   if (v.tooShort || (control.minLength > 0 && value.length < control.minLength)) return fail(`escribe al menos ${control.minLength} caracteres.`)
   if (v.tooLong || (control.maxLength > 0 && value.length > control.maxLength)) return fail(`usa como máximo ${control.maxLength} caracteres.`)
   if ((control.type === 'password' || control.getAttribute?.('data-password-field') === 'true') && control.maxLength === 256 && new TextEncoder().encode(value).length > 256) return fail('la contraseña no puede superar 256 bytes; los acentos y emojis pueden ocupar varios bytes. Usa una contraseña más corta.')
   if (v.rangeUnderflow) return fail(`el valor mínimo permitido es ${control.min}.`)
   if (v.rangeOverflow) return fail(`el valor máximo permitido es ${control.max}.`)
   if (v.stepMismatch) return fail(control.step === '1' ? 'escribe un número entero, sin decimales.' : `usa incrementos de ${control.step || '1'} a partir de ${control.min || '0'}.`)
+  const numericError = numericValueError(control, value)
+  if (numericError) return fail(numericError)
   if (v.patternMismatch) {
     const pattern = control.pattern, explicit = control.getAttribute?.('data-format-error')
     if (explicit) return fail(explicit)

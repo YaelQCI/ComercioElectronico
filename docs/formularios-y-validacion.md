@@ -69,6 +69,30 @@ Cada fila recibe los mensajes compartidos que correspondan a sus controles. Los 
 | Filtrar precios del catálogo | Mínimo no negativo e incremento de 0.01; mensajes por campo; conserva la comprobación del rango mínimo/máximo. |
 | Buscar en auditoría (módulo en desarrollo) | Mensajes compartidos aplicables a los controles y límites de su búsqueda. |
 
+## Formatos numéricos y teléfonos
+
+Los campos numéricos rechazan letras al escribir y al pegar. Se rechaza la inserción completa: pegar `12abc` no lo convierte en `12` ni altera el valor anterior. Se valida también al enviar para detectar entradas programáticas y la notación científica (`1e3`) antes de que una conversión con `Number()` pueda aceptarla como `1000`.
+
+- Cantidades de producto/carrito, inventario, límites de cupón, prioridad de inicio y medidas de cajas/presentaciones: enteros y rangos declarados; sin exponentes, hexadecimal ni separadores de miles.
+- Ajustes de inventario: permiten signo menos para retiradas, pero no decimales; siguen rechazando cero.
+- Importes/precios/porcentajes: formato decimal con hasta dos posiciones según el campo. Los importes en texto compatibles admiten coma decimal; se conserva la conversión exacta a centavos.
+- Contenido, porciones y tabla nutrimental: precisión declarada de hasta cuatro decimales. Se agregaron los formatos faltantes en contenido y en el alta de presentaciones.
+- Códigos postales e importes en centavos de Price Match: dígitos; se conservan los ceros iniciales del CP.
+- Teléfonos: sin letras, con hasta 25 caracteres; permiten dígitos, espacios, guiones, puntos, paréntesis y un `+` al inicio. No se verifica que la línea exista ni se impone una longitud telefónica nacional nueva. El teléfono opcional del perfil puede seguir vacío. El servidor comprueba este formato en perfil, direcciones, almacén, cotización y checkout.
+- Nombres, calles y números exteriores/interiores mantienen caracteres legítimos, incluidos acentos y `S/N`; no se aplica un filtro numérico indiscriminado.
+
+`type`, `inputmode`, `pattern`, límites y mensajes complementan las comprobaciones del servidor: no se confía en los eventos del teclado como protección de la base. No se incorporó Zod ni se agregaron dependencias.
+
+## Validaciones adicionales solicitadas: inventario, cupones y correo
+
+Solo se añadieron estas tres reglas de la lista de recomendaciones:
+
+- **Inventario:** el formulario muestra el máximo retirable (`existencias - reservas`), establece los límites del ajuste y explica el saldo que bloquea una salida. El servidor comparte esa regla y la ejecuta después de bloquear y releer el lote; un saldo visible anterior no autoriza una salida si las reservas cambiaron. Se conserva la idempotencia del ajuste. «Actualizar existencias» permite recuperar el saldo sin borrar los datos capturados. No se modifica el saldo de piezas no vendibles, que lleva su propio registro.
+- **Cupones:** si ambos límites están definidos, `usos por cliente <= límite global`. Se comprueba al editar en la interfaz y al recibir la petición en el servidor. Se permite igualdad y se mantienen los campos vacíos como «sin límite». La comprobación existente de no reducir el límite global por debajo de usos reservados/consumidos se conserva.
+- **Correo:** todos los campos de correo (cuenta, alta administrativa, checkout y reposición) comprueban usuario, una sola `@` y dominio completo. Se rechazan espacios interiores, puntos consecutivos, usuario que empieza/termina en punto y etiquetas de dominio incorrectas. Cuentas y avisos usan el mismo validador del servidor y `UiField` lo utiliza para mensajes inmediatos. Se conservan puntos y etiquetas `+` válidas, normalizando espacios exteriores y mayúsculas según la política existente. No se consulta DNS, no se comprueba la existencia del buzón y no se agregó verificación por enlace.
+
+No se añadieron las demás recomendaciones (coherencia geográfica, verificación del correo, reglas nuevas de fechas, etc.).
+
 ## Registros que ya existen
 
 Se mantienen las restricciones de unicidad de la base; no se impide repetir datos que el negocio permite, como dos productos con el mismo nombre o varias direcciones de una cuenta. Los errores de PostgreSQL se traducen sin mostrar SQL ni valores de otros registros. Se admiten tanto los metadatos por columnas como los índices que entrega el adaptador pg.
@@ -89,11 +113,11 @@ Se mantienen las restricciones de unicidad de la base; no se impide repetir dato
 
 ## Verificación
 
-- 99 pruebas de cuentas, catálogo, precios y pagos, incluidas seis nuevas de mensajes, validaciones y duplicados, aprobadas.
+- 110 pruebas de cuentas, catálogo, precios y pagos, incluidas pruebas de mensajes, duplicados, formatos, límites de inventario/cupones y correo, aprobadas.
 - Compilación Nuxt aprobada.
-- Edge sin interfaz: registro, contraseña visible/bytes, resumen, foco, corrección de campos, direcciones/CP y administrador; escritorio y móvil, APIs simuladas.
+- Edge sin interfaz: registro, contraseña visible/bytes, resumen, foco, corrección de campos, direcciones/CP y administrador; escritorio y móvil, APIs simuladas. Se comprobaron correos mal formados, bloqueo de un retiro excesivo, conflicto de reservas simulado, actualización del saldo y reintento; también límites contradictorios de cupones bloqueados antes de enviar.
 - Regresiones de cupones y pasos de compra en navegador con APIs simuladas, aprobadas.
-- Capturas de escritorio y móvil revisadas para el modal de dirección. Esto no representa revisión visual de todos los formularios ni pruebas de todas las operaciones contra PostgreSQL real.
+- Capturas de escritorio y móvil revisadas para el modal de dirección. Esto no representa revisión visual de todos los formularios ni pruebas de todas las operaciones contra PostgreSQL real. La nueva prueba de relectura del lote bajo bloqueo utiliza una transacción simulada; no constituye una prueba concurrente nueva sobre PostgreSQL.
 - Sin registros, pagos, cotizaciones externas ni cambios en staging/producción durante las comprobaciones. El commit de validaciones excluye el módulo de auditoría en desarrollo y no implica push ni despliegue.
 
 Comandos reproducibles:

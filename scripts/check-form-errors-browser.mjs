@@ -50,6 +50,9 @@ try {
 
   const user = { id: '10000000-0000-4000-8000-000000000001', role: 'ADMIN', email: 'fixture@example.invalid', displayName: 'Fixture' }
   let authenticated = false, rejectRegistration = true, registration, userReads = 0
+  const warehouse = { id: '40000000-0000-4000-8000-000000000001', name: 'Almacén sintético', configurationVersion: 1, timezone: 'America/Mexico_City' }
+  const lot = { id: '50000000-0000-4000-8000-000000000001', sku: 'SKU-SINTETICO', productName: 'Producto sintético', productId: '60000000-0000-4000-8000-000000000001', warehouse: warehouse.name, lotCode: 'LOTE-SINTETICO', version: 1, onHandQty: 10, reservedQty: 4, nonSellableQty: 0, isBlocked: false }
+  let adjustmentWrites = 0
   const exceptions = []
   const original = socket.onmessage
   socket.onmessage = event => {
@@ -71,6 +74,13 @@ try {
     else if (path === '/api/admin/catalog') payload = { products: [], total: 0, pages: 0, page: 1 }
     else if (path === '/api/admin/categories') payload = { categories: [] }
     else if (path === '/api/admin/catalog/options') payload = { brands: [], products: [], hasMore: false }
+    else if (path === '/api/admin/packages') payload = { packages: [], total: 0, page: 1, totalPages: 1 }
+    else if (path === '/api/admin/inventory' && request.method === 'POST') {
+      adjustmentWrites++
+      if (adjustmentWrites === 1) { lot.reservedQty = 9; responseCode = 409; payload = { statusMessage: 'Solo puedes retirar 1 pieza de este lote: hay 10 en existencias y 9 reservadas.' } }
+      else { const body = JSON.parse(request.postData); assert.equal(body.delta, -1); lot.onHandQty += body.delta; payload = {} }
+    }
+    else if (path === '/api/admin/inventory') payload = { lots: [{ ...lot }], warehouses: [warehouse], total: 1, page: 1, pages: 1 }
     void command('Fetch.fulfillRequest', { requestId, responseCode, responseHeaders: [{name:'Content-Type',value:'application/json'}], body:Buffer.from(JSON.stringify(payload)).toString('base64') })
   }
   await command('Page.enable'); await command('Runtime.enable')
@@ -89,7 +99,13 @@ try {
   await fill('account-name','   '); await fill('account-email','sin-arroba'); await fill('account-password','corta');await fill('account-password-confirmation','corta')
   await evaluate('document.querySelector("#account-email").closest("form").requestSubmit()');await sleep(150)
   let text=await evaluate('document.querySelector("#account-email").closest("form").textContent')
-  assert.match(text,/correo válido/);assert.match(text,/al menos 12 caracteres/);assert.match(text,/Nombre: no uses solo espacios/)
+  assert.match(text,/correo válido|formato válido/);assert.match(text,/al menos 12 caracteres/);assert.match(text,/Nombre: no uses solo espacios/)
+  for (const invalidEmail of ['usuario@dominio', 'a..b@dominio.com', 'a@dominio..com']) {
+    await fill('account-email', invalidEmail)
+    await evaluate('document.querySelector("#account-email").closest("form").requestSubmit()')
+    await sleep(100)
+    assert.match(await evaluate('document.querySelector("#account-email").closest("form").textContent'), /formato válido/)
+  }
   await fill('account-password','á'.repeat(129));await fill('account-password-confirmation','á'.repeat(129))
   await evaluate('document.querySelector("button[aria-controls=account-password]").click()')
   await evaluate('document.querySelector("#account-email").closest("form").requestSubmit()');await sleep(150)
@@ -102,6 +118,15 @@ try {
   await until(()=>evaluate('!!document.querySelector("#profile-name")'))
   await click('Agregar dirección')
   await until(()=>evaluate('!!document.querySelector("dialog[open] #address-recipientName")'))
+  await fill('address-phone', '+52 (444) 123-4567')
+  assert.equal(await evaluate(`(() => { const control = document.querySelector('#address-phone'); const data = new DataTransfer(); data.setData('text/plain', 'abc123'); return control.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })); })()`), false)
+  assert.equal(await evaluate('document.querySelector("#address-phone").value'), '+52 (444) 123-4567')
+  await fill('address-phone', '')
+  await fill('address-postalCode', '01000')
+  assert.equal(await evaluate(`(() => { const control = document.querySelector('#address-postalCode'); const data = new DataTransfer(); data.setData('text/plain', '12abc'); return control.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })); })()`), false)
+  assert.equal(await evaluate('document.querySelector("#address-postalCode").value'), '01000')
+  assert.equal(await evaluate(`document.querySelector('#address-postalCode').dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: 'e', bubbles: true, cancelable: true }))`), false)
+  await fill('address-postalCode', '')
   await evaluate('document.querySelector("#address-recipientName").closest("form").requestSubmit()');await sleep(150)
   assert.match(await evaluate('document.querySelector("dialog[open]").textContent'),/Código postal: completa/)
   await fill('address-postalCode','123')
@@ -119,6 +144,24 @@ try {
   await until(()=>evaluate('!!document.querySelector("#admin-email")'))
   await evaluate('document.querySelector("#admin-email").closest("form").requestSubmit()');await sleep(150)
   assert.match(await evaluate('document.querySelector("dialog[open]").textContent'),/Motivo.*completa este campo/)
+  await evaluate('document.querySelector("dialog[open]").dispatchEvent(new Event("cancel",{cancelable:true}))')
+  await click('Inventario'); await until(()=>evaluate('document.body.textContent.includes("LOTE-SINTETICO")'))
+  await click('Ajustar lote LOTE-SINTETICO'); await until(()=>evaluate('!!document.querySelector("#stock-delta")'))
+  assert.match(await evaluate('document.querySelector("dialog[open]").textContent'), /retirar hasta 6 piezas/)
+  await fill('stock-delta', '-7'); await fill('stock-reason', 'Ajuste sintético')
+  await evaluate('document.querySelector("#stock-delta").closest("form").requestSubmit()'); await sleep(100)
+  assert.equal(adjustmentWrites, 0)
+  assert.match(await evaluate('document.querySelector("dialog[open]").textContent'), /retirar 6 piezas/)
+  await fill('stock-delta', '-6')
+  await evaluate('document.querySelector("#stock-delta").closest("form").requestSubmit()')
+  await until(()=>adjustmentWrites === 1)
+  await until(()=>evaluate('document.querySelector("dialog[open]").textContent.includes("retirar 1 pieza")'))
+  await click('Actualizar existencias')
+  await until(()=>evaluate('document.querySelector("#stock-delta").min === "-1"'))
+  await fill('stock-delta', '-1')
+  await evaluate('document.querySelector("#stock-delta").closest("form").requestSubmit()')
+  await until(()=>evaluate('!document.querySelector("dialog[open]")'))
+  assert.equal(adjustmentWrites, 2)
   assert.deepEqual(exceptions,[])
   console.log('Formularios en navegador: resumen completo, foco, campos vacíos, correo, longitud y bytes de contraseña visible, corrección de errores, dirección/CP, modal de administrador y ancho móvil correctos. APIs simuladas; sin registros reales.')
 } finally {

@@ -17,7 +17,13 @@ const inputErrors = ref({})
 const changes = ref([])
 onMounted(() => { changes.value = observeCart(data.value) })
 watch(data, value => { drafts.value = Object.fromEntries((value?.lines ?? []).map(l => [l.id, limitedQuantity(l, l.quantity)])); inputErrors.value = {} }, { immediate: true })
-function limit(line, value) {
+function limit(line, event) {
+  const value = event.target.value
+  if (event.target.validity.badInput || value && !/^[0-9]+$/.test(value)) {
+    drafts.value[line.id] = value
+    inputErrors.value[line.id] = 'Cantidad: usa solo dígitos del 0 al 9, sin letras, signos ni decimales.'
+    return
+  }
   const quantity = limitedQuantity(line, value)
   drafts.value[line.id] = quantity; inputErrors.value[line.id] = ''
   // Sincroniza también el control si la cantidad limitada coincide con el valor anterior.
@@ -45,7 +51,7 @@ function update(line) {
         <p v-if="stockMessage(line)" role="alert" class="mt-2 text-crit">{{ stockMessage(line) }}</p>
         <UiForm class="mt-4" @submit.prevent="update(line)">
           <label :for="`quantity-${line.id}`" class="mb-2 block text-body-s font-semibold">Cantidad</label>
-          <div class="flex flex-wrap items-center gap-2"><UiButton variant="secondary" :disabled="busy || !canSetQuantity(line) || line.quantity <= 1" :aria-label="`Restar una pieza de ${line.name}`" @click="edit(line.id, Math.min(line.maxQuantity, line.quantity - 1))">−</UiButton><input :id="`quantity-${line.id}`" :value="drafts[line.id]" type="number" min="1" step="1" :max="line.maxQuantity" :disabled="busy || !canSetQuantity(line)" :aria-invalid="!!inputErrors[line.id]" :aria-describedby="inputErrors[line.id] ? `quantity-error-${line.id}` : canSetQuantity(line) ? `quantity-hint-${line.id}` : undefined" class="min-h-11 w-24 rounded-sm border border-border bg-surface px-3 py-2 text-ink disabled:bg-off-soft disabled:text-off" @input="limit(line, $event.target.value)"><UiButton variant="secondary" :disabled="busy || !canSetQuantity(line) || line.quantity >= line.maxQuantity" :aria-label="`Agregar una pieza de ${line.name}`" @click="edit(line.id, line.quantity + 1)">+</UiButton><UiButton type="submit" variant="secondary" :disabled="busy || !canSetQuantity(line)">Actualizar</UiButton><UiButton variant="secondary" :disabled="busy" :aria-label="`Quitar ${line.name} del carrito`" @click="edit(line.id, 0, true)">Quitar</UiButton></div>
+          <div class="flex flex-wrap items-center gap-2"><UiButton variant="secondary" :disabled="busy || !canSetQuantity(line) || line.quantity <= 1" :aria-label="`Restar una pieza de ${line.name}`" @click="edit(line.id, Math.min(line.maxQuantity, line.quantity - 1))">−</UiButton><input :id="`quantity-${line.id}`" required :value="drafts[line.id]" type="number" min="1" step="1" :max="line.maxQuantity" :disabled="busy || !canSetQuantity(line)" :aria-invalid="!!inputErrors[line.id]" :aria-describedby="inputErrors[line.id] ? `quantity-error-${line.id}` : canSetQuantity(line) ? `quantity-hint-${line.id}` : undefined" class="min-h-11 w-24 rounded-sm border border-border bg-surface px-3 py-2 text-ink disabled:bg-off-soft disabled:text-off" @input="limit(line, $event)"><UiButton variant="secondary" :disabled="busy || !canSetQuantity(line) || line.quantity >= line.maxQuantity" :aria-label="`Agregar una pieza de ${line.name}`" @click="edit(line.id, line.quantity + 1)">+</UiButton><UiButton type="submit" variant="secondary" :disabled="busy || !canSetQuantity(line)">Actualizar</UiButton><UiButton variant="secondary" :disabled="busy" :aria-label="`Quitar ${line.name} del carrito`" @click="edit(line.id, 0, true)">Quitar</UiButton></div>
           <p v-if="inputErrors[line.id]" :id="`quantity-error-${line.id}`" role="alert" class="mt-2 text-body-s text-crit">{{ inputErrors[line.id] }}</p>
           <p v-else-if="canSetQuantity(line)" :id="`quantity-hint-${line.id}`" class="mt-2 text-body-s text-ink-2">Máximo: {{ line.maxQuantity }} piezas.</p>
         </UiForm>

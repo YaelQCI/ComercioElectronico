@@ -1,7 +1,8 @@
 <script setup>
-import { formErrors } from './form-validation.js'
+import { formErrors, controlLabel } from './form-validation.js'
+import { guardNumericEntry } from './numeric-input.js'
 const emit = defineEmits(['submit'])
-const form = ref(null), errors = shallowRef([])
+const form = ref(null), errors = shallowRef([]), entryFailure = ref('')
 const summaryId = useId()
 let validating = false
 const described = new Map()
@@ -32,16 +33,18 @@ function reportValidity() {
   if (errors.value.length) focusError()
   return !errors.value.length
 }
-function submit(event) { if (reportValidity()) emit('submit', event) }
+function submit(event) { entryFailure.value = ''; if (reportValidity()) emit('submit', event) }
 function invalid() { if (!validating) { updateErrors(); focusError() } }
-function changed() { if (errors.value.length) updateErrors() }
-function reset() { clearDescriptions(); errors.value = [] }
+function changed() { entryFailure.value = ''; if (errors.value.length) updateErrors() }
+function numericEntry(event) { const message = guardNumericEntry(event); if (message) entryFailure.value = `${controlLabel(event.target)}: ${message}` }
+function reset() { clearDescriptions(); errors.value = []; entryFailure.value = '' }
 onMounted(() => { form.value.reportValidity = reportValidity })
 onBeforeUnmount(clearDescriptions)
 defineExpose({ reportValidity })
 </script>
 <template>
-  <form ref="form" data-form-validation novalidate @submit.prevent="submit" @invalid.capture.prevent="invalid" @input="changed" @change="changed" @reset="reset">
+  <form ref="form" data-form-validation novalidate @submit.prevent="submit" @invalid.capture.prevent="invalid" @input="changed" @change="changed" @beforeinput="numericEntry" @paste="numericEntry" @reset="reset">
+    <p v-if="entryFailure" role="alert" class="mb-4 text-crit" style="grid-column: 1 / -1; flex-basis: 100%">{{ entryFailure }}</p>
     <div v-if="errors.length" data-form-error-summary role="alert" class="mb-4 w-full rounded-sm border border-crit bg-surface p-4 text-crit" style="grid-column: 1 / -1; flex-basis: 100%">
       <p class="font-semibold">No se pudo continuar. Corrige {{ errors.length === 1 ? 'el siguiente campo' : 'los siguientes campos' }}:</p>
       <ul class="mt-2 max-h-56 space-y-1 overflow-y-auto">

@@ -1,4 +1,5 @@
 import { postalCode } from '../../../shared/features/shipping/shipping-policy.js'
+import { phoneFormatError } from '../../../shared/features/accounts/phone.js'
 
 export class ShippingProviderError extends Error {}
 const clean = (value, max = 250) => typeof value === 'string' && value.trim() && value.length <= max && !/[\x00-\x1f]/.test(value) ? value.trim() : null
@@ -11,6 +12,7 @@ export function rateAddress(input) {
   }
   if (!/^[A-Za-z]{2}$/.test(result.state)) throw new ShippingProviderError('Estado: selecciona un estado de la lista para obtener su código de dos letras.')
   result.state = result.state.toUpperCase()
+  if (phoneFormatError(result.phone)) throw new ShippingProviderError(`Teléfono: ${phoneFormatError(result.phone)}`)
   return result
 }
 export function decimalRateCents(value) {

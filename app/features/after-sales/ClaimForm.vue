@@ -37,7 +37,7 @@ async function run(action){
         </template>
         <template v-else>
           <p>Dentro de siete días desde compra, para la misma variante. Incluye precio competidor y envío a México por cada unidad. Importes en centavos: 10000 equivale a $100.00 MXN.</p>
-          <fieldset v-for="id in selected" :key="id"><legend>Unidad {{ id }}</legend><label class="block">Precio competidor (centavos)<input v-model="comparison[id].price" required inputmode="numeric" pattern="[0-9]+" class="block rounded border p-2" /></label><label class="block">Envío asignado a esta unidad (centavos)<input v-model="comparison[id].shipping" required inputmode="numeric" pattern="[0-9]+" class="block rounded border p-2" /></label></fieldset>
+          <fieldset v-for="id in selected" :key="id"><legend>Unidad {{ id }}</legend><label class="block">Precio competidor (centavos)<input v-model="comparison[id].price" required maxlength="15" inputmode="numeric" pattern="[0-9]+" class="block rounded border p-2" /></label><label class="block">Envío asignado a esta unidad (centavos)<input v-model="comparison[id].shipping" required maxlength="15" inputmode="numeric" pattern="[0-9]+" class="block rounded border p-2" /></label></fieldset>
         </template>
         <label class="block">Descripción<textarea v-model="description" required maxlength="4000" class="block w-full rounded border p-2" /></label>
         <label class="block">Enlace HTTPS de evidencia<input v-model="url" required type="url" pattern="https://.+" class="block w-full rounded border p-2" /></label>

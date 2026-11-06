@@ -1,5 +1,6 @@
 import { AccountError, accountText } from '../accounts/credentials.js'
 import { couponCode } from '../../../shared/features/coupons/coupon-eligibility.js'
+import { couponUsageLimitsError } from '../../../shared/features/coupons/usage-limits.js'
 
 export function couponInput(input) {
   const fail = message => { throw new AccountError(400, message) }
@@ -34,8 +35,11 @@ export function couponInput(input) {
   const productIds = ids(input.productIds ?? []), categoryIds = ids(input.categoryIds ?? [])
   if (input.scope === 'PRODUCTS' && !productIds.length || input.scope === 'CATEGORIES' && !categoryIds.length) fail(input.scope === 'PRODUCTS' ? 'Selecciona al menos un producto al que aplique el cupón.' : 'Selecciona al menos una categoría a la que aplique el cupón.')
   if (input.kind === 'PERCENTAGE' && (!Number.isInteger(input.percentageBasisPoints) || input.percentageBasisPoints < 1 || input.percentageBasisPoints > 10000)) fail('El porcentaje debe estar entre 0.01 y 100 %.')
+  const maxUses = limit(input.maxUses, 'Límite global de usos'), maxUsesPerCustomer = limit(input.maxUsesPerCustomer, 'Usos por cliente')
+  const limitsError = couponUsageLimitsError(maxUses, maxUsesPerCustomer)
+  if (limitsError) fail(limitsError)
   return {
-    data: { code: input.code.trim(), codeNormalized, kind: input.kind, fixedAmountCents: input.kind === 'FIXED' ? amount(input.fixedAmountCents, 'Descuento', true) : null, percentageBasisPoints: input.kind === 'PERCENTAGE' ? input.percentageBasisPoints : null, minimumEligibleCents: amount(input.minimumEligibleCents, 'Compra mínima'), startsAt, endsAt, maxUses: limit(input.maxUses, 'Límite global de usos'), maxUsesPerCustomer: limit(input.maxUsesPerCustomer, 'Usos por cliente'), scope: input.scope, isActive: input.isActive, allowOffers: input.allowOffers, allowBundles: input.allowBundles, freeShipping: input.freeShipping ?? false },
+    data: { code: input.code.trim(), codeNormalized, kind: input.kind, fixedAmountCents: input.kind === 'FIXED' ? amount(input.fixedAmountCents, 'Descuento', true) : null, percentageBasisPoints: input.kind === 'PERCENTAGE' ? input.percentageBasisPoints : null, minimumEligibleCents: amount(input.minimumEligibleCents, 'Compra mínima'), startsAt, endsAt, maxUses, maxUsesPerCustomer, scope: input.scope, isActive: input.isActive, allowOffers: input.allowOffers, allowBundles: input.allowBundles, freeShipping: input.freeShipping ?? false },
     productIds: input.scope === 'PRODUCTS' ? productIds : [], categoryIds: input.scope === 'CATEGORIES' ? categoryIds : [], reason: accountText(input.reason, 'Motivo', 500),
   }
 }

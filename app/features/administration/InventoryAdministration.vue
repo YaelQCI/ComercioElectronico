@@ -6,15 +6,30 @@ import LotVariantPicker from './LotVariantPicker.vue'
 import PackageAdministration from '../shipping/PackageAdministration.vue'
 import LotTraceabilityFields from '../inventory/LotTraceabilityFields.vue'
 import LotTraceabilityEditor from '../inventory/LotTraceabilityEditor.vue'
+import { adjustmentLimits, validateInventoryAdjustment } from '~~/shared/features/inventory/adjustment-limits.js'
 const page = ref(1)
 const { data, status, error, refresh } = await useFetch('/api/admin/inventory', { query: { page } })
 const { busy, failure, message, save } = useAdministration(refresh)
 const lotOpen = ref(false), warehouseOpen = ref(false)
 const lot = reactive({ sku: '', warehouseId: '', lotCode: '', expiresOn: '', initialQuantity: '', reason: '', importedOn: '', origin: '', customsEntry: '' })
 const selected = ref(null), adjustment = reactive({ delta: '', reason: '' }), adjustmentKey = ref('')
+const limits = computed(() => selected.value ? adjustmentLimits(selected.value) : null)
+const adjustmentProblem = computed(() => {
+  if (!selected.value || adjustment.delta === '') return ''
+  if (!/^-?[0-9]+$/.test(String(adjustment.delta))) return 'Cantidad del ajuste: escribe un número entero, sin decimales ni notación científica.'
+  try { validateInventoryAdjustment(selected.value, Number(adjustment.delta)); return '' } catch (error) { return error.message }
+})
+async function reloadAdjustment() {
+  const id = selected.value?.id
+  await refresh()
+  const fresh = data.value?.lots.find(item => item.id === id)
+  if (fresh) { selected.value = fresh; failure.value = '' }
+  else failure.value = 'El lote ya no está en esta página. Cierra el ajuste y vuelve a localizarlo antes de guardar.'
+}
 watch(adjustment, () => { adjustmentKey.value = '' })
 function select(item) { selected.value = item; adjustment.delta = ''; adjustment.reason = ''; adjustmentKey.value = '' }
 async function adjust() {
+  if (adjustmentProblem.value) { failure.value = adjustmentProblem.value; return }
   if (Number(adjustment.delta) === 0) { failure.value = 'Cantidad del ajuste: escribe un número distinto de cero; positivo para agregar piezas y negativo para retirarlas.'; return }
   adjustmentKey.value ||= crypto.randomUUID()
   if (await save('/api/admin/inventory', { lotId: selected.value.id, delta: Number(adjustment.delta), reason: adjustment.reason, idempotencyKey: adjustmentKey.value })) selected.value = null
@@ -78,7 +93,7 @@ async function warehouseSaved() {
       <ul class="grid gap-4"><li v-for="item in data?.lots" :key="item.id" class="relative isolate rounded-sm border border-border bg-surface p-4 hover:border-ink"><h3 class="font-semibold"><NuxtLink :to="{ path: `/producto/${item.productId}`, query: { variante: item.variantId } }" class="after:absolute after:inset-0 after:rounded-sm focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-ink">{{ item.productName }} · {{ item.sku }} · {{ item.lotCode }}</NuxtLink></h3><p>{{ item.warehouse }} · Caducidad: {{ item.expiresOn || 'Sin registrar' }}{{ item.isBlocked ? ' · Bloqueado' : '' }}</p><dl class="my-3 flex flex-wrap gap-6"><div><dt class="text-body-s text-ink-2">Existencias</dt><dd>{{ item.onHandQty }}</dd></div><div><dt class="text-body-s text-ink-2">Reservadas</dt><dd>{{ item.reservedQty }}</dd></div><div><dt class="text-body-s text-ink-2">No vendibles</dt><dd>{{ item.nonSellableQty }}</dd></div></dl><UiButton variant="secondary" class="relative z-10" :disabled="busy" @click="select(item)">Ajustar lote {{ item.lotCode }}</UiButton><LotTraceabilityEditor :lot="item" @updated="refresh" /></li></ul>
       <nav aria-label="Páginas de inventario" class="my-4 flex items-center gap-4"><UiButton variant="secondary" :disabled="page <= 1 || busy" @click="page--">Anterior</UiButton><span>Página {{ page }} de {{ data?.pages || 1 }}</span><UiButton variant="secondary" :disabled="page >= (data?.pages || 1) || busy" @click="page++">Siguiente</UiButton></nav>
       <UiModal :open="!!selected" title="Ajustar inventario" :busy="busy" @close="selected = null"><p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
-      <UiForm class="mt-6 grid gap-4 rounded-sm border border-border p-4" @submit.prevent="adjust"><h3 class="font-semibold">Ajuste: {{ selected.sku }} · {{ selected.lotCode }}</h3><UiField id="stock-delta" v-model="adjustment.delta" label="Cantidad de piezas a agregar o retirar" type="number" step="1" min="-2147483647" max="2147483647" hint="Positivo para entradas y negativo para salidas. No se pueden retirar piezas reservadas." required /><UiField id="stock-reason" v-model="adjustment.reason" label="Motivo del ajuste" required maxlength="500" /><div class="flex gap-3"><UiButton type="submit" :disabled="busy">Guardar ajuste</UiButton><UiButton variant="secondary" :disabled="busy" @click="selected = null">Cancelar</UiButton></div></UiForm></UiModal>
+      <UiForm class="mt-6 grid gap-4 rounded-sm border border-border p-4" @submit.prevent="adjust"><h3 class="font-semibold">Ajuste: {{ selected.sku }} · {{ selected.lotCode }}</h3><UiField id="stock-delta" v-model="adjustment.delta" label="Cantidad de piezas a agregar o retirar" type="number" step="1" :min="limits.minimumDelta" :max="limits.maximumDelta" :error="adjustmentProblem" :hint="`Puedes retirar hasta ${limits.removableQty} piezas: ${selected.onHandQty} en existencias menos ${selected.reservedQty} reservadas. Positivo para agregar y negativo para retirar.`" required /><UiField id="stock-reason" v-model="adjustment.reason" label="Motivo del ajuste" required maxlength="500" /><div class="flex gap-3"><UiButton v-if="failure" variant="secondary" :disabled="busy" @click="reloadAdjustment">Actualizar existencias</UiButton><UiButton type="submit" :disabled="busy">Guardar ajuste</UiButton><UiButton variant="secondary" :disabled="busy" @click="selected = null">Cancelar</UiButton></div></UiForm></UiModal>
     </template>
   </div>
 </template>

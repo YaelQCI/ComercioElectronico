@@ -1,5 +1,6 @@
 import { InventoryError } from '../../../shared/features/inventory/fefo.js'
 import { inventoryTransaction } from './inventory-transaction.js'
+import { validateInventoryAdjustment } from '../../../shared/features/inventory/adjustment-limits.js'
 export async function adjustInventory(context, { lotId, delta, reason, actorId, idempotencyKey }) {
   const tx = inventoryTransaction(context)
   if (!Number.isInteger(delta) || !delta || Math.abs(delta) > 2147483647 || typeof reason !== 'string' || !reason.trim() || reason.length > 1000 || typeof idempotencyKey !== 'string' || !idempotencyKey) throw new InventoryError('INVALID_ADJUSTMENT', 'Ajuste inválido.')
@@ -12,6 +13,6 @@ export async function adjustInventory(context, { lotId, delta, reason, actorId, 
     return previous
   }
   const lot = await tx.inventoryLot.findUnique({ where: { id: lotId } })
-  if (!lot || lot.onHandQty + delta < lot.reservedQty || lot.onHandQty + delta > 2147483647) throw new InventoryError('INSUFFICIENT_UNRESERVED_STOCK', 'El ajuste no puede retirar piezas reservadas ni producir saldo inválido.')
+  validateInventoryAdjustment(lot, delta)
   return tx.inventoryMovement.create({ data: { lotId, kind: 'ADJUSTMENT', onHandDelta: delta, reason: reason.trim(), actorId, actorType: 'ADMIN', idempotencyKey } })
 }

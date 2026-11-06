@@ -2,10 +2,12 @@
 import { useAdministration } from '../administration/useAdministration.js'
 import { pesosToCents, centsToPesos } from '../administration/price-input.js'
 import { formatMXN } from '~~/shared/features/pricing/prices.js'
+import { couponUsageLimitsError } from '~~/shared/features/coupons/usage-limits.js'
 const page = ref(1)
 const { data, status, error, refresh } = await useFetch('/api/admin/coupons', { query: { page } })
 const { busy, failure, message, save } = useAdministration(refresh)
 const open = ref(false), editing = ref(null), form = reactive({}), selected = ref([]), options = ref({ products: [], categories: [] }), search = ref(''), optionsError = ref(''), optionsBusy = ref(false), localError = ref('')
+const usageLimitsError = computed(() => couponUsageLimitsError(form.maxUses === '' ? null : Number(form.maxUses), form.maxUsesPerCustomer === '' ? null : Number(form.maxUsesPerCustomer)))
 function localDate(value) {
   if (!value) return ''
   const date = new Date(value)
@@ -30,6 +32,7 @@ function toggle(item, checked) {
 }
 async function submit() {
   localError.value = ''
+  if (usageLimitsError.value) { localError.value = usageLimitsError.value; return }
   try {
     if (form.scope !== 'CATALOG' && !selected.value.length) { localError.value = form.scope === 'PRODUCTS' ? 'Selecciona al menos un producto al que aplique el cupón.' : 'Selecciona al menos una categoría a la que aplique el cupón.'; return }
     if (form.startsAt && form.endsAt && form.startsAt >= form.endsAt) { localError.value = 'Fin del cupón: selecciona una fecha y hora posteriores al inicio.'; return }
@@ -85,12 +88,12 @@ const dateLabel = value => value ? new Date(value).toLocaleString('es-MX') : 'Si
         <fieldset :disabled="busy" class="grid min-w-0 gap-5 sm:grid-cols-2">
           <UiField id="coupon-code" v-model="form.code" label="Código del cupón" maxlength="60" pattern="[A-Za-z0-9_-]{1,60}" required :disabled="!!editing" hint="Sin espacios. No distingue mayúsculas. El código no se puede cambiar después." />
           <UiField id="coupon-kind" v-model="form.kind" label="Tipo de descuento" :options="[{ value: 'PERCENTAGE', label: 'Porcentaje' }, { value: 'FIXED', label: 'Importe fijo (MXN)' }]" />
-          <UiField id="coupon-amount" v-model="form.amount" :label="form.kind === 'PERCENTAGE' ? 'Porcentaje (0.01 a 100)' : 'Descuento en MXN'" inputmode="decimal" required />
-          <UiField id="coupon-minimum" v-model="form.minimum" label="Compra mínima elegible en MXN (opcional)" inputmode="decimal" hint="Solo se suman los productos a los que aplica el cupón." />
+          <UiField id="coupon-amount" v-model="form.amount" :label="form.kind === 'PERCENTAGE' ? 'Porcentaje (0.01 a 100)' : 'Descuento en MXN'" inputmode="decimal" pattern="[0-9]+([.,][0-9]{1,2})?" required />
+          <UiField id="coupon-minimum" v-model="form.minimum" label="Compra mínima elegible en MXN (opcional)" inputmode="decimal" pattern="[0-9]+([.,][0-9]{1,2})?" hint="Solo se suman los productos a los que aplica el cupón." />
           <UiField id="coupon-start" v-model="form.startsAt" label="Inicio (opcional)" type="datetime-local" hint="Horario local de tu dispositivo." />
           <UiField id="coupon-end" v-model="form.endsAt" label="Fin (opcional)" type="datetime-local" hint="Deja de aplicar al llegar a esta fecha y hora." />
           <UiField id="coupon-limit" v-model="form.maxUses" label="Límite global de usos (opcional)" type="number" min="1" max="2147483647" step="1" />
-          <UiField id="coupon-customer-limit" v-model="form.maxUsesPerCustomer" label="Usos por cliente (opcional)" type="number" min="1" max="2147483647" step="1" />
+          <UiField id="coupon-customer-limit" v-model="form.maxUsesPerCustomer" label="Usos por cliente (opcional)" :error="usageLimitsError" hint="Si estableces un límite global, los usos por cliente no pueden superarlo. Vacío significa sin límite por cliente." type="number" min="1" max="2147483647" step="1" />
           <UiField id="coupon-scope" v-model="form.scope" label="Aplicar a" :options="[{ value: 'CATALOG', label: 'Todo el catálogo' }, { value: 'PRODUCTS', label: 'Productos seleccionados' }, { value: 'CATEGORIES', label: 'Categorías seleccionadas' }]" @change="selected = []" />
           <div class="flex flex-col justify-center gap-3"><label><input v-model="form.isActive" type="checkbox"> Cupón activo</label><label><input v-model="form.allowOffers" type="checkbox"> Permitir productos en oferta</label><label><input v-model="form.allowBundles" type="checkbox"> Permitir paquetes</label><label><input id="coupon-free-shipping" v-model="form.freeShipping" type="checkbox" aria-describedby="coupon-free-shipping-hint"> Incluir envío gratis</label><p id="coupon-free-shipping-hint" class="text-body-s text-ink-2">Bonifica todo el envío del pedido cuando el cupón sea válido y haya productos elegibles. La tienda absorbe el costo; se sigue requiriendo cotizar y aceptar un servicio con cobertura.</p></div>
           <div v-if="form.scope !== 'CATALOG'" class="sm:col-span-2">

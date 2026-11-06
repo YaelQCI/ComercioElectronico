@@ -12,6 +12,7 @@ import { lotTraceability } from '../../../shared/features/inventory/lot-traceabi
 import { initializeDemoStock } from '../inventory/initialize-demo-stock.js'
 import { initializeDemoHistory } from '../orders/initialize-demo-history.js'
 import { featuredPosition } from '../catalog/featured-selection.js'
+import { phoneFormatError } from '../../../shared/features/accounts/phone.js'
 const storeFieldLabels = { recipientName: 'Destinatario', phone: 'Teléfono', postalCode: 'Código postal', state: 'Estado', city: 'Ciudad', district: 'Colonia', street: 'Calle', exteriorNumber: 'Número exterior', interiorNumber: 'Número interior', label: 'Etiqueta de dirección', references: 'Referencias de entrega', name: 'Nombre', contactName: 'Persona de contacto', description: 'Descripción' }
 const id = value => { if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value ?? '')) throw new AccountError(400, 'Identificador inválido.'); return value }
 const cents = value => { if (typeof value !== 'string' || !/^(0|[1-9]\d{0,14})$/.test(value)) throw new AccountError(400, 'Precio inválido; utiliza centavos como texto.'); return BigInt(value) }
@@ -19,6 +20,7 @@ function warehouseData(input) {
   const data = {}
   for (const key of ['name', 'recipientName', 'postalCode', 'state', 'city', 'district', 'street', 'exteriorNumber', 'contactName']) data[key] = accountText(input?.[key], storeFieldLabels[key], 120)
   data.phone = accountText(input?.phone, 'Teléfono', 25)
+  if (phoneFormatError(data.phone)) throw new AccountError(400, `Teléfono: ${phoneFormatError(data.phone)}`)
   for (const key of ['interiorNumber', 'references']) data[key] = input?.[key] == null || input[key] === '' ? null : accountText(input[key], storeFieldLabels[key], key === 'references' ? 500 : 120)
   if (!/^\d{5}$/.test(data.postalCode)) throw new AccountError(400, 'Código postal: escribe exactamente cinco dígitos, por ejemplo 01000.')
   if (!isMexicanStateCode(data.state)) throw new AccountError(400, 'Selecciona un estado de México válido.')

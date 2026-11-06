@@ -1,13 +1,13 @@
 import { randomBytes, scrypt, timingSafeEqual, createHmac, createHash } from 'node:crypto'
 import { promisify } from 'node:util'
+import { emailFormatError } from '../../../shared/features/notifications/email.js'
 
 const derive = promisify(scrypt)
 const parameters = { N: 131072, r: 8, p: 1, maxmem: 256 * 1024 * 1024 }
 export class AccountError extends Error { constructor(status, message) { super(message); this.status = status } }
 export function emailAddress(value) {
-  if (typeof value !== 'string' || !value.trim()) throw new AccountError(400, 'Escribe tu correo electrónico.')
-  if (value.length > 254) throw new AccountError(400, 'El correo electrónico no puede superar los 254 caracteres.')
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) throw new AccountError(400, 'El correo electrónico no tiene un formato válido. Usa un formato como nombre@dominio.com.')
+  const error = emailFormatError(value)
+  if (error) throw new AccountError(400, error)
   return value.trim().toLowerCase()
 }
 export function accountText(value, label, max = 120) {
