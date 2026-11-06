@@ -5,6 +5,7 @@ import { AccountError } from '../accounts/credentials.js'
 import { InventoryError } from '../../../shared/features/inventory/fefo.js'
 import { requireCartOrigin } from '../cart/cart-http.js'
 import { createAdministratorRegistration } from './register-administrator.js'
+import { createAuditLog } from './read-audit-log.js'
 import { uniqueConstraintMatches } from '../../utils/unique-constraint.js'
 import { catalogDuplicateMessage } from '../catalog/duplicate-records.js'
 function duplicateMessage(error, action) {
@@ -14,10 +15,11 @@ function duplicateMessage(error, action) {
 }
 export async function administrationRequest(event, action) {
   setHeader(event, 'Cache-Control', 'no-store')
-  const reading = ['users', 'products', 'inventory', 'categories', 'lotVariants'].includes(action)
+  const reading = ['users', 'products', 'inventory', 'categories', 'lotVariants', 'audit'].includes(action)
   if (!reading) requireCartOrigin(event)
   try {
     const identity = await accountIdentity(event), config = useRuntimeConfig(event)
+    if (action === 'audit') return await createAuditLog(getDatabase())(identity.user.id, getQuery(event))
     const service = createStoreAdministration(getDatabase(), { demoDataEnabled: config.demoDataEnabled !== false && config.demoDataEnabled !== 'false' })
     const input = reading ? null : await readBody(event), target = getRouterParam(event, 'id')
     if (action === 'products' || action === 'inventory') return await service.overview(identity.user.id, action, Number(getQuery(event).page ?? 1), getQuery(event).q)

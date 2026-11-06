@@ -94,3 +94,11 @@ Verificación de esta ampliación: compilación Docker; 61 pruebas unitarias y 7
 - La herramienta de navegador no dispone de navegadores conectados en esta sesión. La comprobación SSR/HTTP no sustituye la revisión visual ni la interacción en navegador; ambas quedan pendientes.
 
 El entorno de pruebas conserva el aviso de deprecación existente de pg sobre consultas concurrentes. No se hicieron commits ni push.
+
+## Registro de acciones
+
+En **Administración → Registro de acciones** se consultan los registros existentes con acción, motivo, responsable (nombre y correo), fecha en Ciudad de México e identificadores desplegables. La vista incluye `AuditEvent`, movimientos de inventario de actor `ADMIN` y transiciones de pedidos de actor `ADMIN`; estos dos últimos historiales conservan sus motivos fuera de `AuditEvent`. Dos registros de una misma operación (por ejemplo, alta de lote y entrada inicial de existencias) representan hechos distintos y se muestran por separado.
+
+`GET /api/admin/audit` revalida el administrador activo dentro de la transacción y responde con `Cache-Control: no-store`. Admite `page` (20 registros por página), `source` (`audit`, `inventory`, `orders` o vacío) y `q` (hasta 120 caracteres). La búsqueda literal sin distinción de mayúsculas incluye motivo, nombre/correo del responsable, código de acción, tipo e identificador de entidad. El orden es fecha descendente, fuente e ID descendente para resolver empates. No expone snapshots JSON ni permite modificar registros. Los motivos históricos ausentes se indican como tales; no se reconstruyen acciones que nunca fueron registradas.
+
+Verificación de esta sección: 11 pruebas PostgreSQL de administración y auditoría en base temporal aislada con colación ICU y almacén sintético aprobadas; tres son nuevas (permisos, validación, paginación/empates, búsqueda literal, datos devueltos y unión de historiales). Compilación Nuxt validada. Pendiente revisión visual y de interacción en navegador y despliegue. No requiere migración de esquema.
