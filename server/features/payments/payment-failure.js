@@ -1,3 +1,4 @@
+import { CouponError } from '../../../shared/features/coupons/coupon-eligibility.js'
 import { PaymentError } from './stripe-client.js'
 import { AccountError } from '../accounts/credentials.js'
 import { CartError } from '../cart/cart-repository.js'
@@ -8,6 +9,7 @@ import { RequestLimitError } from '../../utils/request-limit.js'
 export function paymentFailure(error) {
   if ([PaymentError, AccountError, CartError, ShippingError, RequestLimitError].some(type => error instanceof type)) return { statusCode: error.status, statusMessage: error.message }
   if (error instanceof ShippingProviderError) return { statusCode: 503, statusMessage: error.message }
+  if (error instanceof CouponError) return { statusCode: 409, statusMessage: error.message + ' Regresa al carrito, retira el cupón y confirma el total actualizado.' }
   if (error instanceof InventoryError) return { statusCode: 409, statusMessage: error.message }
   return null
 }

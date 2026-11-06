@@ -7,6 +7,7 @@ import { hasCurrentShippingQuote } from '~~/shared/features/shipping/quote-valid
 const { data: cart, error, refresh } = await useFetch('/api/cart', { key: 'store-cart' })
 const selectedQuote = useState('cart-selected-quote', () => null)
 const quote = computed(() => selectedQuote.value?.cartVersion === cart.value?.version ? selectedQuote.value : null)
+const couponReviewed = ref(false), couponReviewFailed = ref(false), couponNotice = ref('')
 const quoteClock = ref(Date.now())
 const quoteReady = computed(() => hasCurrentShippingQuote(quote.value, cart.value?.version, quoteClock.value))
 let quoteTimer
@@ -21,9 +22,19 @@ const fields = [
   { key: 'interiorNumber', label: 'Número interior (opcional)', optional: true },
 ]
 const total = computed(() => cart.value?.totals && quote.value ? (BigInt(cart.value.totals.goodsMoneyCents) + BigInt(quote.value.chargedAmountCents)).toString() : null)
-const ready = computed(() => !!cart.value?.lines.length && !cart.value.lines.some(line => !line.stockSufficient))
+const ready = computed(() => couponReviewed.value && !!cart.value?.lines.length && !cart.value.lines.some(line => !line.stockSufficient))
 const stateName = computed(() => mexicanStates.find(state => state.value === address.state)?.label ?? address.state)
+async function reviewSavedCoupon() {
+  couponReviewFailed.value = false
+  try {
+    cart.value = await $fetch('/api/cart/coupon-review', { method: 'POST', body: {} })
+    couponNotice.value = cart.value.couponNotice ?? ''
+    if (couponNotice.value) selectedQuote.value = null
+    couponReviewed.value = true
+  } catch { couponReviewFailed.value = true }
+}
 onMounted(() => {
+  reviewSavedCoupon()
   email.value = session.value?.user?.email ?? ''
   watch(quote, value => {
     clearTimeout(quoteTimer)
@@ -45,6 +56,17 @@ function review() {
   if (!firstStep.value?.querySelector('form')?.reportValidity()) return
   failure.value = ''; accepted.value = false; step.value = 2
 }
+async function removeCoupon() {
+  if (busy.value || order.value || !(cart.value?.coupon || cart.value?.couponError)) return
+  busy.value = true; failure.value = ''
+  try {
+    const updated = await $fetch('/api/cart/coupon', { method: 'POST', body: { remove: true, version: cart.value.version } })
+    step.value = 1; accepted.value = false
+    selectedQuote.value = null; cart.value = updated
+    couponNotice.value = 'Cupón retirado de esta compra.'
+  } catch (error) { failure.value = error.data?.statusMessage ?? 'No pudimos retirar el cupón. Intenta de nuevo.' }
+  finally { busy.value = false }
+}
 async function confirm() {
   if (busy.value || !accepted.value || !ready.value || order.value) return
   if (!hasCurrentShippingQuote(quote.value, cart.value?.version)) { step.value = 1; accepted.value = false; failure.value = 'La tarifa ya no está vigente. Cotiza y acepta nuevamente el envío antes de confirmar.'; return }
@@ -65,10 +87,17 @@ async function confirm() {
     <h1 class="text-display-l font-bold">Continuar con la compra</h1>
     <nav aria-label="Pasos de compra" class="mt-6"><ol class="grid gap-3 sm:grid-cols-3"><li v-for="(label, index) in ['Cotizar envío', 'Confirmar pedido', 'Pago']" :key="label" :aria-current="step === index + 1 ? 'step' : undefined" class="rounded-sm border p-3" :class="step === index + 1 ? 'border-ink bg-surface font-semibold' : 'border-line text-ink-2'"><span class="font-mono">{{ index + 1 }}.</span> {{ label }}<span v-if="step > index + 1" class="sr-only">, completado</span></li></ol></nav>
     <div v-if="error" role="alert" class="mt-6"><p>Carrito no disponible.</p><UiButton @click="refresh">Reintentar</UiButton></div>
+    <div v-else-if="!couponReviewed" class="mt-6" role="status"><p>{{ couponReviewFailed ? 'No pudimos comprobar el cupón guardado. Reintenta antes de continuar.' : 'Comprobando cupón y total de esta compra…' }}</p><UiButton v-if="couponReviewFailed" class="mt-3" @click="reviewSavedCoupon">Reintentar</UiButton></div>
     <p v-else-if="!order && !ready" role="status" class="mt-6">Agrega productos y revisa las existencias en el carrito para continuar.</p>
     <div v-else class="mt-8 max-w-3xl">
       <h2 ref="heading" tabindex="-1" class="text-display-m font-bold">{{ ['Cotizar envío', 'Confirmar pedido', 'Pago'][step - 1] }}</h2>
+      <p v-if="couponNotice" role="status" class="my-4 text-ink-2">{{ couponNotice }} Revisa el total y vuelve a cotizar el envío.</p>
       <p v-if="failure" role="alert" class="my-4 text-crit">{{ failure }}</p>
+      <section v-if="!order && (cart.coupon || cart.couponError)" aria-label="Cupón de esta compra" class="my-4 rounded-sm border border-line bg-surface p-4">
+        <p v-if="cart.coupon">Cupón aplicado: <strong>{{ cart.coupon.code }}</strong> · Descuento {{ formatMXN(cart.totals.couponDiscountCents) }}</p>
+        <p v-else role="alert">{{ cart.couponError }}</p>
+        <UiButton class="mt-3" variant="secondary" :disabled="busy" @click="removeCoupon">Retirar cupón</UiButton>
+      </section>
       <div v-show="step === 1" ref="firstStep" class="mt-6">
         <ShippingCalculator :version="cart.version" :disabled="busy" @destination-change="destinationChanged" @address-selected="addressSelected">
           <template #additional-fields>

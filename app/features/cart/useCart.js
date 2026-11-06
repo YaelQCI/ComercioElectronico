@@ -43,16 +43,25 @@ export async function useCart() {
     } catch (e) { failure.value = e.data?.statusMessage ?? 'No pudimos actualizar los guardados.'; await refresh() }
     finally { busy.value = false }
   }
+  async function reviewCoupon() {
+    if (busy.value) return
+    busy.value = true
+    try {
+      data.value = await $fetch('/api/cart/coupon-review', { method: 'POST', body: {} })
+      if (data.value.couponNotice) { selectedQuote.value = null; failure.value = data.value.couponNotice }
+      return data.value
+    } finally { busy.value = false }
+  }
   async function applyCoupon(code, remove = false) {
     if (busy.value || !data.value) return
     busy.value = true; message.value = ''; failure.value = ''
     try {
       data.value = await $fetch('/api/cart/coupon', { method: 'POST', body: { code, remove, version: data.value.version } })
       selectedQuote.value = null
-      message.value = remove ? 'Cupón retirado. Revisa total y envío.' : 'Cupón aplicado provisionalmente. Se validará al iniciar pago.'
+      message.value = remove ? 'Cupón retirado. Revisa total y envío.' : 'Cupón aplicado: vigencia y usos disponibles comprobados. Se volverá a validar antes de confirmar y al pagar.'
     } catch (e) { failure.value = e.data?.statusMessage ?? 'No pudimos aplicar el cupón.'; await refresh() }
     finally { busy.value = false }
   }
   const addBundle = (bundleId, quantity = 1) => add(null, quantity, false, bundleId)
-  return { data, error, status, refresh, busy, message, failure, add, addBundle, edit, move, selectedQuote, applyCoupon }
+  return { data, error, status, refresh, busy, message, failure, add, addBundle, edit, move, selectedQuote, applyCoupon, reviewCoupon }
 }

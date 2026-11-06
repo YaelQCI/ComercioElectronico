@@ -7,7 +7,7 @@ import ConfiguredBundles from '../catalog/ConfiguredBundles.vue'
 import ShippingProgress from '../shipping/ShippingProgress.vue'
 import RestockForm from '../restock/RestockForm.vue'
 import { canSetQuantity, limitedQuantity, stockMessage } from './stock-feedback.js'
-const { data, error, status, refresh, busy, edit, move, applyCoupon } = await useCart()
+const { data, error, status, refresh, busy, edit, move, applyCoupon, reviewCoupon } = await useCart()
 const code = ref('')
 const total = computed(() => data.value?.totals.goodsMoneyCents ?? '0')
 const recommendationSourceIds = computed(() => [...new Set((data.value?.lines ?? []).flatMap(line => line.bundle ? line.bundle.components.map(component => component.productId) : [line.productId]).filter(Boolean))])
@@ -15,7 +15,7 @@ const recommendationExcludedVariantIds = computed(() => [...new Set((data.value?
 const drafts = ref({})
 const inputErrors = ref({})
 const changes = ref([])
-onMounted(() => { changes.value = observeCart(data.value) })
+onMounted(async () => { try { await reviewCoupon(); changes.value = observeCart(data.value) } catch { changes.value = ['No pudimos revisar el cupón guardado. Vuelve a cargar el carrito antes de continuar.'] } })
 watch(data, value => { drafts.value = Object.fromEntries((value?.lines ?? []).map(l => [l.id, limitedQuantity(l, l.quantity)])); inputErrors.value = {} }, { immediate: true })
 function limit(line, event) {
   const value = event.target.value
@@ -43,6 +43,7 @@ function update(line) {
     <UiLoading v-if="status === 'pending'" label="Recuperando carrito…" variant="list" :cards="2" />
     <div v-else-if="error" role="alert"><p class="mt-6">No pudimos recuperar tu carrito.</p><UiButton class="mt-4" @click="refresh()">Reintentar</UiButton></div>
     <template v-else-if="data?.lines.length">
+      <p v-if="data.couponNotice" role="status" class="mt-4 text-body-s text-ink-2">{{ data.couponNotice }} Revisa el total y vuelve a cotizar el envío.</p>
       <ul v-if="changes.length" role="alert" class="mt-4 text-body-s text-crit"><li v-for="notice in changes" :key="notice">{{ notice }}</li></ul>
       <p class="mt-4">{{ data.pieces }} piezas en {{ data.products }} líneas de producto. El carrito no reserva existencias.</p>
       <ul class="mt-6 space-y-4"><li v-for="line in data.lines" :key="line.id" class="rounded-sm border border-line bg-surface p-4">
@@ -59,7 +60,7 @@ function update(line) {
       <div class="mt-4 flex flex-wrap gap-2"><UiButton v-for="line in data.lines" :key="line.id" variant="secondary" :disabled="busy" @click="move(line.id, 'SAVE')">Guardar {{ line.name }} · {{ line.presentation }} para después</UiButton></div>
       <ShippingProgress :base-cents="data.totals.goodsAfterCouponCents" :free-shipping="data.coupon?.freeShipping" />
       <UiForm class="mt-6 flex flex-wrap items-end gap-3" @submit.prevent="applyCoupon(code)"><UiField id="cart-coupon" v-model="code" label="Código de cupón" required maxlength="60" autocomplete="off" :disabled="busy" /><UiButton type="submit" variant="secondary" :disabled="busy">Aplicar cupón</UiButton><UiButton v-if="data.coupon || data.couponError" variant="secondary" :disabled="busy" @click="applyCoupon('', true)">Retirar cupón</UiButton></UiForm>
-      <p v-if="data.coupon" class="mt-3 text-body-s text-ok">{{ data.coupon.code }} · Descuento {{ formatMXN(data.totals.couponDiscountCents) }}<span v-if="data.coupon.customerLimitPending"> · Límite por cliente pendiente de validar con correo al iniciar pago.</span></p><p v-if="data.couponError" role="alert" class="mt-3 text-body-s text-crit">{{ data.couponError }} No se aplicó descuento; revisa tu total.</p>
+      <p v-if="data.coupon" class="mt-3 text-body-s text-ok">{{ data.coupon.code }} · Descuento {{ formatMXN(data.totals.couponDiscountCents) }}<span v-if="data.coupon.customerLimitPending"> · Límite por cliente pendiente de validar con tu correo antes de confirmar.</span></p><p v-if="data.couponError" role="alert" class="mt-3 text-body-s text-crit">{{ data.couponError }} No se aplicó descuento; revisa tu total.</p>
       <UiButton v-if="!data.lines.some(l => !l.stockSufficient)" class="mt-4" to="/checkout">Continuar con la compra</UiButton>
       <p class="mt-6 font-mono font-semibold" role="status">Total provisional de productos: {{ formatMXN(total) }}</p><p class="mt-2 text-ink-2">El envío se cotiza en el primer paso de la compra y se suma al total antes de confirmar. El carrito no reserva existencias.</p>
       <div class="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface p-4 lg:hidden" aria-label="Resumen del carrito móvil"><div><p class="font-mono font-semibold">Productos {{ formatMXN(total) }}</p><p class="text-body-s">{{ data.pieces }} piezas</p></div><UiButton v-if="!data.lines.some(l => !l.stockSufficient)" to="/checkout">Continuar con la compra</UiButton><UiButton v-else disabled>Revisa las existencias</UiButton></div>

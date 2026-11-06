@@ -3,6 +3,7 @@ import { calculateCart } from '../../../shared/features/pricing/prices.js'
 import { publicBundle } from '../catalog/bundle-repository.js'
 import { publicImage } from '../catalog/catalog-repository.js'
 import { cartCouponInclude, evaluateCartCoupon } from '../coupons/cart-coupon.js'
+import { checkCartCoupon, reviewCartCoupon } from '../coupons/check-cart-coupon.js'
 import { couponCode, CouponError } from '../../../shared/features/coupons/coupon-eligibility.js'
 
 export class CartError extends Error {
@@ -49,7 +50,8 @@ export async function checkoutCart(tx, hash) {
   if (!cart) throw new CartError(404, 'Carrito no disponible.')
   const items = await tx.cartItem.findMany({ where: { cartId: cart.id, state: 'ACTIVE' }, include: itemInclude, orderBy: [{ position: 'asc' }, { id: 'asc' }] })
   const current = snapshot(cart, items)
-  if (!items.length || current.lines.some(l => !l.stockSufficient) || current.couponError) throw new CartError(409, 'Revisa productos, existencias y cupón antes de preparar el pedido.')
+  if (current.couponError) throw new CartError(409, current.couponError + ' Retira el cupón y revisa el total antes de continuar.')
+  if (!items.length || current.lines.some(l => !l.stockSufficient)) throw new CartError(409, 'Revisa productos, existencias y cupón antes de preparar el pedido.')
   return { cart, items, current }
 }
 export async function shippingCart(tx, hash) {
@@ -153,7 +155,18 @@ export function createCartRepository(db) {
         return snapshot(updated, nextItems)
       })
     },
-    async coupon(hash, input) {
+    async reviewCoupon(hash, selection, identity = {}) {
+      if (!hash) return { ...emptyCart(), couponNotice: null }
+      return db.$transaction(async tx => {
+        await tx.$queryRaw`SELECT id FROM "Cart" WHERE "guestTokenHash" = ${hash} FOR UPDATE`
+        const cart = await tx.cart.findFirst({ where: { guestTokenHash: hash, status: 'ACTIVE', userId: null }, include: cartCouponInclude })
+        if (!cart) return { ...emptyCart(), couponNotice: null }
+        const lines = await items(tx, cart.id)
+        const reviewed = await reviewCartCoupon(tx, cart, lines, selection, identity)
+        return { ...snapshot(reviewed.cart, lines), couponNotice: reviewed.notice }
+      })
+    },
+    async coupon(hash, input, identity = {}) {
       if (!hash || !input || !Number.isInteger(input.version) || input.version < 1) throw new CartError(400, 'Carrito inválido.')
       let code = null
       try { if (input.remove !== true) code = couponCode(input.code) } catch (error) { throw new CartError(400, error.message) }
@@ -166,7 +179,9 @@ export function createCartRepository(db) {
         const coupon = code ? await tx.coupon.findUnique({ where: { codeNormalized: code } }) : null
         if (code && !coupon) throw new CartError(404, 'Cupón inexistente.')
         const updated = await tx.cart.update({ where: { id: cart.id }, data: { selectedCouponId: coupon?.id ?? null, version: { increment: 1 } }, include: cartCouponInclude })
-        const result = snapshot(updated, await items(tx, cart.id))
+        const lines = await items(tx, cart.id)
+        if (code) try { await checkCartCoupon(tx, updated, lines, identity) } catch (error) { if (error instanceof CouponError) throw new CartError(409, error.message); throw error }
+        const result = snapshot(updated, lines)
         if (code && result.couponError) throw new CartError(409, result.couponError)
         await tx.shippingQuote.updateMany({ where: { cartId: cart.id, status: { in: ['AVAILABLE', 'ACCEPTED'] } }, data: { status: 'INVALIDATED' } })
         return result

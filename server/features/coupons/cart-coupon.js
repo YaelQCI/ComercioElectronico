@@ -14,6 +14,6 @@ export function cartCouponLines(items) {
     return { id: item.id, baseCents: base.toString(), isBundle: !!item.bundleId, components: parts.map(p => ({ id: p.variant.id, productId: p.variant.productId, categoryIds: p.variant.product.productCategory_product.map(c => c.categoryId), referencePriceCents: p.variant.priceCents.toString(), compareAtPriceCents: p.variant.compareAtPriceCents?.toString() ?? null, allocatedBaseCents: allocation.get(p.variant.id) })) }
   })
 }
-export function evaluateCartCoupon(cart, items) {
-  return evaluateCoupon(couponDefinition(cart.selectedCoupon), cartCouponLines(items), { globalUses: cart.selectedCoupon._count.couponUsage_coupon })
+export function evaluateCartCoupon(cart, items, { customerUses = null } = {}) {
+  return evaluateCoupon(couponDefinition(cart.selectedCoupon), cartCouponLines(items), { globalUses: cart.selectedCoupon._count.couponUsage_coupon, customerUses })
 }

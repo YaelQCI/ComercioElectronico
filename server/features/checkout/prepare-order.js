@@ -2,6 +2,8 @@ import { createHash, createHmac, randomUUID } from 'node:crypto'
 import { AccountError, emailAddress, accountText, secretHash } from '../accounts/credentials.js'
 import { checkoutCart } from '../cart/cart-repository.js'
 import { prepareShipping } from '../shipping/shipping-quotes.js'
+import { checkCartCoupon } from '../coupons/check-cart-coupon.js'
+import { CouponError } from '../../../shared/features/coupons/coupon-eligibility.js'
 import { cartCouponLines } from '../coupons/cart-coupon.js'
 import { allocateCents } from '../../../shared/features/pricing/prices.js'
 import { shippingProgress } from '../../../shared/features/shipping/shipping-policy.js'
@@ -34,6 +36,7 @@ export function createCheckout(db, secret) {
         const prior = await tx.orderStatusHistory.findUnique({ where: { eventKey }, include: { order: true } })
         if (prior) { if (prior.reason !== requestHash) throw new AccountError(409,'Clave utilizada para otros datos.'); return result(prior.order,ownerHash) }
         const { cart, items, current } = await checkoutCart(tx,ownerHash)
+        try { await checkCartCoupon(tx, cart, items, { userId, email: contact.email }) } catch (error) { if (error instanceof CouponError) throw new AccountError(409, error.message + ' Retira el cupón y revisa el total antes de confirmar.'); throw error }
         if (cart.version !== input.cartVersion) throw new AccountError(409,'El carrito cambió. Revisa y acepta el importe vigente.')
         const a = contact.address, destination = { country:'MX', name:a.recipientName,phone:a.phone,postalCode:a.postalCode,state:a.state,city:a.city,street:a.street }
         const prepared = await prepareShipping(tx,ownerHash,destination)

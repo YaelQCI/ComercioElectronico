@@ -48,7 +48,7 @@ try {
 
   const user = { id: '00000000-0000-4000-8000-000000000001', email: 'fixture@example.invalid', role: 'CUSTOMER', displayName: 'Fixture', themePreference: 'system' }
   const address = { id: '00000000-0000-4000-8000-000000000002', label: 'Prueba aislada', recipientName: 'Destinatario sintético', phone: '5555555555', countryCode: 'MX', postalCode: '01000', state: 'CX', city: 'Ciudad sintética', district: 'Colonia sintética', street: 'Calle sintética', exteriorNumber: '1', interiorNumber: '', isDefault: true }
-  const cart = { version: 1, pieces: 1, products: 1, saved: [], coupon: null, totals: { goodsMoneyCents: '10000', goodsAfterCouponCents: '10000', goodsBeforeCouponCents: '10000', couponDiscountCents: '0' }, lines: [{ id: '00000000-0000-4000-8000-000000000003', variantId: '00000000-0000-4000-8000-000000000004', productId: '00000000-0000-4000-8000-000000000005', name: 'Producto sintético', presentation: 'Presentación sintética', sku: 'FIXTURE', quantity: 1, unitPriceCents: '10000', valid: true, stockSufficient: true, availableQty: 2, maxQuantity: 2 }] }
+  const cart = { version: 1, pieces: 1, products: 1, saved: [], coupon: { id: 'synthetic-coupon', code: 'PRUEBA' }, totals: { goodsMoneyCents: '10000', goodsAfterCouponCents: '10000', goodsBeforeCouponCents: '10000', couponDiscountCents: '0' }, lines: [{ id: '00000000-0000-4000-8000-000000000003', variantId: '00000000-0000-4000-8000-000000000004', productId: '00000000-0000-4000-8000-000000000005', name: 'Producto sintético', presentation: 'Presentación sintética', sku: 'FIXTURE', quantity: 1, unitPriceCents: '10000', valid: true, stockSufficient: true, availableQty: 2, maxQuantity: 2 }] }
   let quote = null, prepareCount = 0, selectionCount = 0, quoteCount = 0, quotedDestination, preparedBody
   const previousOnMessage = socket.onmessage
   socket.onmessage = event => {
@@ -58,18 +58,25 @@ try {
     const request = message.params.request, path = new URL(request.url).pathname
     let response
     if (path === '/api/cart') response = cart
+    else if (path === '/api/cart/coupon-review') response = { ...cart, couponNotice: 'Retiramos el cupón guardado de una sesión o compra anterior. Si deseas usarlo en esta compra, ingrésalo de nuevo.' }
+    else if (path === '/api/cart/coupon') {
+      const body = JSON.parse(request.postData)
+      assert.equal(body.remove, true); assert.equal(body.version, cart.version)
+      cart.coupon = null; cart.version++; quote = null
+      response = { ...cart, couponNotice: null }
+    }
     else if (path === '/api/account/session') response = { user, accessExpiresAt: new Date(Date.now() + 600000).toISOString(), refreshAvailable: false }
     else if (path === '/api/account/profile') response = { addresses: [address] }
     else if (path === '/api/shipping/selected' && request.method === 'GET') response = { selected: quote }
     else if (path === '/api/shipping/quotes') {
       quoteCount++
       quotedDestination = JSON.parse(request.postData).destination
-      const validity = { cartVersion: 1, quotedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 600000).toISOString() }
-      response = { cartVersion: 1, quotes: [{ ...validity, id: '00000000-0000-4000-8000-000000000006', carrierCode: 'fixture', serviceName: 'Envío sintético', chargedAmountCents: '5000', quotedAmountCents: '5000', eligible: false }, { ...validity, id: '00000000-0000-4000-8000-000000000008', carrierCode: 'fixture', serviceName: 'Otro envío sintético', chargedAmountCents: '5000', quotedAmountCents: '5000', eligible: false }] }
+      const validity = { cartVersion: cart.version, quotedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 600000).toISOString() }
+      response = { cartVersion: cart.version, quotes: [{ ...validity, id: '00000000-0000-4000-8000-000000000006', carrierCode: 'fixture', serviceName: 'Envío sintético', chargedAmountCents: '5000', quotedAmountCents: '5000', eligible: false }, { ...validity, id: '00000000-0000-4000-8000-000000000008', carrierCode: 'fixture', serviceName: 'Otro envío sintético', chargedAmountCents: '5000', quotedAmountCents: '5000', eligible: false }] }
     } else if (path === '/api/shipping/selected') {
       selectionCount++
       const body = JSON.parse(request.postData)
-      quote = { id: body.quoteId, cartVersion: 1, carrierCode: 'fixture', serviceName: body.quoteId.endsWith('8') ? 'Otro envío sintético' : 'Envío sintético', chargedAmountCents: '5000', quotedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + (selectionCount === 1 ? 1200 : 600000)).toISOString(), destination: body.destination }
+      quote = { id: body.quoteId, cartVersion: cart.version, carrierCode: 'fixture', serviceName: body.quoteId.endsWith('8') ? 'Otro envío sintético' : 'Envío sintético', chargedAmountCents: '5000', quotedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + (selectionCount === 1 ? 1200 : 600000)).toISOString(), destination: body.destination }
       response = { selected: quote }
     } else if (path === '/api/checkout/prepare') {
       prepareCount++; preparedBody = JSON.parse(request.postData)
@@ -87,6 +94,7 @@ try {
   assert.equal(await evaluate(`document.querySelector('#shipping-name')===null`), true)
   await evaluate(`[...document.querySelectorAll('a')].find(el=>el.textContent.trim()==='Continuar con la compra').click()`)
   await until(() => evaluate(`location.pathname==='/checkout' && !!document.querySelector('#shipping-name')`))
+  assert.equal(await evaluate(`document.body.textContent.includes('ingrésalo de nuevo') && document.body.textContent.includes('Revisa el total y vuelve a cotizar el envío.')`), true)
   const click = label => evaluate(`Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === ${JSON.stringify(label)}).click()`)
   const continueDisabled = () => evaluate(`[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Continuar a confirmar pedido').disabled`)
   assert.equal(await evaluate(`document.querySelector('[aria-current="step"]').textContent.includes('Cotizar envío')`), true)
@@ -137,6 +145,18 @@ try {
   await click('Continuar a confirmar pedido')
   await until(() => evaluate(`document.querySelector('[aria-current="step"]').textContent.includes('Confirmar pedido')`))
   assert.equal(prepareCount, 0)
+  await click('Retirar cupón')
+  await until(() => evaluate(`document.body.textContent.includes('Cupón retirado de esta compra.')`))
+  assert.equal(await evaluate(`document.querySelector('[aria-current="step"]').textContent.includes('Cotizar envío')`), true)
+  assert.equal(await evaluate(`[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Retirar cupón')`), false)
+  assert.equal(await evaluate(`document.querySelector('#checkout-email').value`), user.email)
+  assert.equal(await continueDisabled(), true)
+  await click('Cotizar servicios')
+  await until(() => evaluate(`[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Aceptar esta tarifa')`))
+  await click('Aceptar esta tarifa')
+  await until(async () => !(await continueDisabled()))
+  await click('Continuar a confirmar pedido')
+  await until(() => evaluate(`document.querySelector('[aria-current="step"]').textContent.includes('Confirmar pedido')`))
   await click('Editar datos')
   assert.equal(await evaluate(`document.querySelector('#shipping-name').value`), address.recipientName)
   await evaluate(`const input=document.querySelector('#shipping-name');input.value='Destinatario actualizado';input.dispatchEvent(new Event('input',{bubbles:true}))`)

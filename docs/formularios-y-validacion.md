@@ -131,3 +131,13 @@ node scripts/check-administrator-registration-browser.mjs
 node scripts/check-coupons-browser.mjs
 node scripts/check-checkout-steps-browser.mjs
 ```
+
+## Revisión anticipada de cupones
+
+- Al aplicar el código se comprueban vigencia, elegibilidad y usos globales disponibles. Con sesión iniciada también se comprueban los usos por cliente (identidad y correo); para invitados se comprueban al confirmar con el correo de compra, antes de crear el pedido.
+- Una cookie de sesión identifica la selección recién ingresada para ese carrito. Al volver desde otra sesión o después de preparar una compra, la selección guardada se retira al abrir carrito/checkout y debe ingresarse otra vez. No se borra el cupón del catálogo ni se consume un uso por aplicarlo.
+- La revisión se realiza por POST, bajo bloqueo del carrito. Retirar una selección incrementa su versión, invalida cotizaciones y exige revisar total/envío. Se muestran el motivo y la indicación de ingresar el cupón otra vez.
+- El pago mantiene la reserva transaccional final para usos simultáneos; un rechazo del cupón devuelve 409 y explica cómo regresar al carrito, sin ocultarlo como fallo de Stripe.
+- Verificación local: 114 pruebas de cuentas, catálogo, precios y pagos; compilación Nuxt; checkout en Edge con APIs simuladas. No se hicieron cargos ni se modificaron registros de staging/producción. El resultado del despliegue se comprueba por separado en GitHub Actions y en el servidor.
+
+- Retiro voluntario: el botón «Retirar cupón» está disponible en carrito y checkout antes de registrar el pedido. Conserva los datos de contacto, recalcula productos e invalida la tarifa y aceptación anteriores; vuelve al paso de envío. Compilación y flujo en Edge verificados con APIs simuladas, incluyendo retiro desde confirmación, conservación del correo y nueva cotización.

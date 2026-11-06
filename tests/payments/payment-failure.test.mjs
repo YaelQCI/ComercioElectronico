@@ -1,3 +1,4 @@
+import { CouponError } from '../../shared/features/coupons/coupon-eligibility.js'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { paymentFailure, safePaymentDiagnostic } from '../../server/features/payments/payment-failure.js'
@@ -15,4 +16,11 @@ test('diagnóstico interno registra solo códigos permitidos y no mensajes, cons
   assert.deepEqual(safePaymentDiagnostic(error, 'start'), { operation: 'start', errorType: 'Error', code: 'P2034', databaseCode: '40P01' })
   assert.equal(JSON.stringify(safePaymentDiagnostic(error, 'start')).includes('privado'), false)
   assert.deepEqual(safePaymentDiagnostic({ name: 'Error con datos', code: 'SQL con datos' }, 'dato privado'), { operation: 'unknown', errorType: null, code: null, databaseCode: null })
+})
+
+test('explica el cupón agotado aunque otro comprador consuma el último uso al iniciar pago', () => {
+  const result = paymentFailure(new CouponError('El cupón alcanzó su límite de usos.'))
+  assert.equal(result.statusCode, 409)
+  assert.match(result.statusMessage, /límite de usos/)
+  assert.match(result.statusMessage, /confirma el total actualizado/)
 })
