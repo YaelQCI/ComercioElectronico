@@ -21,7 +21,7 @@ async function register() {
     <UiButton @click="open = true">Registrar administrador</UiButton>
     <UiModal :open="open" title="Registrar nuevo administrador" :busy="busy" @close="close">
       <p class="mb-5 text-ink-2">Esta cuenta tendrá acceso a la administración de la tienda. Para ingresar, deberá usar el correo y la contraseña que registres aquí.</p>
-      <form class="grid gap-4" :aria-busy="busy" @submit.prevent="register">
+      <UiForm class="grid gap-4" :aria-busy="busy" @submit.prevent="register">
         <UiField id="admin-name" v-model="form.displayName" label="Nombre completo" autocomplete="name" required maxlength="120" :disabled="busy" />
         <UiField id="admin-email" v-model="form.email" label="Correo electrónico" type="email" autocomplete="off" required maxlength="254" :disabled="busy" />
         <UiField id="admin-password" v-model="form.password" label="Contraseña" type="password" password-toggle autocomplete="new-password" hint="Al menos 12 caracteres y hasta 256 bytes." required minlength="12" :disabled="busy" />
@@ -32,7 +32,7 @@ async function register() {
           <UiButton variant="secondary" :disabled="busy" @click="close">Cancelar</UiButton>
           <UiButton type="submit" :disabled="busy">{{ busy ? 'Registrando…' : 'Crear administrador' }}</UiButton>
         </div>
-      </form>
+      </UiForm>
     </UiModal>
   </div>
 </template>

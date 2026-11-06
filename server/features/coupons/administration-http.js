@@ -13,6 +13,6 @@ export async function couponAdministrationRequest(event, action) {
     if (action === 'options') return await service.options(identity.user.id, getQuery(event).q)
     return await service.save(identity.user.id, await readBody(event), getRouterParam(event, 'id'))
   } catch (error) {
-    throw createError({ statusCode: error instanceof AccountError ? error.status : error.code === 'P2002' ? 409 : 503, statusMessage: error instanceof AccountError ? error.message : error.code === 'P2002' ? 'Ya existe un cupón con ese código.' : 'No pudimos administrar los cupones. Intenta nuevamente.' })
+    throw createError({ statusCode: error instanceof AccountError ? error.status : error.code === 'P2002' ? 409 : 503, statusMessage: error instanceof AccountError ? error.message : error.code === 'P2002' ? 'Código de cupón: ya está registrado, aunque el cupón esté vencido o desactivado. No distingue mayúsculas de minúsculas. Edita el cupón existente o utiliza otro código.' : 'No pudimos administrar los cupones. Intenta nuevamente.' })
   }
 }

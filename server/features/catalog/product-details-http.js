@@ -9,6 +9,7 @@ import { createProductDetailsAdministration } from './manage-product-details.js'
 import { createLotTraceabilityAdministration, createCertificateStorage, maxCertificateBytes } from '../inventory/manage-lot-traceability.js'
 import { createCatalogRepository } from './catalog-repository.js'
 import { readCertificate } from './read-certificate.js'
+import { catalogDuplicateMessage } from './duplicate-records.js'
 
 const storage = event => createCertificateStorage(useRuntimeConfig(event).catalogUploadDirectory || resolve(process.cwd(), '.catalog-uploads'))
 export async function productDetailsRequest(event, action) {
@@ -20,7 +21,7 @@ export async function productDetailsRequest(event, action) {
     if (action === 'brand') return await service.createBrand(identity.user.id, await readBody(event))
     if (action === 'variant') return await service.createVariant(identity.user.id, getRouterParam(event, 'id'), await readBody(event))
     return await createLotTraceabilityAdministration(db, storage(event)).save(identity.user.id, getRouterParam(event, 'id'), await readBody(event))
-  } catch (error) { throw createError({ statusCode: error instanceof AccountError ? error.status : error.code === 'P2002' ? 409 : 503, statusMessage: error instanceof AccountError ? error.message : error.code === 'P2002' ? 'Ya existe ese SKU, combinación de sabor y presentación, o identificador de marca.' : 'No pudimos guardar o consultar estos datos.' }) }
+  } catch (error) { throw createError({ statusCode: error instanceof AccountError ? error.status : error.code === 'P2002' ? 409 : 503, statusMessage: error instanceof AccountError ? error.message : error.code === 'P2002' ? catalogDuplicateMessage(error, action === 'brand' ? 'brand' : 'product') : 'No pudimos guardar o consultar estos datos.' }) }
 }
 export async function uploadLotCertificate(event) {
   requireCartOrigin(event)

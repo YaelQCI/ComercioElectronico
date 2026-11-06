@@ -40,7 +40,7 @@ const money = (cents, currency = 'MXN') => new Intl.NumberFormat('es-MX', { styl
       <p class="my-3 font-semibold">Total: {{ money(selected.totalMoneyCents, selected.currency) }}</p>
       <div v-if="selected.address" class="my-4"><h4 class="font-semibold">Dirección de entrega</h4><p>{{ selected.address.recipientName }}</p><p>{{ selected.address.street }} {{ selected.address.exteriorNumber }} {{ selected.address.interiorNumber }}</p><p>{{ selected.address.district }}, {{ selected.address.city }}, {{ selected.address.state }}, {{ selected.address.postalCode }}</p></div>
       <h4 class="mt-4 font-semibold">Historial</h4><ul><li v-for="(item, index) in selected.history" :key="index">{{ states[item.status] || item.status }} · {{ new Date(item.date).toLocaleString('es-MX') }}</li></ul>
-      <form v-if="next[selected.status] && ['PAID', 'NOT_REQUIRED', 'PARTIALLY_REFUNDED'].includes(selected.moneyStatus)" class="mt-6 grid gap-4" @submit.prevent="advance"><UiField id="order-reason" v-model="reason" label="Motivo del cambio de estado" required maxlength="500" /><UiButton type="submit" :disabled="busy">Marcar como {{ states[next[selected.status]].toLowerCase() }}</UiButton></form>
+      <UiForm v-if="next[selected.status] && ['PAID', 'NOT_REQUIRED', 'PARTIALLY_REFUNDED'].includes(selected.moneyStatus)" class="mt-6 grid gap-4" @submit.prevent="advance"><UiField id="order-reason" v-model="reason" label="Motivo del cambio de estado" required maxlength="500" /><UiButton type="submit" :disabled="busy">Marcar como {{ states[next[selected.status]].toLowerCase() }}</UiButton></UiForm>
       <UiButton variant="secondary" class="mt-4" :disabled="busy" @click="selected = null">Cerrar detalle</UiButton>
     </UiModal>
   </div>

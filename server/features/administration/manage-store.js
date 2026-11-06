@@ -12,14 +12,15 @@ import { lotTraceability } from '../../../shared/features/inventory/lot-traceabi
 import { initializeDemoStock } from '../inventory/initialize-demo-stock.js'
 import { initializeDemoHistory } from '../orders/initialize-demo-history.js'
 import { featuredPosition } from '../catalog/featured-selection.js'
+const storeFieldLabels = { recipientName: 'Destinatario', phone: 'Teléfono', postalCode: 'Código postal', state: 'Estado', city: 'Ciudad', district: 'Colonia', street: 'Calle', exteriorNumber: 'Número exterior', interiorNumber: 'Número interior', label: 'Etiqueta de dirección', references: 'Referencias de entrega', name: 'Nombre', contactName: 'Persona de contacto', description: 'Descripción' }
 const id = value => { if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value ?? '')) throw new AccountError(400, 'Identificador inválido.'); return value }
 const cents = value => { if (typeof value !== 'string' || !/^(0|[1-9]\d{0,14})$/.test(value)) throw new AccountError(400, 'Precio inválido; utiliza centavos como texto.'); return BigInt(value) }
 function warehouseData(input) {
   const data = {}
-  for (const key of ['name', 'recipientName', 'postalCode', 'state', 'city', 'district', 'street', 'exteriorNumber', 'contactName']) data[key] = accountText(input?.[key], key, 120)
+  for (const key of ['name', 'recipientName', 'postalCode', 'state', 'city', 'district', 'street', 'exteriorNumber', 'contactName']) data[key] = accountText(input?.[key], storeFieldLabels[key], 120)
   data.phone = accountText(input?.phone, 'Teléfono', 25)
-  for (const key of ['interiorNumber', 'references']) data[key] = input?.[key] == null || input[key] === '' ? null : accountText(input[key], key, key === 'references' ? 500 : 120)
-  if (!/^\d{5}$/.test(data.postalCode)) throw new AccountError(400, 'El código postal debe contener cinco dígitos.')
+  for (const key of ['interiorNumber', 'references']) data[key] = input?.[key] == null || input[key] === '' ? null : accountText(input[key], storeFieldLabels[key], key === 'references' ? 500 : 120)
+  if (!/^\d{5}$/.test(data.postalCode)) throw new AccountError(400, 'Código postal: escribe exactamente cinco dígitos, por ejemplo 01000.')
   if (!isMexicanStateCode(data.state)) throw new AccountError(400, 'Selecciona un estado de México válido.')
   return data
 }
@@ -84,12 +85,12 @@ export function createStoreAdministration(db, { demoDataEnabled = true } = {}) {
     },
     async createCategory(adminId, input) {
       const name = accountText(input?.name, 'Nombre de categoría', 120), slug = accountText(input?.slug, 'Identificador de categoría', 150), reason = accountText(input?.reason, 'Motivo', 500)
-      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) throw new AccountError(400, 'Identificador de categoría inválido.')
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) throw new AccountError(400, 'Identificador de URL de la categoría: usa minúsculas, números y guiones entre palabras, sin espacios ni acentos.')
       return db.$transaction(async tx => {
         await requireAdministrator(tx, adminId)
         const key = `catalog-category:${name.toLowerCase()}`
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))::text AS locked`
-        if (await tx.category.findFirst({ where: { name: { equals: name, mode: 'insensitive' } } })) throw new AccountError(409, 'Ya existe una categoría con ese nombre.')
+        if (await tx.category.findFirst({ where: { name: { equals: name, mode: 'insensitive' } } })) throw new AccountError(409, 'Ya existe una categoría con ese nombre. Selecciona la categoría existente o utiliza otro nombre.')
         const saved = await tx.category.create({ data: { name, slug } })
         await audit(tx, adminId, 'Category', saved.id, 'CREATE_CATEGORY', reason, undefined, { name, slug })
         return { id: saved.id, name: saved.name, slug: saved.slug }
@@ -133,7 +134,7 @@ export function createStoreAdministration(db, { demoDataEnabled = true } = {}) {
       const initialQuantity = input.initialQuantity === undefined ? 0 : input.initialQuantity
       if (!Number.isInteger(initialQuantity) || initialQuantity < 0 || initialQuantity > 2147483647) throw new AccountError(400, 'La cantidad inicial debe ser un número entero de piezas entre 0 y 2147483647.')
       const expiresOn = input.expiresOn ? new Date(`${input.expiresOn}T00:00:00.000Z`) : null
-      if (expiresOn && (!/^\d{4}-\d{2}-\d{2}$/.test(input.expiresOn) || !Number.isFinite(expiresOn.getTime()) || expiresOn.toISOString().slice(0,10) !== input.expiresOn)) throw new AccountError(400, 'Caducidad inválida.')
+      if (expiresOn && (!/^\d{4}-\d{2}-\d{2}$/.test(input.expiresOn) || !Number.isFinite(expiresOn.getTime()) || expiresOn.toISOString().slice(0,10) !== input.expiresOn)) throw new AccountError(400, 'Fecha de caducidad: selecciona una fecha existente con día, mes y año.')
       return withInventoryTransaction(db, async context => {
         const tx = context.tx
         await requireAdministrator(tx, adminId)
@@ -195,10 +196,10 @@ export function createStoreAdministration(db, { demoDataEnabled = true } = {}) {
       if (input.featuredPosition !== undefined) {
         try { data.featuredPosition = featuredPosition(input.featuredPosition) } catch (error) { throw new AccountError(400, error.message) }
       }
-      for (const key of ['name', 'description']) if (input[key] !== undefined) data[key] = accountText(input[key], key, key === 'name' ? 120 : 10000)
+      for (const key of ['name', 'description']) if (input[key] !== undefined) data[key] = accountText(input[key], storeFieldLabels[key], key === 'name' ? 120 : 10000)
       if (input.slug !== undefined) {
         data.slug = accountText(input.slug, 'Identificador de URL', 150)
-        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(data.slug)) throw new AccountError(400, 'Identificador de URL inválido.')
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(data.slug)) throw new AccountError(400, 'Identificador de URL: usa minúsculas, números y guiones entre palabras, sin espacios ni acentos.')
       }
       if (input.deactivate === true) data.deletedAt = new Date()
       if (input.published !== undefined && typeof input.published !== 'boolean') throw new AccountError(400, 'Publicación inválida.')

@@ -5,6 +5,13 @@ import { AccountError } from '../accounts/credentials.js'
 import { InventoryError } from '../../../shared/features/inventory/fefo.js'
 import { requireCartOrigin } from '../cart/cart-http.js'
 import { createAdministratorRegistration } from './register-administrator.js'
+import { uniqueConstraintMatches } from '../../utils/unique-constraint.js'
+import { catalogDuplicateMessage } from '../catalog/duplicate-records.js'
+function duplicateMessage(error, action) {
+  if (action === 'lot' && uniqueConstraintMatches(error, ['variantId', 'warehouseId', 'lotCode'], 'InventoryLot_variantId_warehouseId_lotCode_key')) return 'Código de lote: ya existe para esta presentación en este almacén. Si recibiste más piezas del mismo lote, utiliza Ajustar lote; no lo registres otra vez.'
+  if (action === 'warehouse') return 'El almacén inicial ya está configurado. Actualiza el inventario y edita la información del almacén existente.'
+  return catalogDuplicateMessage(error, action === 'createCategory' ? 'category' : 'product')
+}
 export async function administrationRequest(event, action) {
   setHeader(event, 'Cache-Control', 'no-store')
   const reading = ['users', 'products', 'inventory', 'categories', 'lotVariants'].includes(action)
@@ -29,5 +36,5 @@ export async function administrationRequest(event, action) {
     if (action === 'variant') return await service.updateVariant(identity.user.id, target, input)
     if (action === 'stock') return await service.adjustStock(identity.user.id, input)
     return await service.deactivateUser(identity.user.id, target, input)
-  } catch (e) { const known = e instanceof AccountError || e instanceof InventoryError; throw createError({ statusCode: e instanceof AccountError ? e.status : e instanceof InventoryError ? 409 : e.code === 'P2002' ? 409 : 503, statusMessage: known ? e.message : e.code === 'P2002' ? 'Identificador comercial ya registrado.' : 'Operación administrativa no disponible.' }) }
+  } catch (e) { const known = e instanceof AccountError || e instanceof InventoryError; throw createError({ statusCode: e instanceof AccountError ? e.status : e instanceof InventoryError ? 409 : e.code === 'P2002' ? 409 : 503, statusMessage: known ? e.message : e.code === 'P2002' ? duplicateMessage(e, action) : 'Operación administrativa no disponible.' }) }
 }

@@ -79,15 +79,15 @@ async function confirm() {
         <p id="checkout-shipping-requirement" class="mt-4 text-body-s text-ink-2">{{ quoteReady ? 'Tarifa aceptada. Puedes continuar a confirmar tu pedido.' : 'Para habilitar el botón, cotiza el envío y acepta una tarifa vigente.' }} Cambiar la dirección requiere volver a cotizar.</p>
         <UiButton class="mt-6" :disabled="busy || !quoteReady" aria-describedby="checkout-shipping-requirement" @click="review">Continuar a confirmar pedido</UiButton>
       </div>
-      <form v-if="step === 2" class="mt-6 space-y-6" @submit.prevent="confirm">
+      <UiForm v-if="step === 2" class="mt-6 space-y-6" @submit.prevent="confirm">
         <section aria-label="Productos del pedido" class="rounded-sm border border-line bg-surface p-4"><h3 class="font-semibold">Productos</h3><ul class="mt-3 space-y-3"><li v-for="line in cart.lines" :key="line.id"><p>{{ line.name }} · {{ line.presentation }}</p><p class="text-body-s">{{ line.quantity }} × {{ formatMXN(line.unitPriceCents) }} MXN</p></li></ul></section>
         <section v-if="quote" aria-label="Datos de entrega" class="rounded-sm border border-line bg-surface p-4"><h3 class="font-semibold">Contacto y entrega</h3><p class="mt-3">{{ email }}</p><p>{{ address.recipientName }} · {{ address.phone }}</p><p>{{ address.street }}<span v-if="address.interiorNumber"> · Interior {{ address.interiorNumber }}</span></p><p>{{ address.district }}, {{ address.city }}, {{ stateName }} · C.P. {{ address.postalCode }}</p><p class="mt-3">{{ quote.carrierCode }} · {{ quote.serviceName }}</p></section>
         <dl v-if="quote" class="grid grid-cols-2 gap-3 rounded-sm border border-line bg-surface p-4"><dt>Productos después de descuentos</dt><dd class="text-right">{{ formatMXN(cart.totals.goodsMoneyCents) }} MXN</dd><dt>Envío</dt><dd class="text-right">{{ formatMXN(quote.chargedAmountCents) }} MXN</dd><dt class="font-semibold">Total</dt><dd class="text-right font-semibold">{{ formatMXN(total) }} MXN</dd></dl>
         <div class="flex flex-wrap gap-4"><NuxtLink v-for="slug in ['privacidad', 'terminos', 'devoluciones']" :key="slug" :to="`/politicas/${slug}`" class="inline-flex min-h-11 items-center text-accent-text underline">{{ slug }}</NuxtLink></div>
         <label class="flex min-h-11 items-center gap-3"><input v-model="accepted" type="checkbox" required :disabled="busy">Acepto las políticas publicadas y el importe mostrado.</label>
         <p class="text-body-s text-ink-2">Al confirmar se registra tu pedido pendiente de pago. Las existencias se reservarán al iniciar el pago.</p>
-        <div class="flex flex-wrap gap-3"><UiButton type="submit" :disabled="busy || !accepted">{{ busy ? 'Confirmando…' : 'Confirmar pedido y continuar al pago' }}</UiButton><UiButton variant="secondary" :disabled="busy" @click="step = 1; failure = ''">Editar datos</UiButton></div>
-      </form>
+        <div class="flex flex-wrap gap-3"><UiButton type="submit" :disabled="busy">{{ busy ? 'Confirmando…' : 'Confirmar pedido y continuar al pago' }}</UiButton><UiButton variant="secondary" :disabled="busy" @click="step = 1; failure = ''">Editar datos</UiButton></div>
+      </UiForm>
       <div v-else-if="order" class="mt-6">
         <p role="status">Pedido registrado: <strong>{{ order.number }}</strong></p>
         <p class="mt-2 font-mono">Total: {{ formatMXN(order.totalMoneyCents) }} {{ order.currency }}</p>

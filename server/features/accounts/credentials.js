@@ -11,7 +11,9 @@ export function emailAddress(value) {
   return value.trim().toLowerCase()
 }
 export function accountText(value, label, max = 120) {
-  if (typeof value !== 'string' || !value.trim() || value.trim().length > max || /[\u0000-\u001f]/.test(value)) throw new AccountError(400, `${label} inválido.`)
+  if (typeof value !== 'string' || !value.trim()) throw new AccountError(400, `${label}: completa este campo; no puede quedar vacío.`)
+  if (value.trim().length > max) throw new AccountError(400, `${label}: usa como máximo ${max} caracteres.`)
+  if (/[\u0000-\u001f]/.test(value)) throw new AccountError(400, `${label}: elimina los saltos de línea, tabulaciones y caracteres de control.`)
   return value.trim()
 }
 export function validPassword(value) {

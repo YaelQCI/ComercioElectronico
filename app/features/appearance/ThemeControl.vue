@@ -17,10 +17,11 @@ async function save() {
   <section class="mt-8" aria-labelledby="account-appearance-heading">
     <h2 id="account-appearance-heading" class="text-display-m font-bold">Apariencia</h2>
     <p class="mt-3 text-ink-2">El tema se guarda en tu cuenta y se aplica al iniciar sesión en cualquier dispositivo. La opción del sistema sigue la apariencia del dispositivo que estés usando.</p>
-    <form class="mt-4 grid gap-4" @submit.prevent="save">
+    <UiForm class="mt-4 grid gap-4" @submit.prevent="save">
       <UiField id="account-theme" v-model="selected" label="Tema de la plataforma" :options="[{ value: 'light', label: 'Claro' }, { value: 'dark', label: 'Oscuro' }, { value: 'system', label: 'Del sistema' }]" :disabled="busy" />
+      <p v-if="selected === preference" class="text-body-s text-ink-2">Este tema ya está guardado. Selecciona otro tema para habilitar Guardar apariencia.</p>
       <UiButton type="submit" :disabled="busy || selected === preference">{{ busy ? 'Guardando…' : 'Guardar apariencia' }}</UiButton>
-    </form>
+    </UiForm>
     <p v-if="failure" role="alert" class="mt-3 text-crit">{{ failure }}</p>
 
   </section>

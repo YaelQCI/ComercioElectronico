@@ -39,13 +39,13 @@ async function submit() {
     <UiModal :open="open" :title="target ? 'Editar caja de envío' : 'Agregar caja de envío'" :busy="busy" @close="open = false">
       <p class="mb-4 text-body-s">Medidas en milímetros y pesos en gramos. El peso bruto incluye productos y caja. Al cambiar la configuración será necesario recotizar; los pedidos existentes conservan sus datos.</p>
       <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
-      <form @submit.prevent="submit"><fieldset :disabled="busy" class="grid gap-4 md:grid-cols-2"><legend class="sr-only">Configuración de caja</legend>
+      <UiForm @submit.prevent="submit"><fieldset :disabled="busy" class="grid gap-4 md:grid-cols-2"><legend class="sr-only">Configuración de caja</legend>
         <UiField id="package-code" v-model="draft.code" label="Código de caja" required maxlength="60" />
         <UiField id="package-active" v-model="draft.isActive" label="Disponibilidad" :options="[{ value: 'true', label: 'Activa para cotizar' }, { value: 'false', label: 'Inactiva' }]" required />
         <UiField v-for="field in packageMeasurements" :id="`package-${field.key}`" :key="field.key" v-model="draft[field.key]" :label="field.label" type="number" step="1" :min="field.min ?? 1" max="2147483647" :required="!field.optional" />
         <UiField id="package-reason" v-model="draft.reason" label="Motivo del cambio" required maxlength="500" />
         <div class="flex flex-wrap items-center gap-3 md:col-span-2"><UiButton type="submit" :disabled="busy">Guardar caja</UiButton><UiButton variant="secondary" :disabled="busy" @click="open = false">Cancelar</UiButton><UiButton v-if="failure" variant="secondary" :disabled="busy" @click="refresh">Actualizar lista</UiButton></div>
-      </fieldset></form>
+      </fieldset></UiForm>
     </UiModal>
   </section>
 </template>

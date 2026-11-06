@@ -19,7 +19,7 @@ export function packageConfiguration(input) {
     if (!Number.isInteger(value) || value < (field.min ?? 1) || value > 2147483647) throw new Error(`${field.label}: introduce un entero válido.`)
     data[field.key] = value
   }
-  for (const axis of ['Length', 'Width', 'Height']) if (data[`outer${axis}Mm`] < data[`inner${axis}Mm`]) throw new Error('Las medidas exteriores deben ser mayores o iguales que las interiores.')
+  for (const axis of ['Length', 'Width', 'Height']) if (data[`outer${axis}Mm`] < data[`inner${axis}Mm`]) throw new Error(`${{ Length: 'Largo', Width: 'Ancho', Height: 'Alto' }[axis]} exterior: debe ser mayor o igual que el ${{ Length: 'largo', Width: 'ancho', Height: 'alto' }[axis]} interior, en milímetros.`)
   if (data.maxGrossWeightGrams !== null && data.maxGrossWeightGrams <= data.tareWeightGrams) throw new Error('El peso bruto máximo debe superar el peso de la caja vacía.')
   return data
 }

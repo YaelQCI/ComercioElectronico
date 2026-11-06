@@ -7,9 +7,9 @@ export function rateAddress(input) {
   const result = { country: 'MX', postalCode: postalCode(input.postalCode) }
   for (const field of ['name', 'phone', 'street', 'city', 'state']) {
     result[field] = clean(input[field])
-    if (!result[field]) throw new ShippingProviderError('Completa nombre, teléfono, calle, ciudad y código estatal de Envia.com.')
+    if (!result[field]) throw new ShippingProviderError(`${{ name: 'Nombre del destinatario', phone: 'Teléfono', street: 'Calle y número', city: 'Ciudad', state: 'Estado' }[field]}: completa este campo con hasta 250 caracteres, sin saltos de línea ni tabulaciones.`)
   }
-  if (!/^[A-Za-z]{2}$/.test(result.state)) throw new ShippingProviderError('Usa el código estatal de dos letras de Envia.com.')
+  if (!/^[A-Za-z]{2}$/.test(result.state)) throw new ShippingProviderError('Estado: selecciona un estado de la lista para obtener su código de dos letras.')
   result.state = result.state.toUpperCase()
   return result
 }

@@ -54,12 +54,13 @@ export function createProductDetailsAdministration(db) {
     },
     async createBrand(adminId, input) {
       const name = accountText(input?.name, 'Nombre de marca', 120), slug = accountText(input?.slug, 'Identificador de marca', 150), reason = accountText(input?.reason, 'Motivo', 500)
-      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) throw new AccountError(400, 'Identificador de marca inválido.')
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) throw new AccountError(400, 'Identificador de marca: usa minúsculas, números y guiones entre palabras, sin espacios ni acentos.')
       return db.$transaction(async tx => {
         await requireAdministrator(tx, adminId)
         const key = `brand:${name.toLowerCase()}`
         await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key},0))::text`
-        if (await tx.brand.findFirst({ where: { OR: [{ slug }, { name: { equals: name, mode: 'insensitive' } }] } })) throw new AccountError(409, 'Ya existe esa marca o identificador.')
+        const existing = await tx.brand.findFirst({ where: { OR: [{ slug }, { name: { equals: name, mode: 'insensitive' } }] } })
+        if (existing) throw new AccountError(409, existing.slug === slug ? 'Identificador de marca: ya está registrado. Selecciona la marca existente o usa otro identificador.' : 'Nombre de marca: ya está registrado. Selecciona la marca existente en lugar de crearla otra vez.')
         const brand = await tx.brand.create({ data: { name, slug } })
         await tx.auditEvent.create({ data: { actorId: adminId, actorType: 'ADMIN', entityType: 'Brand', entityId: brand.id, action: 'CREATE_BRAND', reason, safeAfter: { name, slug }, correlationId: randomUUID() } })
         return { id: brand.id, name, slug }

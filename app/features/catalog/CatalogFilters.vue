@@ -18,7 +18,7 @@ onMounted(() => {
           <label v-for="option in group.options" :key="option.value" class="flex min-h-11 cursor-pointer items-center gap-3 text-body-s text-ink-2"><input type="checkbox" :checked="filters.selected(group.key).includes(option.value)" :value="option.value" class="h-5 w-5 shrink-0 accent-accent" @change="filters.toggle(group.key, option.value)"><span>{{ option.label }}</span></label>
         </fieldset>
       </div>
-      <form class="p-4" @submit.prevent="filters.applyRange">
+      <UiForm class="p-4" @submit.prevent="filters.applyRange">
         <fieldset :disabled="filters.pending">
           <legend class="mb-3 font-mono text-label font-semibold uppercase tracking-widest text-ink-2">Precio (MXN)</legend>
           <div class="grid min-w-0 grid-cols-2 gap-2">
@@ -28,7 +28,7 @@ onMounted(() => {
           <p v-if="filters.rangeError" role="alert" class="mt-3 text-body-s text-crit">{{ filters.rangeError }}</p>
           <UiButton type="submit" variant="secondary" class="mt-3" :disabled="filters.pending">Aplicar precios</UiButton>
         </fieldset>
-      </form>
+      </UiForm>
     </details>
   </aside>
 </template>

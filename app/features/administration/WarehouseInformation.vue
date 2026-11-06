@@ -39,7 +39,7 @@ const address = computed(() => `${props.warehouse.street} ${props.warehouse.exte
       <div><dt class="text-body-s text-ink-2">Zona horaria</dt><dd>{{ warehouse.timezone }}</dd></div>
     </dl>
     <UiModal :open="editing" title="Editar información del almacén" :busy="busy" @close="editing = false">
-    <form class="mt-6 border-t border-line pt-6" @submit.prevent="save">
+    <UiForm class="mt-6 border-t border-line pt-6" @submit.prevent="save">
       <h4 class="font-semibold">Editar información del almacén</h4>
       <p class="my-3 text-body-s text-ink-2">Los nuevos datos se usarán para cotizar envíos. Las cotizaciones pendientes deberán actualizarse; los pedidos existentes conservarán su dirección de origen registrada.</p>
       <p v-if="failure" role="alert" class="my-3 text-crit">{{ failure }}</p>
@@ -49,7 +49,7 @@ const address = computed(() => `${props.warehouse.street} ${props.warehouse.exte
         <UiField id="edit-warehouse-reason" v-model="reason" label="Motivo de los cambios" required maxlength="500" />
         <div class="flex flex-wrap items-center gap-3 md:col-span-2"><UiButton type="submit" :disabled="busy">{{ busy ? 'Guardando…' : 'Guardar cambios del almacén' }}</UiButton><UiButton variant="secondary" :disabled="busy" @click="editing = false">Cancelar</UiButton><UiButton v-if="failure" variant="secondary" :disabled="busy" @click="emit('refresh')">Actualizar información</UiButton></div>
       </fieldset>
-    </form>
+    </UiForm>
     </UiModal>
   </section>
 </template>

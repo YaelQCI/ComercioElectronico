@@ -52,7 +52,7 @@ async function upload() {
     <UiButton v-if="!product.deactivated" variant="secondary" aria-haspopup="dialog" @click="open = true">Agregar imagen</UiButton>
     <UiModal :open="open" title="Agregar imagen al producto" :busy="busy" @close="open = false">
     <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
-    <form @submit.prevent="upload">
+    <UiForm @submit.prevent="upload">
       <fieldset :disabled="busy" class="grid min-w-0 gap-4 md:grid-cols-2">
         <legend class="sr-only">Agregar una imagen al producto</legend>
         <div class="md:col-span-2"><label :for="`product-image-${product.id}`" class="mb-2 block text-body-s font-semibold">Archivo de imagen</label><input :id="`product-image-${product.id}`" ref="fileInput" type="file" accept="image/jpeg,image/png,image/webp" required :aria-describedby="`product-image-hint-${product.id}`" class="min-h-11 w-full rounded-sm border border-border bg-surface p-2" @change="choose"><p :id="`product-image-hint-${product.id}`" class="mt-2 text-body-s text-ink-2">JPG, PNG o WebP, hasta 5 MB. Máximo 20 imágenes por producto.</p></div>
@@ -61,9 +61,9 @@ async function upload() {
         <UiField :id="`image-variant-${product.id}`" v-model="variantId" label="Asignar imagen a" :options="[{ value: '', label: 'Todas las presentaciones (genérica)' }, ...product.variants.filter(variant => !variant.deactivated).map(variant => ({ value: variant.id, label: `${variant.presentationLabel} · ${variant.flavor} · ${variant.sku}` }))]" hint="Una imagen específica sustituye a la genérica del mismo tipo para esa presentación." />
         <UiField :id="`image-alt-${product.id}`" v-model="alt" label="Descripción de la imagen" hint="Describe lo que muestra para las personas que utilizan lectores de pantalla." required maxlength="500" />
         <UiField :id="`image-reason-${product.id}`" v-model="reason" label="Motivo de la carga" required maxlength="500" />
-        <UiButton type="submit" :disabled="busy || !file || (product.images?.length || 0) >= 20">{{ busy ? 'Cargando imagen…' : 'Guardar imagen' }}</UiButton>
+        <p v-if="(product.images?.length || 0) >= 20" role="alert" class="text-crit md:col-span-2">Este producto ya tiene 20 im?genes, el máximo permitido. No se puede agregar otra imagen.</p><UiButton type="submit" :disabled="busy || (product.images?.length || 0) >= 20">{{ busy ? 'Cargando imagen…' : 'Guardar imagen' }}</UiButton>
       </fieldset>
-    </form>
+    </UiForm>
     </UiModal>
   </section>
 </template>

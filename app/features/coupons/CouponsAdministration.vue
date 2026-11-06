@@ -31,17 +31,21 @@ function toggle(item, checked) {
 async function submit() {
   localError.value = ''
   try {
-    const amount = pesosToCents(form.amount)
+    if (form.scope !== 'CATALOG' && !selected.value.length) { localError.value = form.scope === 'PRODUCTS' ? 'Selecciona al menos un producto al que aplique el cupón.' : 'Selecciona al menos una categoría a la que aplique el cupón.'; return }
+    if (form.startsAt && form.endsAt && form.startsAt >= form.endsAt) { localError.value = 'Fin del cupón: selecciona una fecha y hora posteriores al inicio.'; return }
+    const amount = pesosToCents(form.amount, form.kind === 'PERCENTAGE' ? 'Porcentaje de descuento' : 'Descuento en MXN')
+    if (form.kind === 'PERCENTAGE' && (BigInt(amount) < 1n || BigInt(amount) > 10000n)) { localError.value = 'Porcentaje de descuento: escribe un valor entre 0.01 y 100, con hasta dos decimales.'; return }
+    if (form.kind === 'FIXED' && BigInt(amount) === 0n) { localError.value = 'Descuento en MXN: escribe un importe mayor que cero.'; return }
     const result = await save(editing.value ? `/api/admin/coupons/${editing.value.id}` : '/api/admin/coupons', {
       code: form.code, kind: form.kind, fixedAmountCents: form.kind === 'FIXED' ? amount : null, percentageBasisPoints: form.kind === 'PERCENTAGE' ? Number(amount) : null,
-      minimumEligibleCents: form.minimum.trim() ? pesosToCents(form.minimum) : null,
+      minimumEligibleCents: form.minimum.trim() ? pesosToCents(form.minimum, 'Compra mínima elegible en MXN') : null,
       startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : null, endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : null,
       maxUses: form.maxUses === '' ? null : Number(form.maxUses), maxUsesPerCustomer: form.maxUsesPerCustomer === '' ? null : Number(form.maxUsesPerCustomer),
       scope: form.scope, productIds: form.scope === 'PRODUCTS' ? selected.value.map(p => p.id) : [], categoryIds: form.scope === 'CATEGORIES' ? selected.value.map(c => c.id) : [],
       isActive: form.isActive, allowOffers: form.allowOffers, allowBundles: form.allowBundles, freeShipping: form.freeShipping, reason: form.reason, expectedVersion: editing.value?.version,
     }, editing.value ? 'PATCH' : 'POST')
     if (result) open.value = false
-  } catch { localError.value = 'Revisa los importes y las fechas. Usa hasta dos decimales en el descuento y la compra mínima.' }
+  } catch (error) { localError.value = error instanceof RangeError ? error.message : 'No pudimos preparar el cupón. Revisa las fechas de inicio y fin y vuelve a intentarlo.' }
 }
 function state(coupon) {
   if (!coupon.isActive) return 'Desactivado'
@@ -76,7 +80,7 @@ const dateLabel = value => value ? new Date(value).toLocaleString('es-MX') : 'Si
       <nav v-if="data?.pages > 1" aria-label="Páginas de cupones" class="mt-6 flex items-center justify-center gap-3"><UiButton variant="secondary" :disabled="page <= 1" @click="page--">Anterior</UiButton><span>{{ data.page }} de {{ data.pages }}</span><UiButton variant="secondary" :disabled="page >= data.pages" @click="page++">Siguiente</UiButton></nav>
     </template>
     <UiModal :open="open" :title="editing ? `Editar cupón ${editing.code}` : 'Crear cupón'" :busy="busy" @close="open = false">
-      <form class="grid gap-5" @submit.prevent="submit">
+      <UiForm class="grid gap-5" @submit.prevent="submit">
         <p class="text-ink-2">Los cambios se registran en el historial. Editar un cupón requiere que los carritos vuelvan a aceptar sus condiciones; no modifica pedidos ya pagados.</p>
         <fieldset :disabled="busy" class="grid min-w-0 gap-5 sm:grid-cols-2">
           <UiField id="coupon-code" v-model="form.code" label="Código del cupón" maxlength="60" pattern="[A-Za-z0-9_-]{1,60}" required :disabled="!!editing" hint="Sin espacios. No distingue mayúsculas. El código no se puede cambiar después." />
@@ -104,7 +108,7 @@ const dateLabel = value => value ? new Date(value).toLocaleString('es-MX') : 'Si
         </fieldset>
         <p v-if="failure || localError" role="alert" class="text-crit">{{ failure || localError }}</p>
         <div class="flex flex-wrap justify-end gap-3"><UiButton variant="secondary" :disabled="busy" @click="open = false">Cancelar</UiButton><UiButton type="submit" :disabled="busy">{{ busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear cupón' }}</UiButton></div>
-      </form>
+      </UiForm>
     </UiModal>
   </section>
 </template>

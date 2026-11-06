@@ -39,7 +39,7 @@ async function save() {
       <h2 id="account-address-title" class="text-display-m font-bold">Agregar dirección</h2>
       <UiButton variant="secondary" :disabled="busy" @click="close">Cerrar</UiButton>
     </div>
-    <form class="p-5" :aria-busy="busy" @submit.prevent="save">
+    <UiForm class="p-5" :aria-busy="busy" @submit.prevent="save">
       <p id="account-address-description" class="mb-4 text-body-s text-ink-2">Completa los datos de entrega. Los campos opcionales están indicados.</p>
       <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
       <fieldset :disabled="busy" class="grid min-w-0 gap-4">
@@ -48,7 +48,7 @@ async function save() {
         <label class="flex min-h-11 items-center gap-3"><input v-model="address.isDefault" type="checkbox">Guardar como predeterminada</label>
         <div class="flex flex-wrap gap-3"><UiButton type="submit" :disabled="busy">{{ busy ? 'Guardando…' : 'Guardar dirección' }}</UiButton><UiButton variant="secondary" :disabled="busy" @click="close">Cancelar</UiButton></div>
       </fieldset>
-    </form>
+    </UiForm>
   </dialog>
 </template>
 <style scoped>

@@ -71,7 +71,7 @@ async function create() {
   creating.value = true
   try {
     if (!await verifyIdentifiers(true)) return
-    const variant = Object.fromEntries(fields.map(f => [f.price ? 'priceCents' : f.key, f.price ? pesosToCents(draft[f.key]) : f.numeric ? Number(draft[f.key]) : draft[f.key]]))
+    const variant = Object.fromEntries(fields.map(f => [f.price ? 'priceCents' : f.key, f.price ? pesosToCents(draft[f.key], f.label) : f.numeric ? Number(draft[f.key]) : draft[f.key]]))
     variant.servings = draft.servings.trim() || null
     Object.assign(variant, variantPayload(draft))
     if (await save('/api/admin/catalog', { name: draft.name, slug: draft.slug, description: draft.description, reason: draft.reason, ingredients: draft.ingredients, usageInstructions: draft.usageInstructions, allergenInformation: draft.allergenInformation, brandId: draft.brandId || null, relatedProductIds: draft.relatedProductIds, crossSellProductIds: draft.crossSellProductIds, categoryIds: draftCategoryIds.value, variants: [variant] })) {
@@ -88,11 +88,11 @@ async function update(extra = {}) {
   try {
     variants = variantEdits.value.filter(variant => !variant.deactivated).map(variant => {
       const original = product.variants.find(item => item.id === variant.id)
-      const values = Object.fromEntries(fields.map(field => [field.price ? 'priceCents' : field.key, field.price ? pesosToCents(variant[field.key]) : field.numeric ? Number(variant[field.key]) : variant[field.key]]))
+      const values = Object.fromEntries(fields.map(field => [field.price ? 'priceCents' : field.key, field.price ? pesosToCents(variant[field.key], `${variant.sku} ? ${field.label}`) : field.numeric ? Number(variant[field.key]) : variant[field.key]]))
       values.servings = variant.servings.trim() || null
       Object.assign(values, variantPayload(variant))
-      values.compareAtPriceCents = variant.compareAtPricePesos.trim() === '' ? null : pesosToCents(variant.compareAtPricePesos)
-      if (values.compareAtPriceCents !== null && BigInt(values.compareAtPriceCents) <= BigInt(values.priceCents)) throw new RangeError('El precio anterior debe superar el precio vigente.')
+      values.compareAtPriceCents = variant.compareAtPricePesos.trim() === '' ? null : pesosToCents(variant.compareAtPricePesos, `${variant.sku} ? Precio anterior`)
+      if (values.compareAtPriceCents !== null && BigInt(values.compareAtPriceCents) <= BigInt(values.priceCents)) throw new RangeError(`${variant.sku} ? Precio anterior: debe ser mayor que el precio vigente.`)
       if (!Object.keys(values).some(key => key === 'nutritionData' ? JSON.stringify(values[key]) !== JSON.stringify(original[key] ?? null) : values[key] !== original[key])) return null
       return { id: variant.id, expectedPriceVersion: original.priceVersion, ...values }
     }).filter(Boolean)
@@ -130,7 +130,7 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
       <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
       <p class="my-3 text-ink-2">Ingresa información comercial documentada. Se crea con una variante; después usa Gestionar para agregar sus imágenes y publicarlo.</p>
       <p class="mb-4 text-body-s text-ink-2">Los campos marcados con <span class="font-semibold text-crit">*</span> son obligatorios.</p>
-      <form @submit.prevent="create">
+      <UiForm @submit.prevent="create">
         <fieldset :disabled="busy || creating" class="grid min-w-0 gap-4 md:grid-cols-2">
         <legend class="sr-only">Datos del producto en borrador</legend>
         <UiField id="draft-name" v-model="draft.name" label="Nombre" required maxlength="120" />
@@ -149,14 +149,14 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
         <UiButton v-if="identifierFailure" variant="secondary" :disabled="busy || creating || checkingIdentifiers" @click="verifyIdentifiers">Reintentar comprobación</UiButton>
         <UiButton type="submit" :disabled="busy || creating || checkingIdentifiers || !!slugError || !!skuError || !!identifierFailure">{{ creating ? 'Creando…' : 'Crear borrador' }}</UiButton>
         </fieldset>
-      </form>
+      </UiForm>
     </UiModal>
-    <form role="search" aria-label="Buscar productos en administración" aria-describedby="admin-product-search-hint" class="my-4 flex flex-wrap items-end gap-3" @submit.prevent="searchProducts">
+    <UiForm role="search" aria-label="Buscar productos en administración" aria-describedby="admin-product-search-hint" class="my-4 flex flex-wrap items-end gap-3" @submit.prevent="searchProducts">
       <div class="min-w-0 flex-1 basis-64"><UiField id="admin-product-search" v-model="searchInput" class="h-12" label="Buscar productos" type="search" maxlength="120" placeholder="Nombre o SKU" /></div>
       <UiButton class="h-12" type="submit">Buscar</UiButton>
       <UiButton v-if="search || searchInput" class="h-12" variant="secondary" @click="clearSearch">Limpiar búsqueda</UiButton>
       <p id="admin-product-search-hint" class="w-full text-body-s text-ink-2">Busca en todos los productos, incluidos borradores y desactivados.</p>
-    </form>
+    </UiForm>
     <UiLoading v-if="status === 'pending'" label="Cargando productos" />
     <div v-else-if="error" role="alert"><p>No se pudieron cargar los productos.</p><UiButton @click="refresh()">Reintentar</UiButton></div>
     <template v-else>
@@ -188,14 +188,14 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
       <UiModal :open="reactivating" title="Reactivar producto" :busy="busy" @close="reactivating = false">
         <p class="mb-4">{{ selected.name }} volverá a estar activo como borrador. Sus imágenes, precios e inventario se conservan; no se publica automáticamente.</p>
         <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
-        <form class="grid gap-4" @submit.prevent="reactivate">
+        <UiForm class="grid gap-4" @submit.prevent="reactivate">
           <UiField id="reactivation-reason" v-model="reactivationReason" label="Motivo de la reactivación" required maxlength="500" :disabled="busy" />
           <div class="flex flex-wrap gap-3"><UiButton type="submit" :disabled="busy">Confirmar reactivación</UiButton><UiButton variant="secondary" :disabled="busy" @click="reactivating = false">Cancelar</UiButton></div>
-        </form>
+        </UiForm>
       </UiModal>
       <p v-if="selected.creationReason" class="mt-3 text-body-s text-ink-2">Motivo del alta (histórico): {{ selected.creationReason }}</p>
       <p class="mt-3 text-body-s text-ink-2">Revisa y modifica los datos del producto y sus variantes. Guardar y publicar aplica todos los cambios del formulario en una sola operación.</p>
-      <form ref="editForm" class="mt-4" @submit.prevent="update()">
+      <UiForm ref="editForm" class="mt-4" @submit.prevent="update()">
         <fieldset :disabled="busy || selected.deactivated" class="grid min-w-0 gap-4 md:grid-cols-2">
         <legend class="sr-only">Datos del producto y sus variantes</legend>
         <UiField id="edit-name" v-model="edit.name" label="Nombre" required maxlength="120" />
@@ -246,12 +246,12 @@ const money = cents => new Intl.NumberFormat('es-MX', { style: 'currency', curre
             <p class="mt-3 text-body-s text-ink-2">{{ selected.deactivated ? 'Activar conserva sus datos y lo devuelve a borrador; después podrás publicarlo.' : 'Desactivar retira el producto del catálogo. Escribe el motivo de los cambios para habilitar esta acción.' }}</p>
           </section>
         </div>
-      </form>
+      </UiForm>
       <UiButton v-if="failure" variant="secondary" class="mt-4" :disabled="busy" @click="reloadSelected">Actualizar producto y descartar cambios</UiButton>
       <UiModal :open="withdrawing" title="Confirmar retiro del catálogo" :busy="busy" @close="withdrawing = false">
         <p class="mb-4">{{ selected.name }} dejará de ser visible para los clientes. Esta acción no guarda los cambios pendientes del formulario.</p>
         <p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>
-        <form class="grid gap-4" @submit.prevent="withdraw"><UiField id="withdrawal-reason" v-model="withdrawalReason" label="Motivo del retiro" required maxlength="500" :disabled="busy" /><div class="flex flex-wrap gap-3"><UiButton type="submit" :disabled="busy">Confirmar retiro</UiButton><UiButton variant="secondary" :disabled="busy" @click="withdrawing = false">Cancelar</UiButton></div></form>
+        <UiForm class="grid gap-4" @submit.prevent="withdraw"><UiField id="withdrawal-reason" v-model="withdrawalReason" label="Motivo del retiro" required maxlength="500" :disabled="busy" /><div class="flex flex-wrap gap-3"><UiButton type="submit" :disabled="busy">Confirmar retiro</UiButton><UiButton variant="secondary" :disabled="busy" @click="withdrawing = false">Cancelar</UiButton></div></UiForm>
       </UiModal>
       <AddProductVariant :product="selected" :fields="fields" @created="variantCreated" />
       <ProductImages :key="selected.id" :product="selected" @updated="imagesUpdated" />

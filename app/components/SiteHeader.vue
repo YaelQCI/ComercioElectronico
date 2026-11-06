@@ -50,11 +50,11 @@ function search() {
             <li v-for="category in storeCategories" :key="category.slug"><NuxtLink :to="{ path: '/catalogo', query: { categoria: category.slug } }" class="inline-flex min-h-11 items-center hover:text-accent-text hover:underline">{{ category.name }}</NuxtLink></li>
           </ul>
         </nav>
-        <form role="search" class="header-search flex w-full items-center gap-2 lg:w-64" @submit.prevent="search">
+        <UiForm role="search" class="header-search flex w-full items-center gap-2 lg:w-64" @submit.prevent="search">
           <label for="header-search" class="sr-only">Buscar productos</label>
           <input id="header-search" v-model="query" name="q" type="search" maxlength="120" placeholder="Creatina, whey…" class="min-h-11 min-w-0 flex-1 rounded-sm border border-border bg-surface px-3 text-ink placeholder:text-ink-2">
           <button type="submit" aria-label="Buscar" class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm border border-border bg-surface hover:bg-surface-2"><UiIcon name="search" /></button>
-        </form>
+        </UiForm>
       </div>
       <nav id="mobile-categories" v-show="menuOpen" aria-label="Categorías de producto, menú móvil" class="border-t border-line py-3 lg:hidden">
         <ul class="grid gap-2 sm:grid-cols-2">

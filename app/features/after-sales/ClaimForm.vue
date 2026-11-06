@@ -3,6 +3,8 @@ const route=useRoute()
 const orderId=ref(typeof route.query.pedido==='string'?route.query.pedido:''),credential=ref(''),data=ref(null),selected=ref([]),type=ref('RETURN'),reason=ref('VOLUNTARY'),condition=ref('SEALED'),description=ref(''),url=ref(''),evidenceDescription=ref(''),comparison=reactive({}),busy=ref(false),failure=ref(''),message=useConfirmationMessage()
 const labels={REQUESTED:'Solicitada',APPROVED:'Aprobada',REJECTED:'Rechazada',RECEIVED:'Recibida',RESOLVED:'Resuelta',PROCESSING:'En proceso',SETTLED:'Liquidado',FAILED:'Fallido',REQUIRES_REVIEW:'Requiere revisión'}
 async function run(action){
+  if(busy.value)return
+  if(action==='request'&&!selected.value.length){failure.value='Selecciona al menos una unidad del pedido para solicitar una devolución o Price Match.';return}
   busy.value=true;message.value='';failure.value=''
   try{
     const body={action,orderId:orderId.value,guestToken:credential.value||undefined}
@@ -17,15 +19,15 @@ async function run(action){
   <section class="mx-auto max-w-3xl space-y-6 px-6 py-12">
     <h1 class="text-3xl font-bold">Solicitudes del pedido</h1>
     <p>Consulta tus devoluciones y solicitudes de Price Match. Cada solicitud requiere revisión de la tienda y evidencia. No envíes productos antes de recibir instrucciones de retorno.</p>
-    <form class="space-y-3" @submit.prevent="run('list')">
-      <label class="block">Identificador del pedido<input v-model="orderId" required class="block w-full rounded border p-2" /></label>
+    <UiForm class="space-y-3" @submit.prevent="run('list')">
+      <label class="block">Identificador del pedido<input v-model="orderId" required pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}" data-format-error="copia el identificador completo del pedido desde su detalle; no uses el número comercial del pedido." class="block w-full rounded border p-2" /></label>
       <label class="block">Credencial del pedido (para invitados)<input v-model="credential" type="password" autocomplete="off" class="block w-full rounded border p-2" /></label>
       <button :disabled="busy" class="rounded border px-4 py-2">Consultar pedido</button>
-    </form>
+    </UiForm>
     <p v-if="failure" role="alert" class="text-crit">{{ failure }}</p>
     <template v-if="data">
       <h2 class="text-xl font-bold">Pedido {{ data.number }}</h2>
-      <form class="space-y-4" @submit.prevent="run('request')">
+      <UiForm class="space-y-4" @submit.prevent="run('request')">
         <label class="block">Solicitud<select v-model="type" class="block rounded border p-2"><option value="RETURN">Devolución</option><option value="PRICE_MATCH">Price Match</option></select></label>
         <fieldset><legend>Unidades del pedido</legend><label v-for="unit in data.units" :key="unit.id" class="block py-2"><input v-model="selected" type="checkbox" :value="unit.id" :disabled="unit.returned" /> {{ unit.name }} · {{ unit.sku }} · {{ unit.id }} {{ unit.returned ? '(ya recibida)' : '' }}</label></fieldset>
         <template v-if="type==='RETURN'">
@@ -38,10 +40,10 @@ async function run(action){
           <fieldset v-for="id in selected" :key="id"><legend>Unidad {{ id }}</legend><label class="block">Precio competidor (centavos)<input v-model="comparison[id].price" required inputmode="numeric" pattern="[0-9]+" class="block rounded border p-2" /></label><label class="block">Envío asignado a esta unidad (centavos)<input v-model="comparison[id].shipping" required inputmode="numeric" pattern="[0-9]+" class="block rounded border p-2" /></label></fieldset>
         </template>
         <label class="block">Descripción<textarea v-model="description" required maxlength="4000" class="block w-full rounded border p-2" /></label>
-        <label class="block">Enlace HTTPS de evidencia<input v-model="url" required type="url" class="block w-full rounded border p-2" /></label>
+        <label class="block">Enlace HTTPS de evidencia<input v-model="url" required type="url" pattern="https://.+" class="block w-full rounded border p-2" /></label>
         <label class="block">Descripción de evidencia<input v-model="evidenceDescription" required maxlength="500" class="block w-full rounded border p-2" /></label>
-        <button :disabled="busy||!selected.length" class="rounded border px-4 py-2">Registrar solicitud</button>
-      </form>
+        <button :disabled="busy" class="rounded border px-4 py-2">Registrar solicitud</button>
+      </UiForm>
       <h2 class="text-xl font-bold">Seguimiento</h2>
       <p v-if="!data.returns.length&&!data.priceMatches.length">Aún no hay solicitudes.</p>
       <article v-for="claim in [...data.returns,...data.priceMatches]" :key="claim.id" class="rounded border p-4"><p>{{ claim.id }} · {{ labels[claim.status] }}</p><p>{{ claim.decision }}</p><p v-for="refund in claim.refunds" :key="refund.id">Reintegro {{ refund.id }} · {{ labels[refund.status] }}</p></article>

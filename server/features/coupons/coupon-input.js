@@ -11,14 +11,14 @@ export function couponInput(input) {
     if (typeof value !== 'string' || !/^\d{1,15}$/.test(value) || BigInt(value) > 999999999999999n || (required && BigInt(value) === 0n)) fail(`${label} debe ser un importe válido en centavos.`)
     return BigInt(value)
   }
-  function limit(value) {
+  function limit(value, label) {
     if (value === '' || value == null) return null
-    if (!Number.isInteger(value) || value < 1 || value > 2147483647) fail('Los límites de uso deben ser números enteros positivos.')
+    if (!Number.isInteger(value) || value < 1 || value > 2147483647) fail(`${label}: escribe un número entero entre 1 y 2147483647 o deja el campo vacío para no limitarlo.`)
     return value
   }
-  function date(value) {
+  function date(value, label) {
     if (value == null || value === '') return null
-    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString() !== value) fail('Fecha del cupón inválida.')
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString() !== value) fail(`${label}: selecciona una fecha y hora válidas o deja el campo vacío.`)
     return new Date(value)
   }
   function ids(value) {
@@ -29,13 +29,13 @@ export function couponInput(input) {
   if (!['CATALOG', 'PRODUCTS', 'CATEGORIES'].includes(input.scope)) fail('Selecciona dónde aplica el cupón.')
   for (const key of ['isActive', 'allowOffers', 'allowBundles']) if (typeof input[key] !== 'boolean') fail('Revisa las opciones del cupón.')
   if (input.freeShipping !== undefined && typeof input.freeShipping !== 'boolean') fail('Revisa la opción de envío gratis.')
-  const startsAt = date(input.startsAt), endsAt = date(input.endsAt)
-  if (startsAt && endsAt && startsAt >= endsAt) fail('El fin debe ser posterior al inicio.')
+  const startsAt = date(input.startsAt, 'Inicio del cupón'), endsAt = date(input.endsAt, 'Fin del cupón')
+  if (startsAt && endsAt && startsAt >= endsAt) fail('Fin del cupón: selecciona una fecha y hora posteriores al inicio.')
   const productIds = ids(input.productIds ?? []), categoryIds = ids(input.categoryIds ?? [])
-  if (input.scope === 'PRODUCTS' && !productIds.length || input.scope === 'CATEGORIES' && !categoryIds.length) fail('Selecciona al menos un elemento para el alcance del cupón.')
+  if (input.scope === 'PRODUCTS' && !productIds.length || input.scope === 'CATEGORIES' && !categoryIds.length) fail(input.scope === 'PRODUCTS' ? 'Selecciona al menos un producto al que aplique el cupón.' : 'Selecciona al menos una categoría a la que aplique el cupón.')
   if (input.kind === 'PERCENTAGE' && (!Number.isInteger(input.percentageBasisPoints) || input.percentageBasisPoints < 1 || input.percentageBasisPoints > 10000)) fail('El porcentaje debe estar entre 0.01 y 100 %.')
   return {
-    data: { code: input.code.trim(), codeNormalized, kind: input.kind, fixedAmountCents: input.kind === 'FIXED' ? amount(input.fixedAmountCents, 'Descuento', true) : null, percentageBasisPoints: input.kind === 'PERCENTAGE' ? input.percentageBasisPoints : null, minimumEligibleCents: amount(input.minimumEligibleCents, 'Compra mínima'), startsAt, endsAt, maxUses: limit(input.maxUses), maxUsesPerCustomer: limit(input.maxUsesPerCustomer), scope: input.scope, isActive: input.isActive, allowOffers: input.allowOffers, allowBundles: input.allowBundles, freeShipping: input.freeShipping ?? false },
+    data: { code: input.code.trim(), codeNormalized, kind: input.kind, fixedAmountCents: input.kind === 'FIXED' ? amount(input.fixedAmountCents, 'Descuento', true) : null, percentageBasisPoints: input.kind === 'PERCENTAGE' ? input.percentageBasisPoints : null, minimumEligibleCents: amount(input.minimumEligibleCents, 'Compra mínima'), startsAt, endsAt, maxUses: limit(input.maxUses, 'Límite global de usos'), maxUsesPerCustomer: limit(input.maxUsesPerCustomer, 'Usos por cliente'), scope: input.scope, isActive: input.isActive, allowOffers: input.allowOffers, allowBundles: input.allowBundles, freeShipping: input.freeShipping ?? false },
     productIds: input.scope === 'PRODUCTS' ? productIds : [], categoryIds: input.scope === 'CATEGORIES' ? categoryIds : [], reason: accountText(input.reason, 'Motivo', 500),
   }
 }
