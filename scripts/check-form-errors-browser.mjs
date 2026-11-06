@@ -52,6 +52,8 @@ try {
   let authenticated = false, rejectRegistration = true, registration, userReads = 0
   const warehouse = { id: '40000000-0000-4000-8000-000000000001', name: 'Almacén sintético', configurationVersion: 1, timezone: 'America/Mexico_City' }
   const lot = { id: '50000000-0000-4000-8000-000000000001', sku: 'SKU-SINTETICO', productName: 'Producto sintético', productId: '60000000-0000-4000-8000-000000000001', warehouse: warehouse.name, lotCode: 'LOTE-SINTETICO', version: 1, onHandQty: 10, reservedQty: 4, nonSellableQty: 0, isBlocked: false }
+  const savedAddress = { id: '70000000-0000-4000-8000-000000000001', recipientName: 'Destinatario sintético', label: 'Casa', phone: '5555555555', postalCode: '01000', state: 'CX', city: 'Ciudad sintética', district: 'Colonia sintética', street: 'Calle original', exteriorNumber: '12', interiorNumber: null, references: 'Referencia existente', isDefault: true }
+  let addressWrites = 0
   let adjustmentWrites = 0
   const exceptions = []
   const original = socket.onmessage
@@ -64,7 +66,16 @@ try {
     let payload = {}, responseCode = 200
     if (path === '/api/account/login') { authenticated = true; payload = { user } }
     else if (path === '/api/account/session') payload = { user: authenticated ? user : null }
-    else if (path === '/api/account/profile') payload = { user, addresses: [] }
+    else if (path === '/api/account/profile') payload = { user, addresses: [{ ...savedAddress }] }
+    else if (path === '/api/account/addresses') {
+      addressWrites++
+      const body = JSON.parse(request.postData)
+      assert.equal(body.id, savedAddress.id)
+      assert.equal(body.references, 'Referencia existente')
+      assert.equal(body.isDefault, true)
+      if (addressWrites === 1) { responseCode = 503; payload = { statusMessage: 'No pudimos guardar la dirección. Intenta de nuevo.' } }
+      else { Object.assign(savedAddress, body); payload = { address: savedAddress } }
+    }
     else if (path === '/api/account/points') payload = { balanceTenths: '0', availableTenths: '0', reservedTenths: '0', movements: [], pages: 0 }
     else if (path === '/api/admin/users' && request.method === 'POST') {
       registration = JSON.parse(request.postData)
@@ -116,7 +127,26 @@ try {
   await click('Iniciar sesión')
   await evaluate('document.querySelector("#account-email").closest("form").requestSubmit()')
   await until(()=>evaluate('!!document.querySelector("#profile-name")'))
+  await until(() => evaluate(`[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Editar dirección')`))
+  await click('Editar dirección')
+  assert.equal(await evaluate('document.querySelector("#address-street").value'), 'Calle original')
+  assert.equal(await evaluate('document.querySelector("#address-references").value'), 'Referencia existente')
+  await fill('address-street', 'Cambio cancelado')
+  await click('Cancelar')
+  assert.equal(addressWrites, 0)
+  await click('Editar dirección')
+  assert.equal(await evaluate('document.querySelector("#address-street").value'), 'Calle original')
+  await fill('address-street', 'Calle actualizada')
+  await click('Guardar dirección')
+  await until(() => addressWrites === 1)
+  assert.equal(await evaluate('document.querySelector("#address-street").value'), 'Calle actualizada')
+  assert.match(await evaluate('document.querySelector("dialog[open]").textContent'), /No pudimos guardar/)
+  await click('Guardar dirección')
+  await until(() => evaluate('!document.querySelector("dialog[open]") && document.body.textContent.includes("Calle actualizada")'))
+  assert.equal(addressWrites, 2)
   await click('Agregar dirección')
+  assert.equal(await evaluate('document.querySelector("#address-street").value'), '')
+  assert.equal(await evaluate('document.querySelector("#address-references").value'), '')
   await until(()=>evaluate('!!document.querySelector("dialog[open] #address-recipientName")'))
   await fill('address-phone', '+52 (444) 123-4567')
   assert.equal(await evaluate(`(() => { const control = document.querySelector('#address-phone'); const data = new DataTransfer(); data.setData('text/plain', 'abc123'); return control.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true })); })()`), false)

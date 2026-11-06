@@ -6,7 +6,7 @@ import { passwordConfirmationError } from '~~/shared/features/accounts/registrat
 const { data, error, status, refresh } = await useFetch('/api/account/session', { key: 'account-session' })
 const mode = ref('login'), busy = ref(false), failure = ref(''), message = useConfirmationMessage()
 const email = ref(''), password = ref(''), displayName = ref(''), phone = ref(''), currentPassword = ref(''), newPassword = ref('')
-const profile = ref(null)
+const profile = ref(null), addressModal = ref(null)
 const passwordConfirmation = ref(''), confirmationTouched = ref(false)
 const confirmationError = computed(() => mode.value === 'register' && confirmationTouched.value ? passwordConfirmationError(password.value, passwordConfirmation.value) : '')
 watch(mode, () => { passwordConfirmation.value = ''; confirmationTouched.value = false; failure.value = '' })
@@ -24,9 +24,9 @@ async function submitAccount() {
   }
   await perform(mode.value, { email: email.value, password: password.value, displayName: displayName.value, ...(mode.value === 'register' ? { passwordConfirmation: passwordConfirmation.value } : {}) })
 }
-async function addressSaved() {
+async function addressSaved({ updated = false } = {}) {
   failure.value = ''
-  message.value = 'Dirección guardada.'
+  message.value = updated ? 'Dirección actualizada.' : 'Dirección guardada.'
   await loadProfile()
 }
 async function perform(action, body = {}) {
@@ -78,9 +78,9 @@ watch(() => data.value?.user?.id, (id, previous) => { if (id !== previous) loadP
           <details class="mt-8"><summary class="min-h-11 cursor-pointer">Desactivar mi cuenta</summary><p class="mt-3">Se cerrarán las sesiones y se conservará el historial comercial. Esta acción no equivale a una solicitud de eliminación de datos.</p><UiForm class="mt-3 grid gap-4" @submit.prevent="perform('deactivate', { currentPassword })"><UiField id="deactivate-password" v-model="currentPassword" label="Confirma tu contraseña" type="password" required autocomplete="current-password" /><UiButton type="submit" variant="secondary" :disabled="busy">Desactivar cuenta</UiButton></UiForm></details>
         </div>
         <div><h2 class="text-display-m font-bold">Direcciones</h2><p v-if="!profile?.addresses.length" class="mt-3">Aún no hay direcciones guardadas.</p>
-          <ul class="mt-4 grid gap-4"><li v-for="item in profile?.addresses" :key="item.id" class="rounded-sm border border-line p-4"><p>{{ item.recipientName }} · {{ item.label }}</p><p>{{ item.street }} {{ item.exteriorNumber }}, {{ item.district }}, {{ item.city }}, {{ item.state }} · {{ item.postalCode }}</p><p v-if="item.isDefault">Predeterminada</p><UiButton v-else class="mt-2" variant="secondary" :disabled="busy" @click="perform('addresses', { ...item, isDefault: true })">Usar como predeterminada</UiButton></li></ul>
+          <ul class="mt-4 grid gap-4"><li v-for="item in profile?.addresses" :key="item.id" class="rounded-sm border border-line p-4"><p>{{ item.recipientName }} · {{ item.label }}</p><p>{{ item.street }} {{ item.exteriorNumber }}, {{ item.district }}, {{ item.city }}, {{ item.state }} · {{ item.postalCode }}</p><UiButton class="mt-2 mr-3" variant="secondary" :disabled="busy" aria-haspopup="dialog" aria-controls="account-address-dialog" :aria-label="`Editar dirección ${item.label || item.recipientName}`" @click="addressModal.edit(item)">Editar dirección</UiButton><p v-if="item.isDefault">Predeterminada</p><UiButton v-else class="mt-2" variant="secondary" :disabled="busy" @click="perform('addresses', { ...item, isDefault: true })">Usar como predeterminada</UiButton></li></ul>
           <div class="mt-6 flex flex-wrap items-center gap-4">
-            <AddressModal @saved="addressSaved" />
+            <AddressModal ref="addressModal" @saved="addressSaved" />
             <NuxtLink to="/pedidos" class="inline-flex min-h-11 items-center text-accent-text underline">Consultar mis pedidos</NuxtLink>
           </div>
           <LoyaltyBalance />
