@@ -8,7 +8,10 @@ import LotTraceabilityFields from '../inventory/LotTraceabilityFields.vue'
 import LotTraceabilityEditor from '../inventory/LotTraceabilityEditor.vue'
 import { adjustmentLimits, validateInventoryAdjustment } from '~~/shared/features/inventory/adjustment-limits.js'
 const page = ref(1)
-const { data, status, error, refresh } = await useFetch('/api/admin/inventory', { query: { page } })
+const searchInput = ref(''), search = ref('')
+function searchInventory() { page.value = 1; search.value = searchInput.value.trim() }
+function clearSearch() { searchInput.value = ''; searchInventory() }
+const { data, status, error, refresh } = await useFetch('/api/admin/inventory', { query: { page, q: search } })
 const { busy, failure, message, save } = useAdministration(refresh)
 const lotOpen = ref(false), warehouseOpen = ref(false)
 const lot = reactive({ sku: '', warehouseId: '', lotCode: '', expiresOn: '', initialQuantity: '', reason: '', importedOn: '', origin: '', customsEntry: '' })
@@ -50,6 +53,11 @@ async function warehouseSaved() {
 <template>
   <div>
     <h2 class="text-display-m font-bold">Inventario</h2>
+    <UiForm role="search" aria-label="Buscar en inventario" class="my-4 flex flex-wrap items-end gap-3" @submit.prevent="searchInventory">
+      <div class="min-w-0 flex-1 basis-64"><UiField id="inventory-search" v-model="searchInput" class="h-12" label="Buscar por nombre o SKU" type="search" maxlength="120" placeholder="Nombre del producto o SKU" /></div>
+      <UiButton class="h-12" type="submit">Buscar</UiButton>
+      <UiButton v-if="search || searchInput" class="h-12" variant="secondary" @click="clearSearch">Limpiar búsqueda</UiButton>
+    </UiForm>
     <p v-if="failure" role="alert" class="my-4 text-crit">{{ failure }}</p>
     <UiLoading variant="list" v-if="status === 'pending'" label="Cargando inventario" />
     <div v-else-if="error" role="alert"><p>No se pudo cargar el inventario.</p><UiButton @click="refresh">Reintentar</UiButton></div>
@@ -89,7 +97,8 @@ async function warehouseSaved() {
         <UiField id="lot-reason" v-model="lot.reason" label="Motivo del alta" required maxlength="500" />
         <UiButton type="submit" :disabled="busy || !data?.warehouses.length">Registrar lote</UiButton>
       </UiForm></UiModal>
-      <p v-if="!data?.lots.length" class="my-6">No hay lotes registrados.</p>
+      <p v-if="search" role="status" class="my-3 text-body-s text-ink-2">{{ data?.total || 0 }} lotes para «{{ search }}».</p>
+      <p v-if="!data?.lots.length" class="my-6">{{ search ? 'No se encontraron lotes con esa búsqueda. Prueba otro nombre o SKU.' : 'No hay lotes registrados.' }}</p>
       <ul class="grid gap-4"><li v-for="item in data?.lots" :key="item.id" class="relative isolate rounded-sm border border-border bg-surface p-4 hover:border-ink"><h3 class="font-semibold"><NuxtLink :to="{ path: `/producto/${item.productId}`, query: { variante: item.variantId } }" class="after:absolute after:inset-0 after:rounded-sm focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-ink">{{ item.productName }} · {{ item.sku }} · {{ item.lotCode }}</NuxtLink></h3><p>{{ item.warehouse }} · Caducidad: {{ item.expiresOn || 'Sin registrar' }}{{ item.isBlocked ? ' · Bloqueado' : '' }}</p><dl class="my-3 flex flex-wrap gap-6"><div><dt class="text-body-s text-ink-2">Existencias</dt><dd>{{ item.onHandQty }}</dd></div><div><dt class="text-body-s text-ink-2">Reservadas</dt><dd>{{ item.reservedQty }}</dd></div><div><dt class="text-body-s text-ink-2">No vendibles</dt><dd>{{ item.nonSellableQty }}</dd></div></dl><UiButton variant="secondary" class="relative z-10" :disabled="busy" @click="select(item)">Ajustar lote {{ item.lotCode }}</UiButton><LotTraceabilityEditor :lot="item" @updated="refresh" /></li></ul>
       <nav aria-label="Páginas de inventario" class="my-4 flex items-center gap-4"><UiButton variant="secondary" :disabled="page <= 1 || busy" @click="page--">Anterior</UiButton><span>Página {{ page }} de {{ data?.pages || 1 }}</span><UiButton variant="secondary" :disabled="page >= (data?.pages || 1) || busy" @click="page++">Siguiente</UiButton></nav>
       <UiModal :open="!!selected" title="Ajustar inventario" :busy="busy" @close="selected = null"><p v-if="failure" role="alert" class="mb-4 text-crit">{{ failure }}</p>

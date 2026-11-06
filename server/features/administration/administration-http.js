@@ -20,7 +20,7 @@ export async function administrationRequest(event, action) {
     const identity = await accountIdentity(event), config = useRuntimeConfig(event)
     const service = createStoreAdministration(getDatabase(), { demoDataEnabled: config.demoDataEnabled !== false && config.demoDataEnabled !== 'false' })
     const input = reading ? null : await readBody(event), target = getRouterParam(event, 'id')
-    if (action === 'products' || action === 'inventory') return await service.overview(identity.user.id, action, Number(getQuery(event).page ?? 1), action === 'products' ? getQuery(event).q : undefined)
+    if (action === 'products' || action === 'inventory') return await service.overview(identity.user.id, action, Number(getQuery(event).page ?? 1), getQuery(event).q)
     if (action === 'lot') return await service.createLot(identity.user.id, input)
     if (action === 'lotVariants') return await service.searchLotVariants(identity.user.id, getQuery(event).q)
     if (action === 'warehouse') return await service.configureWarehouse(identity.user.id, input)
