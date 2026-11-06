@@ -17,10 +17,13 @@ test('registro explica los errores de correo y los límites reales de contraseñ
 
 test('registro explica correo duplicado sin confundir otros conflictos con duplicados', async () => {
   const input = { email: 'registro@example.invalid', displayName: 'Prueba', password: 'Contraseña de prueba 123', passwordConfirmation: 'Contraseña de prueba 123' }
-  for (const target of [['emailNormalized'], ['id']]) {
-    const conflict = Object.assign(new Error('Conflicto'), { code: 'P2002', meta: { target } })
-    const accounts = createAccounts({ $transaction: async () => { throw conflict } }, '')
-    await assert.rejects(accounts.register(input), e => target[0] === 'emailNormalized' ? e.status === 409 && /Ya existe una cuenta con ese correo/.test(e.message) : e === conflict)
+  for (const exists of [true, false]) {
+    const conflict = Object.assign(new Error('Conflicto'), { code: 'P2002' })
+    const accounts = createAccounts({ $transaction: async () => { throw conflict }, user: { findUnique: async query => {
+      assert.deepEqual(query, { where: { emailNormalized: input.email }, select: { id: true } })
+      return exists ? { id: 'cuenta-existente' } : null
+    } } }, '')
+    await assert.rejects(accounts.register(input), e => exists ? e.status === 409 && /Ya existe una cuenta con ese correo/.test(e.message) : e === conflict)
   }
 })
 test('confirmación obligatoria y coincidencia exacta sin normalizar contraseña', () => {

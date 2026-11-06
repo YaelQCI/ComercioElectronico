@@ -23,7 +23,7 @@ export function createAccounts(db, secret) {
       if (confirmationError) throw new AccountError(400, confirmationError)
       const email = emailAddress(input?.email), displayName = accountText(input?.displayName, 'Nombre'), passwordHash = await hashPassword(input?.password)
       try { return await db.$transaction(async tx => session(tx, await tx.user.create({ data: { email: input.email.trim(), emailNormalized: email, displayName, passwordHash, role: 'CUSTOMER' } }))) }
-      catch (e) { if (e.code === 'P2002' && e.meta?.target?.includes('emailNormalized')) throw new AccountError(409, 'Ya existe una cuenta con ese correo electrónico. Inicia sesión o utiliza otro correo para registrarte.'); throw e }
+      catch (e) { if (e.code === 'P2002' && await db.user.findUnique({ where: { emailNormalized: email }, select: { id: true } })) throw new AccountError(409, 'Ya existe una cuenta con ese correo electrónico. Inicia sesión o utiliza otro correo para registrarte.'); throw e }
     },
     async login(input) {
       const email = emailAddress(input?.email), candidate = await db.user.findUnique({ where: { emailNormalized: email } })
